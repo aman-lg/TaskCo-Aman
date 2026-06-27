@@ -1,30 +1,28 @@
-"use client";
+import { createClient } from "@/lib/supabase/server";
+import { AppShell } from "@/components/layout/app-shell";
 
-import { useState } from "react";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
+/**
+ * AppLayout — server component.
+ *
+ * Fetches the authenticated user once at layout render time so the Topbar can
+ * show the correct name/avatar without a client-side useEffect waterfall.
+ * The client boundary is pushed down to <AppShell>, which owns sidebar
+ * collapse state and the logout action.
+ *
+ * Security: getUser() verifies the JWT with the Supabase Auth server on every
+ * call — it does not trust the client-accessible session cookie directly.
+ */
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-interface AppLayoutProps {
-  children: React.ReactNode;
-}
+  const profile = user
+    ? {
+        name:   (user.user_metadata?.full_name as string | null) ?? null,
+        email:  user.email ?? null,
+        avatar: (user.user_metadata?.avatar_url as string | null) ?? null,
+      }
+    : null;
 
-export default function AppLayout({ children }: AppLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false);
-  const sidebarWidth = collapsed ? 72 : 240;
-
-  return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--page-bg)" }}>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
-      <Topbar sidebarWidth={sidebarWidth} />
-      <main
-        className="pt-[60px] min-h-screen"
-        style={{
-          marginLeft: sidebarWidth,
-          transition: "margin-left 200ms ease",
-        }}
-      >
-        <div className="px-6 py-6 max-w-[1400px]">{children}</div>
-      </main>
-    </div>
-  );
+  return <AppShell profile={profile}>{children}</AppShell>;
 }

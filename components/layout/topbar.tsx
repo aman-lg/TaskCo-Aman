@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, LogOut, Settings, User } from "lucide-react";
+import { Bell, Loader2, LogOut, Settings, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ interface TopbarProps {
   };
   unreadCount?: number;
   onSignOut?: () => void;
+  isSigningOut?: boolean;
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -38,7 +39,7 @@ function getInitials(name?: string | null, email?: string | null): string {
   return (email?.[0] ?? "U").toUpperCase();
 }
 
-export function Topbar({ sidebarWidth, user, unreadCount = 0, onSignOut }: TopbarProps) {
+export function Topbar({ sidebarWidth, user, unreadCount = 0, onSignOut, isSigningOut = false }: TopbarProps) {
   const router = useRouter();
 
   return (
@@ -124,9 +125,14 @@ export function Topbar({ sidebarWidth, user, unreadCount = 0, onSignOut }: Topba
               className="flex items-center gap-2 cursor-pointer"
               style={{ color: "var(--clr-red)" }}
               onClick={onSignOut}
+              disabled={isSigningOut}
+              aria-label="Sign out"
             >
-              <LogOut className="h-4 w-4" />
-              Sign out
+              {isSigningOut
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <LogOut  className="h-4 w-4" />
+              }
+              {isSigningOut ? "Signing out…" : "Sign out"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

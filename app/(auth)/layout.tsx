@@ -7,11 +7,20 @@ const features = [
   { Icon: Users2,       text: "Stay aligned across projects and deadlines" },
 ];
 
+/**
+ * Auth layout — split panel (design.md §5, §8 session/event pages).
+ *
+ * Left  — fixed navy branded panel: wordmark, serif italic headline, feature
+ *         list, decorative concentric rings.
+ * Right — bare form area (no card container). Inputs sit directly on --page-bg
+ *         (#F6F7F9). White floating-label inputs provide natural contrast
+ *         without a wrapper box (Notion-flat principle, design.md §4 shadow).
+ */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex">
 
-      {/* ── Left panel (navy branded) — hidden on mobile ── */}
+      {/* ── Left panel (navy branded) ── */}
       <aside
         className="hidden lg:flex lg:w-[44%] xl:w-[42%] relative flex-col justify-between p-12 overflow-hidden flex-shrink-0"
         style={{ backgroundColor: "var(--navy)" }}
@@ -24,10 +33,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           Task<span style={{ color: "var(--accent-brand)" }}>Co</span>
         </Link>
 
-        {/* Main copy */}
+        {/* Copy block */}
         <div className="relative z-10">
           <p
-            className="text-[11px] font-semibold uppercase tracking-[2px] mb-4 anim-fade-in anim-d-150"
+            className="eyebrow mb-4 anim-fade-in anim-d-150"
             style={{ color: "var(--accent-brand)" }}
           >
             Team Task Management
@@ -40,7 +49,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </h2>
           <p
             className="text-[14px] leading-relaxed mb-10 anim-fade-up anim-d-250"
-            style={{ color: "rgba(255,255,255,0.58)" }}
+            style={{ color: "rgba(255,255,255,0.58)", textWrap: "pretty" } as React.CSSProperties}
           >
             Manage tasks, track time, and stay in sync with your team — all in one place.
           </p>
@@ -80,44 +89,29 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Decorative rings — bottom-right */}
         <span
           className="pointer-events-none absolute bottom-0 right-0 w-[320px] h-[320px] rounded-full"
-          style={{
-            border: "56px solid rgba(206,126,55,0.12)",
-            transform: "translate(38%, 38%)",
-          }}
+          style={{ border: "56px solid rgba(206,126,55,0.12)", transform: "translate(38%, 38%)" }}
         />
         <span
           className="pointer-events-none absolute bottom-0 right-0 w-[200px] h-[200px] rounded-full"
-          style={{
-            border: "40px solid rgba(206,126,55,0.08)",
-            transform: "translate(28%, 28%)",
-          }}
+          style={{ border: "40px solid rgba(206,126,55,0.08)", transform: "translate(28%, 28%)" }}
         />
         <span
           className="pointer-events-none absolute bottom-0 right-0 w-[100px] h-[100px] rounded-full"
-          style={{
-            backgroundColor: "rgba(206,126,55,0.14)",
-            transform: "translate(18%, 18%)",
-          }}
+          style={{ backgroundColor: "rgba(206,126,55,0.14)", transform: "translate(18%, 18%)" }}
         />
-
-        {/* Accent dots — top-right */}
-        <span
-          className="pointer-events-none absolute top-10 right-10 w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: "var(--accent-brand)", opacity: 0.55 }}
-        />
-        <span
-          className="pointer-events-none absolute top-16 right-16 w-1.5 h-1.5 rounded-full"
-          style={{ backgroundColor: "var(--accent-brand)", opacity: 0.3 }}
-        />
+        <span className="pointer-events-none absolute top-10 right-10 w-2.5 h-2.5 rounded-full"
+          style={{ backgroundColor: "var(--accent-brand)", opacity: 0.55 }} />
+        <span className="pointer-events-none absolute top-16 right-16 w-1.5 h-1.5 rounded-full"
+          style={{ backgroundColor: "var(--accent-brand)", opacity: 0.3 }} />
       </aside>
 
-      {/* ── Right panel (form) ── */}
+      {/* ── Right panel — bare form, no card wrapper ── */}
       <main
         className="flex-1 flex flex-col min-h-screen"
         style={{ backgroundColor: "var(--page-bg)" }}
       >
-        {/* Mobile-only brand strip */}
-        <div className="lg:hidden flex items-center justify-center pt-8 pb-1">
+        {/* Mobile brand strip */}
+        <div className="lg:hidden flex items-center justify-center pt-8 pb-2">
           <Link
             href="/login"
             className="text-[22px] font-extrabold tracking-tight anim-fade-down"
@@ -127,23 +121,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </Link>
         </div>
 
-        {/* Centered form */}
-        <div className="flex-1 flex items-center justify-center px-5 py-10">
-          <div className="w-full max-w-[420px]">
-
-            {/* Card — no shadow, clean border */}
-            <div
-              className="rounded-2xl p-8 anim-fade-up anim-d-100"
-              style={{
-                backgroundColor: "var(--surface-bg)",
-                border: "1px solid var(--line)",
-              }}
-            >
-              {children}
-            </div>
+        {/* Form area — no card, white inputs contrast naturally on --page-bg */}
+        <div className="flex-1 flex items-center justify-center px-8 py-12">
+          <div className="w-full max-w-[400px] anim-fade-up anim-d-100">
+            {children}
 
             <p
-              className="mt-5 text-center text-[11px] anim-fade-in anim-d-300"
+              className="mt-8 text-center text-[11px]"
               style={{ color: "var(--text-muted)" }}
             >
               Internal tool · Not for public access

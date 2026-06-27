@@ -265,7 +265,9 @@
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
     font-size: 14px;
+    font-weight: 500;          /* design.md §3: body = Montserrat 500 */
     line-height: 1.55;
+    text-wrap: pretty;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
@@ -304,29 +306,34 @@
 }
 
 /* ─────────────────────────────────────────────────────────
-   Typography scale
+   Typography scale  (matches design.md §3 exactly)
 ───────────────────────────────────────────────────────── */
+
+/* Page title */
 .h1 {
   font-family: var(--font-sans);
-  font-size: 26px;
-  font-weight: 800;
+  font-size: 28px;
+  font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.02em;
   color: var(--ink);
 }
+/* Section title */
 .h2 {
   font-family: var(--font-sans);
   font-size: 20px;
   font-weight: 700;
   line-height: 1.25;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
+/* Card title */
 .h3 {
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 .h4 {
@@ -336,21 +343,159 @@
   line-height: 1.35;
   color: var(--ink);
 }
-.serif-accent {
-  font-family: var(--font-serif);
-  font-style: italic;
-  color: var(--accent-d);
+/* Dashboard greeting */
+.display {
+  font-family: var(--font-sans);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  color: var(--ink);
 }
+/* Stat numbers */
+.stat-num {
+  font-family: var(--font-sans);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+/* Eyebrow — Montserrat 800, muted; orange variant adds .orange class */
 .eyebrow {
   font-family: var(--font-sans);
   font-weight: 800;
   font-size: 10.5px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--accent-brand);
+  color: var(--text-muted);
 }
-.tabular { font-variant-numeric: tabular-nums; }
+.eyebrow.orange { color: var(--accent-d); }
+
+/* Italic serif accent — a single word/name only, never body copy */
+.serif-accent {
+  font-family: var(--font-serif);
+  font-style: italic;
+  color: var(--accent-d);
+}
+
+.tabular      { font-variant-numeric: tabular-nums; }
 .text-balance { text-wrap: balance; }
+.text-pretty  { text-wrap: pretty; }
+
+/* ─────────────────────────────────────────────────────────
+   Floating-label inputs  (design.md §5)
+───────────────────────────────────────────────────────── */
+
+/* Wrapper must be position:relative so the label + toggle button
+   can be positioned absolutely inside it. */
+.float-label-wrap {
+  position: relative;
+}
+
+.float-label-input {
+  display: block;
+  width: 100%;
+  height: 56px;
+  /* top padding makes room for the lifted label; bottom is offset */
+  padding: 22px 14px 6px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-lg);   /* 12px */
+  background: var(--surface-bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 150ms var(--ease-out),
+              box-shadow   150ms var(--ease-out);
+  /* Hide the placeholder — the floating label IS the visual placeholder */
+  caret-color: var(--navy);
+}
+.float-label-input::placeholder { color: transparent; }
+
+/* Hover: border darkens subtly */
+.float-label-input:hover:not(:disabled) {
+  border-color: var(--text-muted);
+}
+/* Focus: navy border + navy-50 ring */
+.float-label-input:focus {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px var(--navy-50);
+}
+/* Error state */
+.float-label-input.error-state {
+  border-color: var(--clr-red);
+  background: color-mix(in srgb, var(--clr-red-bg) 40%, var(--surface-bg));
+}
+.float-label-input.error-state:focus {
+  border-color: var(--clr-red);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+/* Password field: make room for the show/hide toggle */
+.float-label-input.has-toggle { padding-right: 48px; }
+
+/* The floating label element — positioned inside the wrapper */
+.float-label {
+  position: absolute;
+  left: 14px;
+  /* Resting: vertically centered, full size */
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  pointer-events: none;
+  user-select: none;
+  transition: top          150ms var(--ease-out),
+              transform    150ms var(--ease-out),
+              font-size    150ms var(--ease-out),
+              font-weight  150ms var(--ease-out),
+              color        150ms var(--ease-out);
+  white-space: nowrap;
+}
+
+/* Lifted state — triggered by focus OR a non-empty value
+   (:not(:placeholder-shown) fires when input has a value, because
+    we use placeholder=" " so the space-placeholder hides on any input) */
+.float-label-input:focus        ~ .float-label,
+.float-label-input:not(:placeholder-shown) ~ .float-label {
+  top: 10px;
+  transform: translateY(0);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+}
+/* When focused: label turns navy */
+.float-label-input:focus ~ .float-label {
+  color: var(--navy);
+}
+/* Error: label turns red in both states */
+.float-label-input.error-state        ~ .float-label,
+.float-label-input.error-state:focus  ~ .float-label {
+  color: var(--clr-red);
+}
+
+/* Password-toggle button sits absolutely in the wrapper */
+.float-label-toggle {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 120ms var(--ease-out);
+}
+.float-label-toggle:hover { color: var(--ink); }
 
 /* ─────────────────────────────────────────────────────────
    Entrance animation system

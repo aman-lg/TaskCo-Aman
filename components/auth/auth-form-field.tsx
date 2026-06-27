@@ -8,51 +8,60 @@ interface AuthFormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   hint?: string;
+  /** placeholder prop is intentionally ignored — the floating label IS the placeholder */
+  placeholder?: string;
 }
 
+/**
+ * AuthFormField — floating-label input following the design system spec (§5).
+ *
+ * Label behaviour:
+ *   Resting  → centered inside the input, acts as a visual placeholder
+ *   Lifted   → top-left at 10px, 10.5px/700, letter-spaced; triggered by
+ *              focus OR non-empty value (:not(:placeholder-shown) CSS trick)
+ *
+ * The `placeholder` prop from the caller is discarded. A single-space
+ * placeholder " " is set on the <input> so CSS :not(:placeholder-shown)
+ * can fire correctly when the user has typed a value.
+ */
 export const AuthFormField = forwardRef<HTMLInputElement, AuthFormFieldProps>(
-  ({ label, error, hint, type, className, id, ...props }, ref) => {
+  ({ label, error, hint, type, className, id, placeholder: _ignored, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === "password";
-    const inputType = isPassword && showPassword ? "text" : type;
+    const inputType  = isPassword && showPassword ? "text" : type;
 
     return (
       <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={id}
-          className="text-[13px] font-semibold"
-          style={{ color: "var(--ink)" }}
-        >
-          {label}
-        </label>
 
-        <div className="relative">
+        {/* Wrapper provides position:relative for label + toggle */}
+        <div className="float-label-wrap">
           <input
             ref={ref}
             id={id}
             type={inputType}
+            /* Single space — transparent via CSS, triggers :not(:placeholder-shown) */
+            placeholder=" "
             className={cn(
-              "w-full h-11 px-3.5 rounded-xl text-[14px] font-medium outline-none",
-              "placeholder:text-[var(--text-placeholder)] placeholder:font-normal",
-              "transition-[border-color,box-shadow] duration-150 ease-out",
-              error
-                ? "border-[1.5px] border-[var(--clr-red)] bg-[var(--clr-red-bg)]/30 focus:border-[var(--clr-red)] focus:shadow-[0_0_0_3px_rgba(220,38,38,0.12)]"
-                : "border-[1.5px] border-[var(--line)] bg-[var(--surface-bg)] hover:border-[var(--text-muted)] focus:border-[var(--navy)] focus:shadow-[0_0_0_3px_rgba(16,18,90,0.10)]",
-              isPassword && "pr-11",
+              "float-label-input",
+              error      && "error-state",
+              isPassword && "has-toggle",
               className
             )}
-            style={{ color: "var(--ink)" }}
+            aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+            aria-invalid={!!error}
             {...props}
           />
+
+          {/* Label MUST follow <input> in the DOM — CSS uses the ~ sibling selector */}
+          <label htmlFor={id} className="float-label">
+            {label}
+          </label>
 
           {isPassword && (
             <button
               type="button"
+              className="float-label-toggle"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors duration-100"
-              style={{ color: "var(--text-muted)" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "var(--ink)")}
-              onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
               aria-label={showPassword ? "Hide password" : "Show password"}
               tabIndex={-1}
             >
@@ -66,14 +75,20 @@ export const AuthFormField = forwardRef<HTMLInputElement, AuthFormFieldProps>(
 
         {error && (
           <p
-            className="text-[12px] font-medium flex items-center gap-1"
+            id={`${id}-error`}
+            role="alert"
+            className="text-[12px] font-semibold"
             style={{ color: "var(--clr-red)" }}
           >
             {error}
           </p>
         )}
         {hint && !error && (
-          <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
+          <p
+            id={`${id}-hint`}
+            className="text-[12px] font-medium"
+            style={{ color: "var(--text-muted)" }}
+          >
             {hint}
           </p>
         )}

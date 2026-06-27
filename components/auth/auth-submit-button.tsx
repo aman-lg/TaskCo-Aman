@@ -14,9 +14,9 @@ interface AuthSubmitButtonProps {
  * AuthSubmitButton — primary action CTA following the design system spec (§5).
  *
  * Design rules applied:
- *   - Orange fill (#CE7E37) — "Orange = action" per §9 principle 3
- *   - Pill radius (999px) — design.md §5: "Pill radius for CTAs"
- *   - --shadow-needle on hover — orange glow, reserved for active/CTA states
+ *   - Dark brand fill (#19183B) — high contrast, white text readable at all sizes
+ *   - Pill radius (999px) — pill CTAs per design spec
+ *   - --shadow-needle on hover — teal glow ring for active/CTA states
  *   - scale(0.98) on press — tactile press feedback
  *   - Loader2 spinner replaces icon slot while request is in-flight
  */
@@ -36,11 +36,11 @@ export function AuthSubmitButton({ loading, label, loadingLabel, className }: Au
         /* States */
         "hover:shadow-[var(--shadow-needle)]",
         "active:scale-[0.98]",
-        "focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgba(206,126,55,0.4)]",
+        "focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgba(161,194,189,0.4)]",
         "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 disabled:hover:shadow-none",
         className
       )}
-      style={{ backgroundColor: "var(--accent-brand)" }}
+      style={{ backgroundColor: "var(--navy)" }}
     >
       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
       {loading ? (loadingLabel ?? label) : label}

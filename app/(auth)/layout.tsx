@@ -28,7 +28,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Brand mark */}
         <Link
           href="/login"
-          className="inline-block text-[22px] font-extrabold tracking-tight text-white anim-fade-down"
+          className="inline-block text-[22px] font-bold tracking-tight text-white anim-fade-down"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
         >
           Task<span style={{ color: "var(--accent-brand)" }}>Co</span>
         </Link>
@@ -42,8 +43,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Team Task Management
           </p>
           <h2
-            className="text-[38px] leading-[1.15] font-normal text-white mb-5 text-balance anim-fade-up anim-d-200"
-            style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic" }}
+            className="text-[38px] leading-[1.15] font-bold text-white mb-5 text-balance anim-fade-up anim-d-200"
+            style={{ fontFamily: "'Space Grotesk', sans-serif", letterSpacing: "-0.02em" }}
           >
             Your workspace,<br />beautifully<br />organised.
           </h2>
@@ -89,20 +90,20 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Decorative rings — bottom-right */}
         <span
           className="pointer-events-none absolute bottom-0 right-0 w-[320px] h-[320px] rounded-full"
-          style={{ border: "56px solid rgba(206,126,55,0.12)", transform: "translate(38%, 38%)" }}
+          style={{ border: "56px solid rgba(161,194,189,0.12)", transform: "translate(38%, 38%)" }}
         />
         <span
           className="pointer-events-none absolute bottom-0 right-0 w-[200px] h-[200px] rounded-full"
-          style={{ border: "40px solid rgba(206,126,55,0.08)", transform: "translate(28%, 28%)" }}
+          style={{ border: "40px solid rgba(161,194,189,0.08)", transform: "translate(28%, 28%)" }}
         />
         <span
           className="pointer-events-none absolute bottom-0 right-0 w-[100px] h-[100px] rounded-full"
-          style={{ backgroundColor: "rgba(206,126,55,0.14)", transform: "translate(18%, 18%)" }}
+          style={{ backgroundColor: "rgba(161,194,189,0.15)", transform: "translate(18%, 18%)" }}
         />
         <span className="pointer-events-none absolute top-10 right-10 w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: "var(--accent-brand)", opacity: 0.55 }} />
+          style={{ backgroundColor: "var(--accent-brand)", opacity: 0.6 }} />
         <span className="pointer-events-none absolute top-16 right-16 w-1.5 h-1.5 rounded-full"
-          style={{ backgroundColor: "var(--accent-brand)", opacity: 0.3 }} />
+          style={{ backgroundColor: "var(--accent-brand)", opacity: 0.35 }} />
       </aside>
 
       {/* ── Right panel — bare form, no card wrapper ── */}
@@ -114,8 +115,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="lg:hidden flex items-center justify-center pt-8 pb-2">
           <Link
             href="/login"
-            className="text-[22px] font-extrabold tracking-tight anim-fade-down"
-            style={{ color: "var(--navy)" }}
+            className="text-[22px] font-bold tracking-tight anim-fade-down"
+            style={{ color: "var(--navy)", fontFamily: "'Space Grotesk', sans-serif" }}
           >
             Task<span style={{ color: "var(--accent-brand)" }}>Co</span>
           </Link>

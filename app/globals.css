@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Instrument+Serif:ital@0;1&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -7,36 +7,39 @@
 
 /* ─────────────────────────────────────────────────────────
    Light theme — brand token layer
+   Palette: #19183B · #708993 · #A1C2BD · #E7F2EF · white · grey
 ───────────────────────────────────────────────────────── */
 :root {
-  /* Brand */
-  --navy:           #10125A;
-  --navy-d:         #0C0E4A;
-  --navy-700:       #0C0E4A;
-  --navy-50:        #EAEBF4;
-  --navy-l:         rgba(16, 18, 90, 0.08);
-  --accent-brand:   #CE7E37;
-  --accent-d:       #B85808;
-  --accent-m:       #CF6516;
-  --accent-bg:      #FBF1E7;
-  --accent-bd:      #F2D9BD;
-  --accent-l:       rgba(232, 165, 109, 0.12);
+  /* Brand — deep teal-dark primary */
+  --navy:           #19183B;
+  --navy-d:         #0F0E26;
+  --navy-700:       #0F0E26;
+  --navy-50:        #E7F2EF;          /* pale teal ring / tint */
+  --navy-l:         rgba(25, 24, 59, 0.08);
+
+  /* Accent — teal family */
+  --accent-brand:   #A1C2BD;          /* light teal — highlights, active bg */
+  --accent-d:       #708993;          /* mid teal — muted UI, icons */
+  --accent-m:       #8BAAA6;
+  --accent-bg:      #E7F2EF;          /* pale teal — chip / tint backgrounds */
+  --accent-bd:      #C4DAD7;
+  --accent-l:       rgba(161, 194, 189, 0.15);
 
   /* Surfaces */
   --shell-bg:       #FFFFFF;
-  --page-bg:        #F6F7F9;
-  --panel-bg:       #F7F8FA;
+  --page-bg:        #F4F6F5;          /* light grey, barely teal-tinted */
+  --panel-bg:       #F6F9F8;
   --surface-bg:     #FFFFFF;
   --sidebar-bg:     #FFFFFF;
-  --line:           #E4E7EE;
-  --line-soft:      #EDF0F5;
+  --line:           #DDE6E5;
+  --line-soft:      #EBF0EF;
 
   /* Text */
-  --ink:            #2A2E36;
-  --text-secondary: #4B5568;
-  --text-muted:     #718096;
-  --text-placeholder: #A0AEC0;
-  --text-fine:      #94A3B8;
+  --ink:            #1A1A2E;
+  --text-secondary: #4A5A5E;
+  --text-muted:     #708993;          /* mid teal = muted text */
+  --text-placeholder: #A1B8BC;
+  --text-fine:      #96B0AB;
 
   /* Status */
   --clr-green:      #16A34A;
@@ -50,17 +53,17 @@
 
   /* Task status semantic tokens */
   --status-todo:           #64748B;
-  --status-todo-bg:        #EDF0F5;
-  --status-in-progress:    #10125A;
-  --status-in-progress-bg: #EAEBF4;
+  --status-todo-bg:        #EEF3F2;
+  --status-in-progress:    #19183B;
+  --status-in-progress-bg: #E7F2EF;
   --status-done:           #16A34A;
   --status-done-bg:        #EDF7ED;
 
   /* Urgency semantic tokens */
-  --urgency-low:           #64748B;
-  --urgency-low-bg:        #EDF0F5;
-  --urgency-medium:        #CE7E37;
-  --urgency-medium-bg:     #FBF1E7;
+  --urgency-low:           #708993;
+  --urgency-low-bg:        #EEF3F2;
+  --urgency-medium:        #708993;
+  --urgency-medium-bg:     #E7F2EF;
   --urgency-high:          #D97706;
   --urgency-high-bg:       #FFF4E5;
   --urgency-urgent:        #DC2626;
@@ -74,46 +77,46 @@
   --r-pill:         999px;
 
   /* Shadows */
-  --shadow-card:    0 1px 3px rgba(16, 18, 90, 0.06), 0 1px 2px rgba(16, 18, 90, 0.04);
-  --shadow-elev:    0 4px 24px rgba(16, 18, 90, 0.12), 0 1px 4px rgba(16, 18, 90, 0.06);
-  --shadow-soft:    0 2px 8px rgba(16, 18, 90, 0.07);
-  --shadow-needle:  0 0 0 3px rgba(206, 126, 55, 0.25), 0 2px 8px rgba(206, 126, 55, 0.20);
+  --shadow-card:    0 1px 3px rgba(25, 24, 59, 0.06), 0 1px 2px rgba(25, 24, 59, 0.04);
+  --shadow-elev:    0 4px 24px rgba(25, 24, 59, 0.10), 0 1px 4px rgba(25, 24, 59, 0.05);
+  --shadow-soft:    0 2px 8px rgba(25, 24, 59, 0.07);
+  --shadow-needle:  0 0 0 3px rgba(161, 194, 189, 0.30), 0 4px 16px rgba(25, 24, 59, 0.12);
 
   /* ── shadcn/ui semantic layer ── */
-  --background:             #F6F7F9;
-  --foreground:             #2A2E36;
+  --background:             #F4F6F5;
+  --foreground:             #1A1A2E;
   --card:                   #FFFFFF;
-  --card-foreground:        #2A2E36;
+  --card-foreground:        #1A1A2E;
   --popover:                #FFFFFF;
-  --popover-foreground:     #2A2E36;
-  --primary:                #10125A;
+  --popover-foreground:     #1A1A2E;
+  --primary:                #19183B;
   --primary-foreground:     #FFFFFF;
-  --secondary:              #EAEBF4;
-  --secondary-foreground:   #10125A;
-  --muted:                  #F7F8FA;
-  --muted-foreground:       #718096;
-  --accent:                 #FBF1E7;
-  --accent-foreground:      #B85808;
+  --secondary:              #E7F2EF;
+  --secondary-foreground:   #19183B;
+  --muted:                  #F6F9F8;
+  --muted-foreground:       #708993;
+  --accent:                 #E7F2EF;
+  --accent-foreground:      #19183B;
   --destructive:            #DC2626;
-  --border:                 #E4E7EE;
-  --input:                  #E4E7EE;
-  --ring:                   #10125A;
+  --border:                 #DDE6E5;
+  --input:                  #DDE6E5;
+  --ring:                   #A1C2BD;
   --radius:                 8px;
 
   /* Sidebar tokens */
   --sidebar:                #FFFFFF;
-  --sidebar-foreground:     #2A2E36;
-  --sidebar-primary:        #10125A;
+  --sidebar-foreground:     #1A1A2E;
+  --sidebar-primary:        #19183B;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:         #EAEBF4;
-  --sidebar-accent-foreground: #10125A;
-  --sidebar-border:         #E4E7EE;
-  --sidebar-ring:           #10125A;
+  --sidebar-accent:         #E7F2EF;
+  --sidebar-accent-foreground: #19183B;
+  --sidebar-border:         #DDE6E5;
+  --sidebar-ring:           #A1C2BD;
 
   /* Fonts */
-  --font-sans:   'Montserrat', system-ui, sans-serif;
-  --font-serif:  'Instrument Serif', Georgia, serif;
-  --font-mono:   ui-monospace, SFMono-Regular, monospace;
+  --font-sans:     'DM Sans', system-ui, sans-serif;
+  --font-display:  'Space Grotesk', system-ui, sans-serif;
+  --font-mono:     ui-monospace, SFMono-Regular, monospace;
 
   /* Animation */
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
@@ -129,30 +132,30 @@
    Dark theme token remaps
 ───────────────────────────────────────────────────────── */
 .dark {
-  --navy:           #4044B8;
-  --navy-d:         #3337A0;
+  --navy:           #7B7ACA;          /* lightened brand for dark bg */
+  --navy-d:         #6564B8;
   --navy-50:        #1E2156;
-  --navy-l:         rgba(64, 68, 184, 0.12);
-  --accent-brand:   #F9A05A;
-  --accent-d:       #F47820;
-  --accent-m:       #F08030;
-  --accent-bg:      #2D1F0E;
-  --accent-bd:      #4A3018;
-  --accent-l:       rgba(249, 160, 90, 0.12);
+  --navy-l:         rgba(123, 122, 202, 0.12);
+  --accent-brand:   #B5D4D0;
+  --accent-d:       #96B0AB;
+  --accent-m:       #A8C4C0;
+  --accent-bg:      #141F1E;
+  --accent-bd:      #2A4040;
+  --accent-l:       rgba(181, 212, 208, 0.12);
 
   --shell-bg:       #0F1117;
-  --page-bg:        #131720;
-  --panel-bg:       #181D2A;
-  --surface-bg:     #1A1F2E;
-  --sidebar-bg:     #161B27;
-  --line:           #252D40;
-  --line-soft:      #1E2438;
+  --page-bg:        #111418;
+  --panel-bg:       #181D22;
+  --surface-bg:     #1A1F26;
+  --sidebar-bg:     #161B20;
+  --line:           #253030;
+  --line-soft:      #1E2828;
 
   --ink:            #E8ECF4;
-  --text-secondary: #B0BAD0;
-  --text-muted:     #7A88A8;
-  --text-placeholder: #4A5470;
-  --text-fine:      #5A6A88;
+  --text-secondary: #A8BCC0;
+  --text-muted:     #6E8E94;
+  --text-placeholder: #3A5058;
+  --text-fine:      #4A6068;
 
   --clr-green:      #22C55E;
   --clr-green-bg:   #0A2018;
@@ -163,49 +166,49 @@
   --clr-violet:     #A855F7;
   --clr-violet-bg:  #1E0A38;
 
-  --status-todo:           #8090B0;
-  --status-todo-bg:        #1E2438;
-  --status-in-progress:    #4044B8;
+  --status-todo:           #6E8E94;
+  --status-todo-bg:        #1E2828;
+  --status-in-progress:    #7B7ACA;
   --status-in-progress-bg: #1E2156;
   --status-done:           #22C55E;
   --status-done-bg:        #0A2018;
 
-  --urgency-low:           #8090B0;
-  --urgency-low-bg:        #1E2438;
-  --urgency-medium:        #F9A05A;
-  --urgency-medium-bg:     #2D1F0E;
+  --urgency-low:           #6E8E94;
+  --urgency-low-bg:        #1E2828;
+  --urgency-medium:        #96B0AB;
+  --urgency-medium-bg:     #141F1E;
   --urgency-high:          #F59E0B;
   --urgency-high-bg:       #251800;
   --urgency-urgent:        #EF4444;
   --urgency-urgent-bg:     #250A0A;
 
-  --background:             #131720;
+  --background:             #111418;
   --foreground:             #E8ECF4;
-  --card:                   #1A1F2E;
+  --card:                   #1A1F26;
   --card-foreground:        #E8ECF4;
-  --popover:                #1A1F2E;
+  --popover:                #1A1F26;
   --popover-foreground:     #E8ECF4;
-  --primary:                #4044B8;
+  --primary:                #7B7ACA;
   --primary-foreground:     #FFFFFF;
   --secondary:              #1E2156;
   --secondary-foreground:   #E8ECF4;
-  --muted:                  #181D2A;
-  --muted-foreground:       #7A88A8;
-  --accent:                 #2D1F0E;
-  --accent-foreground:      #F47820;
+  --muted:                  #181D22;
+  --muted-foreground:       #6E8E94;
+  --accent:                 #141F1E;
+  --accent-foreground:      #B5D4D0;
   --destructive:            #EF4444;
-  --border:                 #252D40;
-  --input:                  #252D40;
-  --ring:                   #4044B8;
+  --border:                 #253030;
+  --input:                  #253030;
+  --ring:                   #B5D4D0;
 
-  --sidebar:                #161B27;
+  --sidebar:                #161B20;
   --sidebar-foreground:     #E8ECF4;
-  --sidebar-primary:        #4044B8;
+  --sidebar-primary:        #7B7ACA;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent:         #1E2156;
   --sidebar-accent-foreground: #E8ECF4;
-  --sidebar-border:         #252D40;
-  --sidebar-ring:           #4044B8;
+  --sidebar-border:         #253030;
+  --sidebar-ring:           #B5D4D0;
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -238,8 +241,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border:         var(--sidebar-border);
   --color-sidebar-ring:           var(--sidebar-ring);
-  --font-sans:                    'Montserrat', system-ui, sans-serif;
-  --font-serif:                   'Instrument Serif', Georgia, serif;
+  --font-sans:                    'DM Sans', system-ui, sans-serif;
+  --font-display:                 'Space Grotesk', system-ui, sans-serif;
   --font-mono:                    ui-monospace, SFMono-Regular, monospace;
   --radius-sm:                    var(--r-sm);
   --radius-md:                    var(--r-md);
@@ -265,7 +268,7 @@
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
     font-size: 14px;
-    font-weight: 500;          /* design.md §3: body = Montserrat 500 */
+    font-weight: 400;
     line-height: 1.55;
     text-wrap: pretty;
     -webkit-font-smoothing: antialiased;
@@ -306,12 +309,14 @@
 }
 
 /* ─────────────────────────────────────────────────────────
-   Typography scale  (matches design.md §3 exactly)
+   Typography scale
+   Headlines / display — Space Grotesk (--font-display)
+   Body / UI            — DM Sans       (--font-sans)
 ───────────────────────────────────────────────────────── */
 
 /* Page title */
 .h1 {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 28px;
   font-weight: 700;
   line-height: 1.2;
@@ -320,7 +325,7 @@
 }
 /* Section title */
 .h2 {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 20px;
   font-weight: 700;
   line-height: 1.25;
@@ -329,7 +334,7 @@
 }
 /* Card title */
 .h3 {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
   line-height: 1.3;
@@ -337,7 +342,7 @@
   color: var(--ink);
 }
 .h4 {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
@@ -345,39 +350,32 @@
 }
 /* Dashboard greeting */
 .display {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 36px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.025em;
   text-wrap: balance;
   color: var(--ink);
 }
 /* Stat numbers */
 .stat-num {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   font-size: 32px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
-/* Eyebrow — Montserrat 800, muted; orange variant adds .orange class */
+/* Eyebrow — DM Sans caps, muted; .teal variant uses accent-d */
 .eyebrow {
   font-family: var(--font-sans);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 10.5px;
   letter-spacing: 1.4px;
   text-transform: uppercase;
   color: var(--text-muted);
 }
-.eyebrow.orange { color: var(--accent-d); }
-
-/* Italic serif accent — a single word/name only, never body copy */
-.serif-accent {
-  font-family: var(--font-serif);
-  font-style: italic;
-  color: var(--accent-d);
-}
+.eyebrow.teal { color: var(--accent-d); }
 
 .tabular      { font-variant-numeric: tabular-nums; }
 .text-balance { text-wrap: balance; }
@@ -418,10 +416,10 @@
 .float-label-input:hover:not(:disabled) {
   border-color: var(--text-muted);
 }
-/* Focus: navy border + navy-50 ring */
+/* Focus: dark brand border + pale teal ring */
 .float-label-input:focus {
   border-color: var(--navy);
-  box-shadow: 0 0 0 3px var(--navy-50);
+  box-shadow: 0 0 0 3px rgba(161, 194, 189, 0.28);
 }
 /* Error state */
 .float-label-input.error-state {
@@ -464,7 +462,7 @@
   top: 10px;
   transform: translateY(0);
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.2px;
   color: var(--text-muted);
 }

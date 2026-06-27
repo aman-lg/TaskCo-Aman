@@ -16,8 +16,12 @@ export function AuthSubmitButton({ loading, label, loadingLabel, className }: Au
       type="submit"
       disabled={loading}
       className={cn(
-        "w-full h-10 rounded-lg text-sm font-bold text-white transition-opacity flex items-center justify-center gap-2",
-        "disabled:opacity-60 disabled:cursor-not-allowed",
+        "w-full h-11 rounded-xl text-[14px] font-bold text-white",
+        "flex items-center justify-center gap-2",
+        "transition-[background-color,opacity,transform,box-shadow] duration-150 ease-out",
+        "hover:brightness-110 active:scale-[0.98]",
+        "disabled:opacity-55 disabled:cursor-not-allowed disabled:active:scale-100",
+        "focus-visible:outline-none focus-visible:shadow-[0_0_0_3px_rgba(206,126,55,0.45)]",
         className
       )}
       style={{ backgroundColor: "var(--navy)" }}

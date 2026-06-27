@@ -42,16 +42,16 @@ export default function ResetPasswordPage() {
 
   if (done) {
     return (
-      <div className="flex flex-col items-center text-center gap-4">
+      <div className="flex flex-col items-center text-center gap-5 anim-scale-in">
         <div
-          className="h-12 w-12 rounded-full flex items-center justify-center"
+          className="h-14 w-14 rounded-2xl flex items-center justify-center"
           style={{ backgroundColor: "var(--clr-green-bg)" }}
         >
-          <CheckCircle className="h-6 w-6" style={{ color: "var(--clr-green)" }} />
+          <CheckCircle className="h-7 w-7" style={{ color: "var(--clr-green)" }} />
         </div>
         <div>
-          <h1 className="h2" style={{ color: "var(--ink)" }}>Password updated</h1>
-          <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <h1 className="h2">Password updated</h1>
+          <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
             Your password has been changed. Redirecting you to the dashboard…
           </p>
         </div>
@@ -61,35 +61,41 @@ export default function ResetPasswordPage() {
 
   return (
     <>
-      <div className="mb-6">
-        <p className="eyebrow mb-1">New password</p>
-        <h1 className="h1" style={{ color: "var(--ink)" }}>Reset password</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+      <div className="mb-7 anim-fade-up anim-d-150">
+        <p className="eyebrow mb-1.5">New password</p>
+        <h1 className="h1">Reset password</h1>
+        <p className="mt-1.5 text-[13px]" style={{ color: "var(--text-secondary)" }}>
           Choose a strong new password for your account.
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-        <AuthFormField
-          id="password"
-          label="New password"
-          type="password"
-          autoComplete="new-password"
-          placeholder="Min 8 chars, 1 uppercase, 1 number"
-          hint="Min. 8 characters, one uppercase letter, one number."
-          error={errors.password?.message}
-          {...register("password")}
-        />
-        <AuthFormField
-          id="confirmPassword"
-          label="Confirm new password"
-          type="password"
-          autoComplete="new-password"
-          placeholder="Repeat your new password"
-          error={errors.confirmPassword?.message}
-          {...register("confirmPassword")}
-        />
-        <AuthSubmitButton loading={loading} label="Update password" loadingLabel="Updating…" />
+        <div className="anim-fade-up anim-d-200">
+          <AuthFormField
+            id="password"
+            label="New password"
+            type="password"
+            autoComplete="new-password"
+            placeholder="Min 8 chars, 1 uppercase, 1 number"
+            hint="Min. 8 characters, one uppercase letter, one number."
+            error={errors.password?.message}
+            {...register("password")}
+          />
+        </div>
+        <div className="anim-fade-up anim-d-250">
+          <AuthFormField
+            id="confirmPassword"
+            label="Confirm new password"
+            type="password"
+            autoComplete="new-password"
+            placeholder="Repeat your new password"
+            error={errors.confirmPassword?.message}
+            {...register("confirmPassword")}
+          />
+        </div>
+        <div className="anim-fade-up anim-d-300">
+          <AuthSubmitButton loading={loading} label="Update password" loadingLabel="Updating…" />
+        </div>
       </form>
     </>
   );

@@ -44,22 +44,22 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <div className="flex flex-col items-center text-center gap-4">
+      <div className="flex flex-col items-center text-center gap-5 anim-scale-in">
         <div
-          className="h-12 w-12 rounded-full flex items-center justify-center"
+          className="h-14 w-14 rounded-2xl flex items-center justify-center"
           style={{ backgroundColor: "var(--clr-green-bg)" }}
         >
-          <CheckCircle className="h-6 w-6" style={{ color: "var(--clr-green)" }} />
+          <CheckCircle className="h-7 w-7" style={{ color: "var(--clr-green)" }} />
         </div>
         <div>
-          <h1 className="h2" style={{ color: "var(--ink)" }}>Check your email</h1>
-          <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+          <h1 className="h2">Check your email</h1>
+          <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
             We sent a password reset link to{" "}
             <span className="font-semibold" style={{ color: "var(--ink)" }}>{sentEmail}</span>.
             It expires in 1 hour.
           </p>
         </div>
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+        <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>
           Didn&apos;t receive it? Check your spam folder or{" "}
           <button
             onClick={() => setSent(false)}
@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
         </p>
         <Link
           href="/login"
-          className="flex items-center gap-1.5 text-sm font-semibold hover:underline mt-2"
+          className="flex items-center gap-1.5 text-[13px] font-semibold hover:underline mt-1"
           style={{ color: "var(--navy)" }}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -83,31 +83,35 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
-      <div className="mb-6">
-        <p className="eyebrow mb-1">Password reset</p>
-        <h1 className="h1" style={{ color: "var(--ink)" }}>Forgot password?</h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+      <div className="mb-7 anim-fade-up anim-d-150">
+        <p className="eyebrow mb-1.5">Password reset</p>
+        <h1 className="h1">Forgot password?</h1>
+        <p className="mt-1.5 text-[13px]" style={{ color: "var(--text-secondary)" }}>
           Enter your email and we&apos;ll send you a reset link.
         </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
-        <AuthFormField
-          id="email"
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          placeholder="you@company.com"
-          error={errors.email?.message}
-          {...register("email")}
-        />
-        <AuthSubmitButton loading={loading} label="Send reset link" loadingLabel="Sending…" />
+        <div className="anim-fade-up anim-d-200">
+          <AuthFormField
+            id="email"
+            label="Email address"
+            type="email"
+            autoComplete="email"
+            placeholder="you@company.com"
+            error={errors.email?.message}
+            {...register("email")}
+          />
+        </div>
+        <div className="anim-fade-up anim-d-250">
+          <AuthSubmitButton loading={loading} label="Send reset link" loadingLabel="Sending…" />
+        </div>
       </form>
 
-      <p className="mt-5 text-center">
+      <p className="mt-6 text-center anim-fade-in anim-d-350">
         <Link
           href="/login"
-          className="flex items-center justify-center gap-1.5 text-sm font-semibold hover:underline"
+          className="flex items-center justify-center gap-1.5 text-[13px] font-semibold hover:underline"
           style={{ color: "var(--navy)" }}
         >
           <ArrowLeft className="h-3.5 w-3.5" />

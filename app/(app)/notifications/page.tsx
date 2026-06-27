@@ -1,0 +1,8 @@
+export default function NotificationsPage() {
+  return (
+    <div>
+      <h1 className="h1" style={{ color: "var(--ink)" }}>Notifications</h1>
+      <p className="mt-2" style={{ color: "var(--text-secondary)" }}>Coming in Phase 8.</p>
+    </div>
+  );
+}

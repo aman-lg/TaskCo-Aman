@@ -23,7 +23,7 @@ export const GET = withAuth(async (_req: NextRequest, { user }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (await createClient() as any)
     .from("profiles")
-    .select("id, full_name, avatar_url, email, created_at")
+    .select("id, full_name, avatar_url, email, phone, created_at")
     .eq("id", user.id)
     .single();
   if (error) return ApiError.notFound("Profile not found");

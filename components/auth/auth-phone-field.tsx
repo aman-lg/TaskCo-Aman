@@ -26,7 +26,7 @@ export function AuthPhoneField({ countryCode, localPhone, onCodeChange, onPhoneC
             borderRadius: 10,
             background: error
               ? "color-mix(in srgb, var(--clr-red-bg) 40%, var(--surface-bg))"
-              : "var(--panel-bg)",
+              : "#ffffff",
             boxShadow: focused
               ? error
                 ? "0 0 0 3px rgba(220, 38, 38, 0.12)"
@@ -48,20 +48,21 @@ export function AuthPhoneField({ countryCode, localPhone, onCodeChange, onPhoneC
             style={{ width: 1, height: 24, background: "var(--line)" }}
           />
 
-          {/* Number input — padded top so text sits below the lifted label */}
+          {/* Number input */}
           <input
             type="tel"
             value={localPhone}
             onChange={e => onPhoneChange(e.target.value.replace(/\D/g, ""))}
-            placeholder=" "
+            placeholder="Phone number"
             maxLength={15}
             autoComplete="tel"
-            className="flex-1 min-w-0 bg-transparent outline-none"
+            className="flex-1 min-w-0 outline-none"
             style={{
               fontSize: 15,
               color: "var(--ink)",
               caretColor: "var(--navy)",
               padding: "0 14px",
+              background: "transparent",
             }}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}

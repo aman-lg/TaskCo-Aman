@@ -14,6 +14,7 @@ import {
   LogOut,
   Loader2,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -50,16 +51,22 @@ interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
   profile?: { name: string | null; email: string | null; avatar: string | null } | null;
+  isAdmin?: boolean;
   onSignOut?: () => void;
   isSigningOut?: boolean;
 }
 
 export function Sidebar({
   collapsed, onToggle, mobileOpen = false, onMobileClose,
-  profile, onSignOut, isSigningOut,
+  profile, isAdmin = false, onSignOut, isSigningOut,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
+  ];
 
   const iconBtn = "flex items-center justify-center rounded-lg transition-colors cursor-pointer text-[var(--text-muted)] hover:bg-[var(--line-soft)] hover:text-[var(--ink)]";
 
@@ -105,7 +112,7 @@ export function Sidebar({
 
         {/* ── Nav items ── */}
         <nav className="flex-1 flex flex-col gap-0.5 py-1.5 overflow-y-auto">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href || pathname.startsWith(href + "/");
 
             if (collapsed) {

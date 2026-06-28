@@ -9,6 +9,7 @@ interface AppShellProfile {
   name: string | null;
   email: string | null;
   avatar: string | null;
+  isAdmin?: boolean;
 }
 
 interface AppShellProps {
@@ -40,6 +41,7 @@ export function AppShell({ children, profile }: AppShellProps) {
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
         profile={profile}
+        isAdmin={profile?.isAdmin ?? false}
         onSignOut={logout}
         isSigningOut={isLoading}
       />

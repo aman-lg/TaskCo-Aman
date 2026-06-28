@@ -16,11 +16,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: dbProfile } = user ? await (supabase as any)
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single() : { data: null };
+
   const profile = user
     ? {
-        name:   (user.user_metadata?.full_name as string | null) ?? null,
-        email:  user.email ?? null,
-        avatar: (user.user_metadata?.avatar_url as string | null) ?? null,
+        name:    (user.user_metadata?.full_name as string | null) ?? null,
+        email:   user.email ?? null,
+        avatar:  (user.user_metadata?.avatar_url as string | null) ?? null,
+        isAdmin: (dbProfile as { is_admin: boolean } | null)?.is_admin ?? false,
       }
     : null;
 

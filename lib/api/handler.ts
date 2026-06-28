@@ -22,3 +22,17 @@ export function withAuth(fn: HandlerFn) {
     }
   };
 }
+
+export function withAdmin(fn: HandlerFn) {
+  return withAuth(async (req, ctx) => {
+    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: profile } = await (supabase as any)
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", ctx.user.id)
+      .single();
+    if (!profile?.is_admin) return ApiError.forbidden();
+    return fn(req, ctx);
+  });
+}

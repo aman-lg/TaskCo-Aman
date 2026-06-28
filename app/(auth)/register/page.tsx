@@ -26,14 +26,18 @@ export default function RegisterPage() {
   } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
   async function onSubmit(values: RegisterInput) {
-    if (localPhone && !/^\d{6,15}$/.test(localPhone)) {
+    if (!localPhone.trim()) {
+      setPhoneError("Phone number is required");
+      return;
+    }
+    if (!/^\d{6,15}$/.test(localPhone)) {
       setPhoneError("Phone must be 6–15 digits");
       return;
     }
     setPhoneError(null);
     setLoading(true);
 
-    const phone = localPhone ? `${countryCode}${localPhone}` : undefined;
+    const phone = `${countryCode}${localPhone}`;
 
     try {
       const supabase = createClient();
@@ -99,8 +103,7 @@ export default function RegisterPage() {
         {/* Phone — optional */}
         <div className="flex flex-col gap-1.5 anim-fade-up anim-d-275">
           <label className="text-[12px] font-semibold" style={{ color: "var(--text-secondary)" }}>
-            Phone number{" "}
-            <span className="font-normal" style={{ color: "var(--text-muted)" }}>(optional)</span>
+            Phone number
           </label>
           <div className="flex">
             <CountryCodeSelect

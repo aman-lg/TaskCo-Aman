@@ -6,6 +6,7 @@ import { getProjectById } from "@/lib/queries/projects";
 import { getTasksForProject, type TaskWithMeta } from "@/lib/queries/tasks";
 import { KanbanBoard } from "@/components/tasks/kanban-board";
 import { ProjectActivity } from "@/components/projects/project-activity";
+import { ProjectMembersPanel } from "@/components/projects/project-members-panel";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Active",
@@ -40,6 +41,14 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     getTasksForProject(supabase, id),
     supabase.auth.getUser(),
   ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profile } = await (supabase as any)
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user?.id)
+    .single();
+  const isAdmin = !!(profile as { is_admin?: boolean } | null)?.is_admin;
 
   if (!project) notFound();
 
@@ -79,7 +88,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       {/* Project header */}
       <div
         className="rounded-xl p-6"
-        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
+        style={{ background: "var(--surface-bg)" }}
       >
         <div className="flex items-start gap-4">
           {/* Color dot */}
@@ -154,13 +163,23 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         currentUserId={user?.id ?? ""}
       />
 
-      {/* Activity Feed */}
-      <div
-        className="rounded-xl p-6"
-        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
-      >
-        <h2 className="h3 mb-4" style={{ color: "var(--ink)" }}>Activity</h2>
-        <ProjectActivity projectId={project.id} />
+      {/* Members + Activity in 2-col layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Members panel (1/3) */}
+        <div className="rounded-xl p-5" style={{ background: "var(--surface-bg)" }}>
+          <ProjectMembersPanel
+            projectId={project.id}
+            ownerId={project.owner_id}
+            currentUserId={user?.id ?? ""}
+            isAdmin={isAdmin}
+          />
+        </div>
+
+        {/* Activity feed (2/3) */}
+        <div className="lg:col-span-2 rounded-xl p-5" style={{ background: "var(--surface-bg)" }}>
+          <h2 className="h3 mb-4" style={{ color: "var(--ink)" }}>Activity</h2>
+          <ProjectActivity projectId={project.id} />
+        </div>
       </div>
     </div>
   );

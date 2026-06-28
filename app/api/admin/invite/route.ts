@@ -14,7 +14,9 @@ export const POST = withAdmin(async (req: NextRequest) => {
   if (!parsed.success) return ApiError.badRequest(parsed.error.issues[0].message);
 
   const adminClient = createAdminClient();
-  const { data, error } = await adminClient.auth.admin.inviteUserByEmail(parsed.data.email);
+  const { data, error } = await adminClient.auth.admin.inviteUserByEmail(parsed.data.email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/set-password`,
+  });
 
   if (error) {
     console.error("[admin/invite POST]", error);

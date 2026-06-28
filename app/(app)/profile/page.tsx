@@ -13,7 +13,7 @@ export default async function ProfilePage() {
     .single();
 
   return (
-    <div className="max-w-[600px]">
+    <div className="w-full max-w-[680px] mx-auto">
       <h1 className="h1 mb-1" style={{ color: "var(--ink)" }}>Profile</h1>
       <p className="text-[14px] mb-8" style={{ color: "var(--text-muted)" }}>
         Manage your personal information

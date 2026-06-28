@@ -16,6 +16,7 @@ const updateProfileSchema = z.object({
     },
     { message: "Avatar URL must be a valid HTTPS Supabase storage URL" }
   ).nullable().optional(),
+  phone: z.string().regex(/^\+[1-9]\d{1,14}$/, "Invalid phone number format").nullable().optional(),
 });
 
 export const GET = withAuth(async (_req: NextRequest, { user }) => {

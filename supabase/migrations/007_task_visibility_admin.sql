@@ -51,10 +51,6 @@ create policy ta_select on public.task_assignees
     user_id = auth.uid()
     or assigned_by = auth.uid()
     or public.is_admin()
-    or exists (
-      select 1 from public.tasks
-      where tasks.id = task_id and tasks.created_by = auth.uid()
-    )
   );
 
 -- ─────────────────────────────────────────────

@@ -28,6 +28,7 @@ export const AuthFormField = forwardRef<HTMLInputElement, AuthFormFieldProps>(
   ({ label, error, hint, type, className, id, placeholder: _ignored, ...props }, ref) => {
     const [showPassword, setShowPassword] = useState(false);
     const isPassword = type === "password";
+    const isEmail = type === "email";
     const inputType  = isPassword && showPassword ? "text" : type;
 
     return (
@@ -47,6 +48,7 @@ export const AuthFormField = forwardRef<HTMLInputElement, AuthFormFieldProps>(
               isPassword && "has-toggle",
               className
             )}
+            style={isEmail ? { textTransform: "lowercase" } : undefined}
             aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
             aria-invalid={!!error}
             {...props}

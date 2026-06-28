@@ -8,7 +8,7 @@ export default async function ProfilePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profile } = await (supabase as any)
     .from("profiles")
-    .select("id, full_name, avatar_url, email, created_at")
+    .select("id, full_name, avatar_url, email, phone, created_at")
     .eq("id", user!.id)
     .single();
 
@@ -24,6 +24,7 @@ export default async function ProfilePage() {
           full_name: (profile as { full_name: string | null } | null)?.full_name ?? null,
           avatar_url: (profile as { avatar_url: string | null } | null)?.avatar_url ?? null,
           email: user!.email ?? null,
+          phone: (profile as { phone: string | null } | null)?.phone ?? null,
         }}
       />
     </div>

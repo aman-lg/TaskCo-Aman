@@ -1,13 +1,9 @@
-"use client";
-
+import { Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { MailCheck } from "lucide-react";
+import { VerifyEmailContent } from "./content";
 
 export default function VerifyEmailPage() {
-  const searchParams = useSearchParams();
-  const email = searchParams.get("email");
-
   return (
     <div className="flex flex-col items-center text-center gap-5">
       <div
@@ -17,19 +13,17 @@ export default function VerifyEmailPage() {
         <MailCheck className="h-7 w-7" style={{ color: "var(--navy)" }} />
       </div>
 
-      <div>
-        <p className="eyebrow mb-1">Almost there</p>
-        <h1 className="h1" style={{ color: "var(--ink)" }}>Verify your email</h1>
-        <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-          We sent a verification link to{" "}
-          {email ? (
-            <span className="font-semibold" style={{ color: "var(--ink)" }}>{email}</span>
-          ) : (
-            "your email address"
-          )}
-          . Click the link to activate your account.
-        </p>
-      </div>
+      <Suspense fallback={
+        <div>
+          <p className="eyebrow mb-1">Almost there</p>
+          <h1 className="h1" style={{ color: "var(--ink)" }}>Verify your email</h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+            We sent a verification link to your email address. Click the link to activate your account.
+          </p>
+        </div>
+      }>
+        <VerifyEmailContent />
+      </Suspense>
 
       <div
         className="w-full rounded-lg p-4 text-left text-sm"

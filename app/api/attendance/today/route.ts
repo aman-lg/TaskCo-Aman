@@ -30,7 +30,7 @@ export const GET = withAuth(async (_req: NextRequest, { user }) => {
     .eq("ist_date", today)
     .order("check_in_at", { ascending: true });
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[attendance/today]", error); return ApiError.internal(); }
 
   const sessions = (data ?? []) as SessionRow[];
   const openSession = sessions.find((s) => !s.check_out_at) ?? null;

@@ -29,7 +29,7 @@ export default function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password: values.password });
 
       if (error) {
-        toast.error(error.message);
+        toast.error("Something went wrong. Please try again.");
         return;
       }
 

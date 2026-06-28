@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { updateChecklistItemSchema } from "@/lib/validations/tasks";
+import { isValidUUID } from "@/lib/utils/validate";
 
 /**
  * PATCH /api/tasks/:id/checklist/:itemId
@@ -10,8 +11,11 @@ import { updateChecklistItemSchema } from "@/lib/validations/tasks";
  * RLS: task creator or assignee only.
  */
 export const PATCH = withAuth(async (req: NextRequest, { params }) => {
+  const id = params?.id;
   const itemId = params?.itemId;
+  if (!id || !isValidUUID(id)) return ApiError.badRequest("Invalid ID");
   if (!itemId) return ApiError.badRequest("Item ID is required");
+  if (!isValidUUID(itemId)) return ApiError.badRequest("Invalid ID");
 
   const body = await req.json().catch(() => null);
   if (!body) return ApiError.badRequest("Request body is required");
@@ -36,7 +40,7 @@ export const PATCH = withAuth(async (req: NextRequest, { params }) => {
 
   if (error) {
     if (error.code === "PGRST116") return ApiError.forbidden();
-    return ApiError.internal(error.message);
+    console.error("[tasks/[id]/checklist/[itemId] PATCH]", error); return ApiError.internal();
   }
   if (!data) return ApiError.notFound("Checklist item not found");
   return ok(data);
@@ -47,8 +51,11 @@ export const PATCH = withAuth(async (req: NextRequest, { params }) => {
  * Removes a checklist item. RLS: task creator or assignee only.
  */
 export const DELETE = withAuth(async (_req: NextRequest, { params }) => {
+  const id = params?.id;
   const itemId = params?.itemId;
+  if (!id || !isValidUUID(id)) return ApiError.badRequest("Invalid ID");
   if (!itemId) return ApiError.badRequest("Item ID is required");
+  if (!isValidUUID(itemId)) return ApiError.badRequest("Invalid ID");
 
   const supabase = await createClient();
   const { error, count } = await supabase
@@ -56,7 +63,7 @@ export const DELETE = withAuth(async (_req: NextRequest, { params }) => {
     .delete({ count: "exact" })
     .eq("id", itemId);
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[tasks/[id]/checklist/[itemId] DELETE]", error); return ApiError.internal(); }
   if (count === 0) return ApiError.notFound("Checklist item not found");
   return ok({ deleted: true });
 });

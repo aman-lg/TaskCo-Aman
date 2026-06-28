@@ -24,6 +24,6 @@ export const POST = withAuth(async (_req: NextRequest, { user }) => {
     .select("id, check_in_at, check_out_at, ist_date")
     .single();
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[attendance/clock-out]", error); return ApiError.internal(); }
   return ok(data);
 });

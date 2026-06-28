@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { createTaskSchema } from "@/lib/validations/tasks";
+import { isValidUUID } from "@/lib/utils/validate";
 
 /**
  * GET /api/tasks?project_id=<uuid>
@@ -13,6 +14,7 @@ export const GET = withAuth(async (req: NextRequest) => {
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get("project_id");
   if (!projectId) return ApiError.badRequest("project_id query param is required");
+  if (!isValidUUID(projectId)) return ApiError.badRequest("Invalid project_id");
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -25,7 +27,7 @@ export const GET = withAuth(async (req: NextRequest) => {
     .eq("project_id", projectId)
     .order("created_at", { ascending: false });
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[tasks GET]", error); return ApiError.internal(); }
   return ok(data ?? []);
 });
 
@@ -60,6 +62,6 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
     )
     .single();
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[tasks POST]", error); return ApiError.internal(); }
   return ok(data, 201);
 });

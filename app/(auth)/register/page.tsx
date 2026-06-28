@@ -38,7 +38,7 @@ export default function RegisterPage() {
         if (error.message.toLowerCase().includes("already registered")) {
           toast.error("An account with this email already exists.");
         } else {
-          toast.error(error.message);
+          toast.error("Something went wrong. Please try again.");
         }
         return;
       }

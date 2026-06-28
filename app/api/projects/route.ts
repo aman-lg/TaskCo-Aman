@@ -16,7 +16,7 @@ export const GET = withAuth(async (_req: NextRequest) => {
     .select("*, owner:profiles!owner_id(id, full_name, avatar_url)")
     .order("created_at", { ascending: false });
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[projects GET]", error); return ApiError.internal(); }
   return ok(data ?? []);
 });
 
@@ -47,6 +47,6 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
     .select("*, owner:profiles!owner_id(id, full_name, avatar_url)")
     .single();
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[projects POST]", error); return ApiError.internal(); }
   return ok(data, 201);
 });

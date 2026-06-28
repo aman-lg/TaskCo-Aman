@@ -6,7 +6,15 @@ import { ok, ApiError } from "@/lib/api/response";
 
 const updateProfileSchema = z.object({
   full_name: z.string().min(1, "Name is required").max(100, "Max 100 characters").optional(),
-  avatar_url: z.string().url("Must be a valid URL").nullable().optional(),
+  avatar_url: z.string().url("Must be a valid URL").refine(
+    (url) => {
+      try {
+        const u = new URL(url);
+        return u.protocol === "https:" && (u.hostname.endsWith(".supabase.co") || u.hostname === "localhost");
+      } catch { return false; }
+    },
+    { message: "Avatar URL must be a valid HTTPS Supabase storage URL" }
+  ).nullable().optional(),
 });
 
 export const GET = withAuth(async (_req: NextRequest, { user }) => {
@@ -36,6 +44,6 @@ export const PATCH = withAuth(async (req: NextRequest, { user }) => {
     .update({ ...result.data, updated_at: new Date().toISOString() })
     .eq("id", user.id);
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[profile PATCH]", error); return ApiError.internal(); }
   return ok({ success: true });
 });

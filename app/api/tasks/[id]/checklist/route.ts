@@ -19,7 +19,7 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
     .order("position", { ascending: true })
     .order("created_at", { ascending: true });
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[tasks/[id]/checklist GET]", error); return ApiError.internal(); }
   return ok(data ?? []);
 });
 
@@ -48,6 +48,6 @@ export const POST = withAuth(async (req: NextRequest, { params }) => {
     .select("id, content, is_done, position, created_at")
     .single();
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[tasks/[id]/checklist POST]", error); return ApiError.internal(); }
   return ok(data, 201);
 });

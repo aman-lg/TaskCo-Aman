@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { assignTaskSchema } from "@/lib/validations/tasks";
+import { isValidUUID } from "@/lib/utils/validate";
 
 /**
  * GET /api/tasks/:id/assignees
@@ -10,6 +11,7 @@ import { assignTaskSchema } from "@/lib/validations/tasks";
 export const GET = withAuth(async (_req: NextRequest, { params }) => {
   const taskId = params?.id;
   if (!taskId) return ApiError.badRequest("Task ID is required");
+  if (!isValidUUID(taskId)) return ApiError.badRequest("Invalid ID");
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -17,7 +19,7 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
     .select("user_id, assigned_at, assignee:profiles!user_id(id, full_name, avatar_url)")
     .eq("task_id", taskId);
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[tasks/[id]/assignees GET]", error); return ApiError.internal(); }
   return ok(data ?? []);
 });
 
@@ -33,6 +35,7 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
 export const POST = withAuth(async (req: NextRequest, { user, params }) => {
   const taskId = params?.id;
   if (!taskId) return ApiError.badRequest("Task ID is required");
+  if (!isValidUUID(taskId)) return ApiError.badRequest("Invalid ID");
 
   const body = await req.json().catch(() => null);
   if (!body) return ApiError.badRequest("Request body is required");
@@ -54,7 +57,7 @@ export const POST = withAuth(async (req: NextRequest, { user, params }) => {
   if (error) {
     // Duplicate assignment (unique constraint violation)
     if (error.code === "23505") return ApiError.badRequest("User is already assigned to this task");
-    return ApiError.internal(error.message);
+    console.error("[tasks/[id]/assignees POST]", error); return ApiError.internal();
   }
   return ok(data, 201);
 });
@@ -68,10 +71,12 @@ export const POST = withAuth(async (req: NextRequest, { user, params }) => {
 export const DELETE = withAuth(async (req: NextRequest, { params }) => {
   const taskId = params?.id;
   if (!taskId) return ApiError.badRequest("Task ID is required");
+  if (!isValidUUID(taskId)) return ApiError.badRequest("Invalid ID");
 
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("user_id");
   if (!userId) return ApiError.badRequest("user_id query param is required");
+  if (!isValidUUID(userId)) return ApiError.badRequest("Invalid user_id");
 
   const supabase = await createClient();
   const { error, count } = await supabase
@@ -80,7 +85,7 @@ export const DELETE = withAuth(async (req: NextRequest, { params }) => {
     .eq("task_id", taskId)
     .eq("user_id", userId);
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[tasks/[id]/assignees DELETE]", error); return ApiError.internal(); }
   if (count === 0) return ApiError.notFound("Assignee not found");
   return ok({ removed: true });
 });

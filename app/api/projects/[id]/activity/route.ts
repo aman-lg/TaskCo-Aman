@@ -13,6 +13,7 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
     const activities = await getProjectActivity(supabase, projectId);
     return ok(activities);
   } catch (e) {
-    return ApiError.internal(e instanceof Error ? e.message : "Unknown error");
+    console.error("[projects/[id]/activity]", e);
+    return ApiError.internal();
   }
 });

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { updateProjectSchema } from "@/lib/validations/projects";
+import { isValidUUID } from "@/lib/utils/validate";
 
 /**
  * GET /api/projects/:id
@@ -10,6 +11,7 @@ import { updateProjectSchema } from "@/lib/validations/projects";
 export const GET = withAuth(async (_req: NextRequest, { params }) => {
   const id = params?.id;
   if (!id) return ApiError.badRequest("Project ID is required");
+  if (!isValidUUID(id)) return ApiError.badRequest("Invalid ID");
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -34,6 +36,7 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
 export const PATCH = withAuth(async (req: NextRequest, { params }) => {
   const id = params?.id;
   if (!id) return ApiError.badRequest("Project ID is required");
+  if (!isValidUUID(id)) return ApiError.badRequest("Invalid ID");
 
   const body = await req.json().catch(() => null);
   if (!body) return ApiError.badRequest("Request body is required");
@@ -59,7 +62,7 @@ export const PATCH = withAuth(async (req: NextRequest, { params }) => {
   if (error) {
     // PGRST116 = no rows matched → RLS blocked update (not the owner)
     if (error.code === "PGRST116") return ApiError.forbidden();
-    return ApiError.internal(error.message);
+    console.error("[projects/[id] PATCH]", error); return ApiError.internal();
   }
   if (!data) return ApiError.forbidden();
   return ok(data);
@@ -74,6 +77,7 @@ export const PATCH = withAuth(async (req: NextRequest, { params }) => {
 export const DELETE = withAuth(async (_req: NextRequest, { params }) => {
   const id = params?.id;
   if (!id) return ApiError.badRequest("Project ID is required");
+  if (!isValidUUID(id)) return ApiError.badRequest("Invalid ID");
 
   const supabase = await createClient();
   const { error, count } = await supabase
@@ -81,7 +85,7 @@ export const DELETE = withAuth(async (_req: NextRequest, { params }) => {
     .delete({ count: "exact" })
     .eq("id", id);
 
-  if (error) return ApiError.internal(error.message);
+  if (error) { console.error("[projects/[id] DELETE]", error); return ApiError.internal(); }
   if (count === 0) return ApiError.forbidden();
   return ok({ deleted: true });
 });

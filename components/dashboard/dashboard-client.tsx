@@ -311,7 +311,7 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
               {taskStats.statusBreakdown.map((s) => (
                 <div key={s.name} className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ background: s.color.startsWith("var(") ? getCSSVar(s.color) : s.color }} />
+                    style={{ background: s.color }} />
                   <span className="text-[13px] flex-1" style={{ color: "var(--ink)" }}>{s.name}</span>
                   <span className="text-[13px] font-bold" style={{ color: "var(--ink)" }}>{s.value}</span>
                 </div>
@@ -355,11 +355,11 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
         )}
         <div className="flex items-center gap-4 text-[12px]" style={{ color: "var(--text-muted)" }}>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-sm" style={{ background: getCSSVar("var(--accent-brand)") }} />
+            <span className="w-2 h-2 rounded-sm" style={{ background: "var(--accent-brand)" }} />
             Pending
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-sm" style={{ background: getCSSVar("var(--clr-green)") }} />
+            <span className="w-2 h-2 rounded-sm" style={{ background: "var(--clr-green)" }} />
             Done
           </span>
         </div>

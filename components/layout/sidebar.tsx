@@ -3,29 +3,16 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutDashboard,
-  FolderKanban,
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-  User,
-  Video,
-  Bell,
-  LogOut,
-  Loader2,
-  Settings,
-  ShieldCheck,
+  LayoutDashboard, FolderKanban, Clock, ChevronLeft, ChevronRight,
+  User, Video, Bell, LogOut, Loader2, Settings, ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 const NAV_ITEMS = [
@@ -35,13 +22,27 @@ const NAV_ITEMS = [
   { href: "/attendance", label: "Attendance", icon: Clock },
 ];
 
-// Sidebar is 224px. Items are 192px → 16px equal margin each side.
-const ITEM_W = 192;
-// Collapsed sidebar is 64px. Icons are 36px → 14px each side.
-const ICON_W = 36;
+const W = 240;   // expanded
+const WC = 64;   // collapsed
 
-function getInitials(name?: string | null, email?: string | null) {
-  if (name) return name.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2);
+// Sidebar-specific colour palette — dark navy shell, theme-independent
+const C = {
+  bg:         "#19183B",
+  active:     "rgba(255,255,255,0.11)",
+  hover:      "rgba(255,255,255,0.06)",
+  pill:       "#CE7E37",
+  textOn:     "#FFFFFF",
+  textOff:    "rgba(255,255,255,0.55)",
+  textMuted:  "rgba(255,255,255,0.28)",
+  divider:    "rgba(255,255,255,0.08)",
+  profileBg:  "rgba(255,255,255,0.07)",
+  iconOff:    "rgba(255,255,255,0.48)",
+  iconOn:     "rgba(255,255,255,0.92)",
+  redIcon:    "#F87171",
+};
+
+function initials(name?: string | null, email?: string | null) {
+  if (name) return name.split(" ").map(p => p[0]).join("").toUpperCase().slice(0, 2);
   return (email?.[0] ?? "U").toUpperCase();
 }
 
@@ -68,179 +69,219 @@ export function Sidebar({
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
 
-  const iconBtn = "flex items-center justify-center rounded-lg transition-colors cursor-pointer text-[var(--text-muted)] hover:bg-[var(--line-soft)] hover:text-[var(--ink)]";
+  // Common icon-button style for utility row
+  const iconBtn = (active = false) => ({
+    display: "flex", alignItems: "center", justifyContent: "center",
+    width: 32, height: 32, borderRadius: 8, cursor: "pointer",
+    border: "none",
+    transition: "background 120ms",
+    background: active ? C.active : "transparent",
+    color: active ? C.iconOn : C.iconOff,
+  } as React.CSSProperties);
 
   return (
     <TooltipProvider delay={0}>
       <aside
         style={{
-          width: collapsed ? 64 : 224,
-          backgroundColor: "var(--sidebar-bg)",
-          borderRight: "1px solid var(--line)",
-          transition: "width 200ms ease, transform 200ms ease",
+          width: collapsed ? WC : W,
+          background: C.bg,
+          boxShadow: "4px 0 32px rgba(0,0,0,0.22)",
+          transition: "width 220ms cubic-bezier(.4,0,.2,1)",
         }}
         className={cn(
-          "fixed top-0 left-0 h-full z-40 flex flex-col overflow-hidden",
+          "fixed top-0 left-0 h-full z-40 flex flex-col overflow-hidden select-none",
           !mobileOpen && "max-md:-translate-x-full",
         )}
       >
-        {/* ── Logo + collapse ── */}
+        {/* ── Logo row ── */}
         <div
-          className="flex items-center h-12 shrink-0"
-          style={{ borderBottom: "1px solid var(--line)", padding: "0 14px" }}
+          className="flex items-center shrink-0"
+          style={{ height: 60, padding: collapsed ? "0 14px" : "0 16px 0 20px", borderBottom: `1px solid ${C.divider}` }}
         >
           {!collapsed && (
-            <Link
-              href="/dashboard"
-              className="flex-1 font-bold text-[16px] leading-none"
-              style={{ color: "var(--navy)", fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
-            >
-              Task<span style={{ color: "var(--accent-d)" }}>Co</span>
+            <Link href="/dashboard" className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: C.pill }}>
+                <span className="text-white font-black text-[13px]" style={{ fontFamily: "var(--font-display)" }}>T</span>
+              </div>
+              <span className="font-bold text-[17px] leading-none" style={{ color: C.textOn, fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
+                Task<span style={{ color: C.pill }}>Co</span>
+              </span>
             </Link>
           )}
-          <Tooltip>
-            <TooltipTrigger
-              className={cn(iconBtn, "w-7 h-7 hidden md:flex", collapsed && "mx-auto")}
-              onClick={onToggle}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-            </TooltipTrigger>
-            <TooltipContent side="right">{collapsed ? "Expand" : "Collapse"}</TooltipContent>
-          </Tooltip>
-        </div>
-
-        {/* ── Nav items ── */}
-        <nav className="flex-1 flex flex-col gap-0.5 py-1.5 overflow-y-auto">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + "/");
-
-            if (collapsed) {
-              return (
-                <Tooltip key={href}>
-                  <TooltipTrigger
-                    className={cn(
-                      "flex items-center justify-center h-8 rounded-lg transition-colors cursor-pointer mx-auto",
-                      active ? "text-white" : "text-[var(--text-secondary)] hover:bg-[var(--line-soft)] hover:text-[var(--ink)]"
-                    )}
-                    style={{ width: ICON_W, ...(active ? { backgroundColor: "var(--navy)" } : {}) }}
-                    onClick={() => { window.location.href = href; }}
-                    aria-label={label}
-                  >
-                    <Icon style={{ width: 16, height: 16 }} />
-                  </TooltipTrigger>
-                  <TooltipContent side="right">{label}</TooltipContent>
-                </Tooltip>
-              );
-            }
-
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={onMobileClose}
-                className={cn(
-                  "flex items-center gap-3 h-9 rounded-lg transition-colors mx-auto px-3",
-                  active ? "text-white" : "text-[var(--text-secondary)] hover:bg-[var(--line-soft)] hover:text-[var(--ink)]"
-                )}
-                style={{ width: ITEM_W, ...(active ? { backgroundColor: "var(--navy)" } : {}) }}
-              >
-                <Icon className="flex-shrink-0" style={{ width: 16, height: 16 }} />
-                <span style={{ fontSize: 14.5, fontWeight: 500 }}>{label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* ── Bottom section ── */}
-        <div
-          className="shrink-0 py-1.5 flex flex-col gap-1"
-          style={{ borderTop: "1px solid var(--line)" }}
-        >
-          {/* Action icons row */}
-          {collapsed ? (
-            <div className="flex flex-col items-center gap-0.5">
-              <ThemeToggle />
-              <Tooltip>
-                <TooltipTrigger className={cn(iconBtn, "w-8 h-8")} onClick={() => router.push("/notifications")} aria-label="Notifications">
-                  <Bell style={{ width: 15, height: 15 }} />
-                </TooltipTrigger>
-                <TooltipContent side="right">Notifications</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger className={cn(iconBtn, "w-8 h-8")} onClick={() => router.push("/settings")} aria-label="Settings">
-                  <Settings style={{ width: 15, height: 15 }} />
-                </TooltipTrigger>
-                <TooltipContent side="right">Settings</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  className={cn(iconBtn, "w-8 h-8 hover:bg-[var(--clr-red-bg)]")}
-                  style={{ color: "var(--clr-red)" }}
-                  onClick={onSignOut}
-                  disabled={isSigningOut}
-                  aria-label="Sign out"
-                >
-                  {isSigningOut
-                    ? <Loader2 style={{ width: 15, height: 15 }} className="animate-spin" />
-                    : <LogOut style={{ width: 15, height: 15 }} />}
-                </TooltipTrigger>
-                <TooltipContent side="right">Sign out</TooltipContent>
-              </Tooltip>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center gap-1 mx-auto" style={{ width: ITEM_W }}>
-              <ThemeToggle />
-              <Tooltip>
-                <TooltipTrigger className={cn(iconBtn, "w-8 h-8")} onClick={() => router.push("/notifications")} aria-label="Notifications">
-                  <Bell style={{ width: 15, height: 15 }} />
-                </TooltipTrigger>
-                <TooltipContent side="right">Notifications</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger className={cn(iconBtn, "w-8 h-8")} onClick={() => router.push("/settings")} aria-label="Settings">
-                  <Settings style={{ width: 15, height: 15 }} />
-                </TooltipTrigger>
-                <TooltipContent side="right">Settings</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  className={cn(iconBtn, "w-8 h-8 hover:bg-[var(--clr-red-bg)]")}
-                  style={{ color: "var(--clr-red)" }}
-                  onClick={onSignOut}
-                  disabled={isSigningOut}
-                  aria-label="Sign out"
-                >
-                  {isSigningOut
-                    ? <Loader2 style={{ width: 15, height: 15 }} className="animate-spin" />
-                    : <LogOut style={{ width: 15, height: 15 }} />}
-                </TooltipTrigger>
-                <TooltipContent side="right">Sign out</TooltipContent>
-              </Tooltip>
+          {collapsed && (
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto flex-shrink-0" style={{ background: C.pill }}>
+              <span className="text-white font-black text-[14px]" style={{ fontFamily: "var(--font-display)" }}>T</span>
             </div>
           )}
+          {!collapsed && (
+            <Tooltip>
+              <TooltipTrigger
+                className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 transition-colors"
+                style={{ color: C.textMuted, background: "transparent" }}
+                onClick={onToggle}
+                aria-label="Collapse sidebar"
+                onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >
+                <ChevronLeft style={{ width: 15, height: 15 }} />
+              </TooltipTrigger>
+              <TooltipContent side="right">Collapse</TooltipContent>
+            </Tooltip>
+          )}
+          {collapsed && (
+            <Tooltip>
+              <TooltipTrigger
+                className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg mx-auto transition-colors"
+                style={{ color: C.textMuted, background: "transparent" }}
+                onClick={onToggle}
+                aria-label="Expand sidebar"
+                onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+              >
+                <ChevronRight style={{ width: 15, height: 15 }} />
+              </TooltipTrigger>
+              <TooltipContent side="right">Expand</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
 
-          {/* Profile */}
+        {/* ── Navigation ── */}
+        <nav className="flex-1 overflow-y-auto py-4 flex flex-col">
+          {!collapsed && (
+            <p className="text-[10px] font-bold tracking-[0.12em] uppercase mb-2 px-5" style={{ color: C.textMuted }}>
+              Menu
+            </p>
+          )}
+          <div className="flex flex-col gap-0.5 px-3">
+            {navItems.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + "/");
+
+              if (collapsed) {
+                return (
+                  <Tooltip key={href}>
+                    <TooltipTrigger
+                      className="relative flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-all"
+                      style={{ background: active ? C.active : "transparent", color: active ? C.textOn : C.textOff }}
+                      onClick={() => { router.push(href); onMobileClose?.(); }}
+                      aria-label={label}
+                      onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.hover; }}
+                      onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      {active && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: C.pill }} />
+                      )}
+                      <Icon style={{ width: 17, height: 17 }} />
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{label}</TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={onMobileClose}
+                  className="relative flex items-center gap-3 h-10 rounded-xl px-3 transition-all"
+                  style={{
+                    background: active ? C.active : "transparent",
+                    color: active ? C.textOn : C.textOff,
+                    fontWeight: active ? 600 : 500,
+                    textDecoration: "none",
+                  }}
+                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = C.hover; }}
+                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full" style={{ background: C.pill }} />
+                  )}
+                  <Icon
+                    className="flex-shrink-0"
+                    style={{ width: 17, height: 17, color: active ? C.pill : C.textOff }}
+                  />
+                  <span style={{ fontSize: 14 }}>{label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* ── Bottom: utility icons + profile ── */}
+        <div className="shrink-0 flex flex-col gap-3 p-3" style={{ borderTop: `1px solid ${C.divider}` }}>
+
+          {/* Utility icon row */}
+          <div className={cn("flex gap-0.5 items-center", collapsed ? "flex-col" : "flex-row px-1")}>
+            <div style={{ color: C.iconOff }}><ThemeToggle /></div>
+
+            <Tooltip>
+              <TooltipTrigger
+                style={iconBtn()}
+                onClick={() => router.push("/notifications")}
+                aria-label="Notifications"
+                onMouseEnter={e => { e.currentTarget.style.background = C.hover; e.currentTarget.style.color = C.iconOn; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.iconOff; }}
+              >
+                <Bell style={{ width: 16, height: 16 }} />
+              </TooltipTrigger>
+              <TooltipContent side="right">Notifications</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger
+                style={iconBtn()}
+                onClick={() => router.push("/settings")}
+                aria-label="Settings"
+                onMouseEnter={e => { e.currentTarget.style.background = C.hover; e.currentTarget.style.color = C.iconOn; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.iconOff; }}
+              >
+                <Settings style={{ width: 16, height: 16 }} />
+              </TooltipTrigger>
+              <TooltipContent side="right">Settings</TooltipContent>
+            </Tooltip>
+
+            {collapsed && (
+              <Tooltip>
+                <TooltipTrigger
+                  style={{ ...iconBtn(), color: C.redIcon }}
+                  onClick={onSignOut}
+                  disabled={isSigningOut}
+                  aria-label="Sign out"
+                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(248,113,113,0.13)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  {isSigningOut
+                    ? <Loader2 style={{ width: 15, height: 15 }} className="animate-spin" />
+                    : <LogOut style={{ width: 15, height: 15 }} />}
+                </TooltipTrigger>
+                <TooltipContent side="right">Sign out</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+
+          {/* Profile card — expanded */}
           {profile && !collapsed && (
             <DropdownMenu>
               <DropdownMenuTrigger
-                className="flex items-center gap-2.5 h-9 rounded-lg transition-colors hover:bg-[var(--line-soft)] cursor-pointer mx-auto px-2"
-                style={{ width: ITEM_W }}
+                className="flex items-center gap-2.5 w-full rounded-xl px-2.5 py-2.5 cursor-pointer transition-colors"
+                style={{ background: C.profileBg }}
+                onMouseEnter={e => (e.currentTarget.style.background = C.active)}
+                onMouseLeave={e => (e.currentTarget.style.background = C.profileBg)}
               >
-                <Avatar className="h-7 w-7 flex-shrink-0">
+                <Avatar className="h-8 w-8 flex-shrink-0">
                   <AvatarImage src={profile.avatar ?? undefined} alt={profile.name ?? "User"} />
-                  <AvatarFallback className="text-[11px] font-bold text-white" style={{ backgroundColor: "var(--navy)" }}>
-                    {getInitials(profile.name, profile.email)}
+                  <AvatarFallback className="text-[11px] font-bold text-white" style={{ background: C.pill }}>
+                    {initials(profile.name, profile.email)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-[12px] font-semibold truncate leading-tight" style={{ color: "var(--ink)" }}>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-[12.5px] font-semibold truncate leading-snug" style={{ color: C.textOn }}>
                     {profile.name ?? "User"}
                   </p>
-                  <p className="text-[10px] truncate leading-tight" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-[11px] truncate leading-snug" style={{ color: C.textOff }}>
                     {profile.email}
                   </p>
                 </div>
+                <ChevronRight style={{ width: 13, height: 13, color: C.textMuted, flexShrink: 0 }} />
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-52 mb-1">
                 <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/profile")}>
@@ -257,17 +298,21 @@ export function Sidebar({
             </DropdownMenu>
           )}
 
+          {/* Profile avatar — collapsed */}
           {profile && collapsed && (
             <Tooltip>
               <TooltipTrigger
-                className="flex items-center justify-center h-8 w-8 mx-auto rounded-lg transition-colors cursor-pointer hover:bg-[var(--line-soft)]"
+                className="flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-colors"
+                style={{ background: C.profileBg }}
                 onClick={() => router.push("/profile")}
                 aria-label={profile.name ?? "Profile"}
+                onMouseEnter={e => (e.currentTarget.style.background = C.active)}
+                onMouseLeave={e => (e.currentTarget.style.background = C.profileBg)}
               >
-                <Avatar className="h-6 w-6">
+                <Avatar className="h-7 w-7">
                   <AvatarImage src={profile.avatar ?? undefined} alt={profile.name ?? "User"} />
-                  <AvatarFallback className="text-[10px] font-bold text-white" style={{ backgroundColor: "var(--navy)" }}>
-                    {getInitials(profile.name, profile.email)}
+                  <AvatarFallback className="text-[11px] font-bold text-white" style={{ background: C.pill }}>
+                    {initials(profile.name, profile.email)}
                   </AvatarFallback>
                 </Avatar>
               </TooltipTrigger>

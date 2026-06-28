@@ -98,8 +98,8 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }}>
       <div
-        className="w-full max-w-md rounded-2xl border p-6 flex flex-col gap-5"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-5"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         <div className="flex items-center justify-between">
           <h2 className="text-[16px] font-bold" style={{ color: "var(--ink)" }}>Invite User</h2>
@@ -258,7 +258,7 @@ function UserDetailPanel({ detail }: { detail: UserDetail }) {
                 { label: "Total Tasks", value: totalTasks, icon: <ListTodo className="w-4 h-4" /> },
                 { label: "Hours Logged", value: formatHours(totalHours), icon: <Clock className="w-4 h-4" /> },
               ].map(s => (
-                <div key={s.label} className="rounded-xl border p-3 flex flex-col gap-1" style={{ borderColor: "var(--line)", background: "var(--panel-bg)" }}>
+                <div key={s.label} className="rounded-xl p-3 flex flex-col gap-1" style={{ background: "var(--panel-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}>
                   <div className="flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>{s.icon}<span className="text-[11px] font-semibold">{s.label}</span></div>
                   <p className="text-[20px] font-bold" style={{ color: "var(--ink)" }}>{s.value}</p>
                 </div>
@@ -429,7 +429,7 @@ export function AdminUsersClient({
           const isSelf = user.id === currentUserId;
 
           return (
-            <div key={user.id} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--line)", background: "var(--panel-bg)" }}>
+            <div key={user.id} className="rounded-xl overflow-hidden" style={{ background: "var(--panel-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}>
               {/* Row */}
               <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-white text-sm font-bold overflow-hidden" style={{ background: "var(--navy)" }}>

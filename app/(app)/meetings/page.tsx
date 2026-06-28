@@ -11,8 +11,8 @@ export default function MeetingsPage() {
       </div>
 
       <div
-        className="rounded-xl border p-10 flex flex-col items-center gap-4 text-center"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="rounded-xl p-10 flex flex-col items-center gap-4 text-center"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center"

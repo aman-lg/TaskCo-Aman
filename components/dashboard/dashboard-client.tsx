@@ -137,8 +137,8 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
 
       {/* ── Today's Tasks (2 cols) ── */}
       <div
-        className="col-span-2 rounded-xl border p-5 flex flex-col gap-4"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="col-span-2 rounded-xl p-5 flex flex-col gap-4"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         <div className="flex items-center justify-between">
           <h2 className="h3" style={{ color: "var(--ink)" }}>Today&rsquo;s Tasks</h2>
@@ -192,8 +192,8 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
 
       {/* ── Calendar (2 cols) ── */}
       <div
-        className="col-span-2 rounded-xl border p-5 flex flex-col gap-3"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="col-span-2 rounded-xl p-5 flex flex-col gap-3"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -275,8 +275,8 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
 
       {/* ── Task status donut (2 cols) ── */}
       <div
-        className="col-span-2 rounded-xl border p-5 flex flex-col gap-4"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="col-span-2 rounded-xl p-5 flex flex-col gap-4"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         <h2 className="h3" style={{ color: "var(--ink)" }}>Task Status</h2>
         {taskStats.total === 0 ? (
@@ -330,8 +330,8 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
 
       {/* ── Upcoming deadline bar chart (2 cols) ── */}
       <div
-        className="col-span-2 rounded-xl border p-5 flex flex-col gap-4"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="col-span-2 rounded-xl p-5 flex flex-col gap-4"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         <h2 className="h3" style={{ color: "var(--ink)" }}>Deadlines — Next 7 Days</h2>
         {barData.every((d) => d.pending === 0 && d.done === 0) ? (
@@ -367,8 +367,8 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
 
       {/* ── Meetings (full width) ── */}
       <div
-        className="col-span-4 rounded-xl border p-5 flex flex-col gap-4"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="col-span-4 rounded-xl p-5 flex flex-col gap-4"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         <div className="flex items-center justify-between">
           <h2 className="h3" style={{ color: "var(--ink)" }}>Meetings</h2>
@@ -427,7 +427,7 @@ function StatCard({ icon, label, value, sub, color, bg }: {
   icon: React.ReactNode; label: string; value: number; sub: string; color: string; bg: string;
 }) {
   return (
-    <div className="rounded-xl border p-4 flex flex-col gap-3" style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}>
+    <div className="rounded-xl p-4 flex flex-col gap-3" style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}>
       <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: bg, color }}>
         {icon}
       </div>

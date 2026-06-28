@@ -104,8 +104,8 @@ export default async function TasksPage() {
 
                 {/* Task table */}
                 <div
-                  className="rounded-xl border overflow-hidden"
-                  style={{ borderColor: "var(--line)", background: "var(--surface-bg)" }}
+                  className="rounded-xl overflow-hidden"
+                  style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
                 >
                   {projectTasks.map((task, idx) => {
                     const urgencyColor = `var(${URGENCY_TOKEN[task.urgency ?? "medium"]})`;

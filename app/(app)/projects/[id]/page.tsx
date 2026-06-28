@@ -78,8 +78,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
 
       {/* Project header */}
       <div
-        className="rounded-xl border p-6"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="rounded-xl p-6"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         <div className="flex items-start gap-4">
           {/* Color dot */}
@@ -156,8 +156,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
 
       {/* Activity Feed */}
       <div
-        className="rounded-xl border p-6"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="rounded-xl p-6"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         <h2 className="h3 mb-4" style={{ color: "var(--ink)" }}>Activity</h2>
         <ProjectActivity projectId={project.id} />

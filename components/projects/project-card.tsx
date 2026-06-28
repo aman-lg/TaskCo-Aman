@@ -79,8 +79,8 @@ export function ProjectCard({ project, currentUserId }: Props) {
   return (
     <>
       <article
-        className="relative flex flex-col rounded-xl border overflow-hidden transition-shadow duration-150 hover:shadow-[var(--shadow-soft)]"
-        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+        className="relative flex flex-col rounded-xl overflow-hidden transition-shadow duration-150 hover:shadow-[var(--shadow-soft)]"
+        style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       >
         {/* Color accent stripe */}
         <div

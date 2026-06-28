@@ -104,7 +104,7 @@ export function ProfileClient({ profile }: { profile: ProfileData }) {
     <div className="flex flex-col gap-4 w-full">
 
       {/* ── Avatar + identity ── */}
-      <div className="rounded-2xl border p-5 sm:p-6" style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}>
+      <div className="rounded-2xl p-5 sm:p-6" style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}>
         <div className="flex items-center gap-4">
           {/* Avatar */}
           <div className="relative flex-shrink-0">
@@ -156,7 +156,7 @@ export function ProfileClient({ profile }: { profile: ProfileData }) {
 
       {/* ── View mode ── */}
       {!editing && (
-        <div className="rounded-2xl border px-5 sm:px-6 py-2" style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}>
+        <div className="rounded-2xl px-5 sm:px-6 py-2" style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}>
           <div className="pt-3 pb-1">
             <p className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>Personal Information</p>
           </div>
@@ -168,7 +168,7 @@ export function ProfileClient({ profile }: { profile: ProfileData }) {
 
       {/* ── Edit mode ── */}
       {editing && (
-        <div className="rounded-2xl border p-5 sm:p-6 flex flex-col gap-5" style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}>
+        <div className="rounded-2xl p-5 sm:p-6 flex flex-col gap-5" style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Edit Profile</p>
             <button onClick={handleCancel} className="p-1 rounded-lg hover:opacity-70" style={{ color: "var(--text-muted)" }}>
@@ -267,7 +267,7 @@ export function ProfileClient({ profile }: { profile: ProfileData }) {
       )}
 
       {/* ── Account card ── */}
-      <div className="rounded-2xl border px-5 sm:px-6 py-4 flex flex-col gap-3" style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}>
+      <div className="rounded-2xl px-5 sm:px-6 py-4 flex flex-col gap-3" style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}>
         <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Account</p>
         {memberSince && (
           <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-4 pb-3 border-b" style={{ borderColor: "var(--line)" }}>

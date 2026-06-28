@@ -354,8 +354,8 @@ function TaskCard({ task, currentUserId, onOpen, onEdit, onDelete, onMove }: Car
 
   return (
     <article
-      className="group relative flex flex-col gap-2.5 p-3.5 rounded-xl border transition-shadow hover:shadow-[var(--shadow-soft)]"
-      style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+      className="group relative flex flex-col gap-2.5 p-3.5 rounded-xl transition-shadow hover:shadow-[var(--shadow-soft)]"
+      style={{ background: "var(--surface-bg)", boxShadow: "0 1px 8px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)" }}
       onClick={onOpen}
       role="button"
       tabIndex={0}

@@ -25,9 +25,10 @@ const NAV_ITEMS = [
 const W = 240;   // expanded
 const WC = 64;   // collapsed
 
-// Sidebar-specific colour palette — dark navy shell, theme-independent
+// Sidebar-specific colour palette — always dark, adapts slightly in dark mode via CSS var
+// The actual background uses --sidebar-nav-bg (defined in globals.css for both themes)
 const C = {
-  bg:         "#19183B",
+  bg:         "var(--sidebar-nav-bg)",   // CSS var: #19183B light / #0E0D28 dark
   active:     "rgba(255,255,255,0.11)",
   hover:      "rgba(255,255,255,0.06)",
   pill:       "#CE7E37",
@@ -96,52 +97,45 @@ export function Sidebar({
         {/* ── Logo row ── */}
         <div
           className="flex items-center shrink-0"
-          style={{ height: 60, padding: collapsed ? "0 14px" : "0 16px 0 20px", borderBottom: `1px solid ${C.divider}` }}
+          style={{ height: 60, padding: "0 16px 0 20px", borderBottom: `1px solid ${C.divider}` }}
         >
-          {!collapsed && (
-            <Link href="/dashboard" className="flex items-center gap-2.5 flex-1 min-w-0">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: C.pill }}>
-                <span className="text-white font-black text-[13px]" style={{ fontFamily: "var(--font-display)" }}>T</span>
-              </div>
-              <span className="font-bold text-[17px] leading-none" style={{ color: C.textOn, fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
-                Task<span style={{ color: C.pill }}>Co</span>
-              </span>
-            </Link>
-          )}
-          {collapsed && (
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto flex-shrink-0" style={{ background: C.pill }}>
-              <span className="text-white font-black text-[14px]" style={{ fontFamily: "var(--font-display)" }}>T</span>
-            </div>
-          )}
-          {!collapsed && (
+          {collapsed ? (
+            /* When collapsed: T icon IS the expand toggle */
             <Tooltip>
               <TooltipTrigger
-                className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 transition-colors"
-                style={{ color: C.textMuted, background: "transparent" }}
-                onClick={onToggle}
-                aria-label="Collapse sidebar"
-                onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-              >
-                <ChevronLeft style={{ width: 15, height: 15 }} />
-              </TooltipTrigger>
-              <TooltipContent side="right">Collapse</TooltipContent>
-            </Tooltip>
-          )}
-          {collapsed && (
-            <Tooltip>
-              <TooltipTrigger
-                className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg mx-auto transition-colors"
-                style={{ color: C.textMuted, background: "transparent" }}
                 onClick={onToggle}
                 aria-label="Expand sidebar"
-                onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
-                onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                className="hidden md:flex w-8 h-8 rounded-lg items-center justify-center mx-auto transition-opacity hover:opacity-80"
+                style={{ background: C.pill, flexShrink: 0 }}
               >
-                <ChevronRight style={{ width: 15, height: 15 }} />
+                <span className="text-white font-black text-[14px]" style={{ fontFamily: "var(--font-display)" }}>T</span>
               </TooltipTrigger>
-              <TooltipContent side="right">Expand</TooltipContent>
+              <TooltipContent side="right">Expand sidebar</TooltipContent>
             </Tooltip>
+          ) : (
+            <>
+              <Link href="/dashboard" className="flex items-center gap-2.5 flex-1 min-w-0">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: C.pill }}>
+                  <span className="text-white font-black text-[13px]" style={{ fontFamily: "var(--font-display)" }}>T</span>
+                </div>
+                <span className="font-bold text-[17px] leading-none" style={{ color: C.textOn, fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}>
+                  Task<span style={{ color: C.pill }}>Co</span>
+                </span>
+              </Link>
+              <Tooltip>
+                <TooltipTrigger
+                  className="hidden md:flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 transition-colors"
+                  style={{ color: C.textMuted, background: "transparent" }}
+                  onClick={onToggle}
+                  aria-label="Collapse sidebar"
+                  onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                >
+                  <ChevronLeft style={{ width: 15, height: 15 }} />
+                </TooltipTrigger>
+                <TooltipContent side="right">Collapse</TooltipContent>
+              </Tooltip>
+            </>
           )}
         </div>
 

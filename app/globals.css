@@ -80,6 +80,8 @@
   --navy-hover:     color-mix(in srgb, var(--navy) 85%, black);
 
   /* Shadows */
+  /* Chart colours — dark mode remaps */
+  /* (chart vars below are overridden in .dark block) */
   --shadow-card:    0 1px 3px rgba(25, 24, 59, 0.06), 0 1px 2px rgba(25, 24, 59, 0.04);
   --shadow-elev:    0 4px 24px rgba(25, 24, 59, 0.10), 0 1px 4px rgba(25, 24, 59, 0.05);
   --shadow-soft:    0 2px 8px rgba(25, 24, 59, 0.07);
@@ -118,6 +120,16 @@
 
   /* Fonts — next/font sets --font-sans and --font-display on <html> via CSS variable classes */
   --font-mono:     ui-monospace, SFMono-Regular, monospace;
+
+  /* Chart colours — navy palette only (no teal) */
+  --chart-1: #19183B;   /* navy full  — done / primary */
+  --chart-2: #5B5A9F;   /* navy mid   — in-progress   */
+  --chart-3: #C5C4E8;   /* navy light — to-do         */
+  --chart-bar-a: #19183B;              /* bar primary  */
+  --chart-bar-b: rgba(25,24,59,0.28); /* bar secondary */
+
+  /* Always-dark sidebar background */
+  --sidebar-nav-bg: #19183B;
 
   /* Animation */
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
@@ -202,6 +214,12 @@
   --input:                  #253030;
   --ring:                   #B5D4D0;
 
+  --chart-1: #A09FDF;
+  --chart-2: #6B6ABF;
+  --chart-3: #2E2D5C;
+  --chart-bar-a: #7B7ACA;
+  --chart-bar-b: rgba(123,122,202,0.3);
+  --sidebar-nav-bg: #0E0D28;
   --sidebar:                #161B20;
   --sidebar-foreground:     #E8ECF4;
   --sidebar-primary:        #7B7ACA;

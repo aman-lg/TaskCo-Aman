@@ -80,9 +80,9 @@ export async function getTaskStats(supabase: SupabaseClient<Database>) {
       .filter((t) => t.deadline)
       .map((t) => ({ date: t.deadline!.slice(0, 10), done: t.status === "done" })),
     statusBreakdown: [
-      { name: "Done", value: completed, color: "var(--clr-green)" },
-      { name: "In Progress", value: inProgress, color: "var(--accent-brand)" },
-      { name: "To Do", value: todo, color: "var(--line)" },
+      { name: "Done",        value: completed,  color: "var(--chart-1)" },
+      { name: "In Progress", value: inProgress, color: "var(--chart-2)" },
+      { name: "To Do",       value: todo,       color: "var(--chart-3)" },
     ],
   };
 }
@@ -102,15 +102,9 @@ export async function getTodayTasks(supabase: SupabaseClient<Database>): Promise
     .from("tasks")
     .select("id, name, status, urgency, deadline, project_id")
     .neq("status", "done")
-    .order("urgency", { ascending: false });
+    .order("created_at", { ascending: false });
   if (error) return [];
-  type Row = { id: string; name: string; status: string; urgency: string | null; deadline: string | null; project_id: string };
-  const rows = (data ?? []) as Row[];
-  const todayStr = new Date().toDateString();
-  // Show tasks due today + in_progress tasks (max 10)
-  const dueToday = rows.filter((t) => t.deadline && new Date(t.deadline).toDateString() === todayStr);
-  const inProgress = rows.filter((t) => t.status === "in_progress" && !dueToday.find((d) => d.id === t.id));
-  return [...dueToday, ...inProgress].slice(0, 10);
+  return (data ?? []) as TodayTask[];
 }
 
 export type TaskDetail = Database["public"]["Tables"]["tasks"]["Row"] & {

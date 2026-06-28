@@ -10,10 +10,14 @@ import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import { createClient } from "@/lib/supabase/client";
 import { AuthFormField } from "@/components/auth/auth-form-field";
 import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
+import { CountryCodeSelect } from "@/components/profile/country-code-select";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [countryCode, setCountryCode] = useState("+91");
+  const [localPhone, setLocalPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const {
     register,
@@ -22,14 +26,22 @@ export default function RegisterPage() {
   } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
   async function onSubmit(values: RegisterInput) {
+    if (localPhone && !/^\d{6,15}$/.test(localPhone)) {
+      setPhoneError("Phone must be 6–15 digits");
+      return;
+    }
+    setPhoneError(null);
     setLoading(true);
+
+    const phone = localPhone ? `${countryCode}${localPhone}` : undefined;
+
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
-          data: { full_name: values.fullName },
+          data: { full_name: values.fullName, phone },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
@@ -71,6 +83,7 @@ export default function RegisterPage() {
             {...register("fullName")}
           />
         </div>
+
         <div className="anim-fade-up anim-d-250">
           <AuthFormField
             id="email"
@@ -82,6 +95,45 @@ export default function RegisterPage() {
             {...register("email")}
           />
         </div>
+
+        {/* Phone — optional */}
+        <div className="flex flex-col gap-1.5 anim-fade-up anim-d-275">
+          <label className="text-[12px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+            Phone number{" "}
+            <span className="font-normal" style={{ color: "var(--text-muted)" }}>(optional)</span>
+          </label>
+          <div className="flex">
+            <CountryCodeSelect
+              value={countryCode}
+              onChange={code => { setCountryCode(code); setPhoneError(null); }}
+            />
+            <input
+              type="tel"
+              value={localPhone}
+              onChange={e => {
+                setLocalPhone(e.target.value.replace(/\D/g, ""));
+                setPhoneError(null);
+              }}
+              placeholder="Phone number"
+              maxLength={15}
+              autoComplete="tel"
+              className="flex-1 min-w-0 h-10 px-3 border text-[13px] outline-none transition-colors"
+              style={{
+                borderColor: phoneError ? "var(--clr-red)" : "var(--line)",
+                background: "var(--panel-bg)",
+                color: "var(--ink)",
+                borderRadius: "0 8px 8px 0",
+                borderLeft: "none",
+              }}
+              onFocus={e => (e.currentTarget.style.borderColor = "var(--navy)")}
+              onBlur={e => (e.currentTarget.style.borderColor = phoneError ? "var(--clr-red)" : "var(--line)")}
+            />
+          </div>
+          {phoneError && (
+            <p className="text-[11px] font-medium" style={{ color: "var(--clr-red)" }}>{phoneError}</p>
+          )}
+        </div>
+
         <div className="anim-fade-up anim-d-300">
           <AuthFormField
             id="password"
@@ -94,6 +146,7 @@ export default function RegisterPage() {
             {...register("password")}
           />
         </div>
+
         <div className="anim-fade-up anim-d-350">
           <AuthFormField
             id="confirmPassword"

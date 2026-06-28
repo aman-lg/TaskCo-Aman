@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"; // never serve cached task data
+
 import { createClient } from "@/lib/supabase/server";
 import { getProjects } from "@/lib/queries/projects";
 import { getTaskStats, getTodayTasks } from "@/lib/queries/tasks";

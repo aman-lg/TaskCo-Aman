@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, ChevronRight, Plus, CheckSquare, Folder,
   Clock, AlertCircle, Video, Circle, RefreshCw,
@@ -69,13 +70,28 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
   const [addTaskProject, setAddTaskProject] = useState<string | null>(() => projects[0]?.id ?? null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ── 30-second auto-refresh ──────────────────────────────────────────────────
+  // ── Refresh helper ──────────────────────────────────────────────────────────
   const refresh = useCallback(() => {
     setRefreshing(true);
     router.refresh();
     setTimeout(() => setRefreshing(false), 600);
   }, [router]);
 
+  // ── Supabase Realtime — instant push when any task row changes ───────────────
+  // Requires: Realtime enabled on tasks table in Supabase (Table Editor → tasks → Realtime ON)
+  // OR: ALTER PUBLICATION supabase_realtime ADD TABLE tasks;  in SQL Editor
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("dashboard-tasks-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => {
+        refresh();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refresh]);
+
+  // ── 30-second fallback poll (catches reconnects / missed events) ─────────────
   useEffect(() => {
     const id = setInterval(refresh, 30_000);
     return () => clearInterval(id);

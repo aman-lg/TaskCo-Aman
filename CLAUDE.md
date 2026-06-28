@@ -51,4 +51,3 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 - Never sum task timer entries for "hours worked".
 
 ## Out of scope (v1)
-Roles/permissions · manager/team attendance views · file uploads · recurrence implementation · multi-tenant/orgs · multiple named checklists per task · multi-assignee UI · mobile/Android · comments/mentions · realtime

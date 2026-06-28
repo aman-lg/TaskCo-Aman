@@ -77,7 +77,7 @@ export function AppShell({ children, profile }: AppShellProps) {
       >
         {/* Mobile top offset */}
         <div className="md:hidden h-14" />
-        <div className="px-10 py-8 max-w-[1200px] mx-auto">{children}</div>
+        <div className="px-4 py-6 md:px-10 md:py-8 max-w-[1200px] mx-auto">{children}</div>
       </main>
     </div>
   );

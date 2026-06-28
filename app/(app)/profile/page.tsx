@@ -25,6 +25,7 @@ export default async function ProfilePage() {
           avatar_url: (profile as { avatar_url: string | null } | null)?.avatar_url ?? null,
           email: user!.email ?? null,
           phone: (profile as { phone: string | null } | null)?.phone ?? null,
+          created_at: (profile as { created_at: string | null } | null)?.created_at ?? null,
         }}
       />
     </div>

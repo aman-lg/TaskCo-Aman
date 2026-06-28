@@ -206,12 +206,12 @@ function UserDetailPanel({ detail }: { detail: UserDetail }) {
   return (
     <div className="border-t" style={{ borderColor: "var(--line)", background: "var(--surface-bg)" }}>
       {/* Tabs */}
-      <div className="flex gap-0 border-b px-4" style={{ borderColor: "var(--line)" }}>
+      <div className="flex gap-0 border-b px-2 overflow-x-auto" style={{ borderColor: "var(--line)" }}>
         {TABS.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className="flex items-center gap-1.5 px-3 py-2.5 text-[12px] font-semibold border-b-2 transition-colors"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-2.5 text-[11px] sm:text-[12px] font-semibold border-b-2 transition-colors whitespace-nowrap flex-shrink-0"
             style={{
               borderBottomColor: tab === t.id ? "var(--navy)" : "transparent",
               color: tab === t.id ? "var(--navy)" : "var(--text-muted)",
@@ -431,7 +431,7 @@ export function AdminUsersClient({
           return (
             <div key={user.id} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--line)", background: "var(--panel-bg)" }}>
               {/* Row */}
-              <div className="flex items-center gap-3 px-4 py-3">
+              <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3">
                 <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-white text-sm font-bold overflow-hidden" style={{ background: "var(--navy)" }}>
                   {user.avatar_url
                     ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -459,18 +459,19 @@ export function AdminUsersClient({
                     <button
                       onClick={() => toggleAdmin(user)}
                       disabled={isToggling}
-                      className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-opacity disabled:opacity-50"
+                      className="flex items-center gap-1.5 text-[12px] font-semibold px-2 sm:px-3 py-1.5 rounded-lg border transition-opacity disabled:opacity-50"
                       style={{
                         borderColor: user.is_admin ? "var(--clr-red)" : "var(--accent-brand)",
                         color: user.is_admin ? "var(--clr-red)" : "var(--accent-brand)",
                         background: "transparent",
                       }}
+                      title={user.is_admin ? "Remove Admin" : "Make Admin"}
                     >
                       {isToggling
                         ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         : user.is_admin
-                          ? <><ShieldOff className="w-3.5 h-3.5" /> Remove Admin</>
-                          : <><Shield className="w-3.5 h-3.5" /> Make Admin</>
+                          ? <><ShieldOff className="w-3.5 h-3.5" /><span className="hidden sm:inline"> Remove Admin</span></>
+                          : <><Shield className="w-3.5 h-3.5" /><span className="hidden sm:inline"> Make Admin</span></>
                       }
                     </button>
                   )}

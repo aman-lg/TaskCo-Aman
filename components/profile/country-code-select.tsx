@@ -23,7 +23,8 @@ export function CountryCodeSelect({ value, onChange, disabled }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("https://restcountries.com/v3.1/all?fields=name,idd,cca2")
+    const apiUrl = process.env.NEXT_PUBLIC_COUNTRY_API_URL ?? "https://restcountries.com/v3.1/all?fields=name,idd,cca2";
+    fetch(apiUrl)
       .then(r => r.json())
       .then((data: Array<{ name: { common: string }; idd: { root: string; suffixes?: string[] }; cca2: string }>) => {
         const list: Country[] = [];

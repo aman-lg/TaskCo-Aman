@@ -70,8 +70,7 @@ export default async function TasksPage() {
           <p className="text-[13px]">Open a project to create tasks.</p>
           <Link
             href="/projects"
-            className="mt-5 h-9 px-4 rounded-xl text-[13px] font-bold text-white flex items-center"
-            style={{ background: "var(--navy)" }}
+            className="mt-5 h-9 px-4 rounded-xl text-[13px] font-bold text-white flex items-center transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)]"
           >
             Go to Projects
           </Link>

@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Calendar, AlertCircle } from "lucide-react";
+import { Pencil, Trash2, Calendar, AlertCircle, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { TaskFormDialog } from "./task-form-dialog";
 import { TaskChecklist } from "./task-checklist";
 import type { Task } from "@/types";
 
-type ChecklistItemMin = { id: string; is_done: boolean; content?: string; position?: number };
+type ChecklistItemMin = { id: string; is_done: boolean; content: string | null; position: number | null };
 
 const URGENCY_TOKEN: Record<string, string> = {
   low:    "--urgency-low",
@@ -73,23 +73,27 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
   return (
     <>
       <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-        <SheetContent className="w-full sm:max-w-[520px] flex flex-col overflow-y-auto" style={{ background: "var(--surface-bg)" }}>
-          <SheetHeader className="flex-shrink-0">
-            <div className="flex items-start justify-between gap-3 pr-8">
-              <SheetTitle
-                className="h2 text-balance leading-snug"
-                style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}
-              >
-                {task.name}
-              </SheetTitle>
+        <SheetContent
+          className="w-full sm:max-w-[480px] p-0 flex flex-col gap-0"
+          showCloseButton={false}
+          style={{ background: "var(--surface-bg)" }}
+        >
+          {/* ── Header ──────────────────────────────────────── */}
+          <SheetHeader className="flex-shrink-0 px-6 py-5 border-b border-[var(--line)] flex-row items-start justify-between gap-3">
+            <SheetTitle
+              className="h2 text-balance leading-snug flex-1"
+              style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}
+            >
+              {task.name}
+            </SheetTitle>
 
+            <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
               {isCreator && (
-                <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                <>
                   <button
                     type="button"
                     onClick={() => setEditOpen(true)}
-                    className="p-2 rounded-lg transition-colors duration-100"
-                    style={{ color: "var(--text-muted)" }}
+                    className="p-2 rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--line-soft)]"
                     aria-label="Edit task"
                   >
                     <Pencil className="h-4 w-4" />
@@ -98,28 +102,36 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
                     type="button"
                     onClick={handleDelete}
                     disabled={deleting}
-                    className="p-2 rounded-lg transition-colors duration-100"
-                    style={{ color: "var(--clr-red)" }}
+                    className="p-2 rounded-lg text-[var(--clr-red)] transition-colors hover:bg-[var(--clr-red-bg)]"
                     aria-label="Delete task"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
-                </div>
+                </>
               )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 rounded-lg text-[var(--text-muted)] transition-colors hover:bg-[var(--line-soft)]"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </SheetHeader>
 
-          <div className="flex-1 flex flex-col gap-6 mt-5 overflow-y-auto pr-1">
-            {/* Badges */}
+          {/* ── Scrollable body ──────────────────────────────── */}
+          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-6">
+            {/* Status + Urgency badges */}
             <div className="flex items-center gap-2 flex-wrap">
               <span
-                className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-bold"
+                className="inline-flex items-center h-5 px-2 rounded text-[10px] font-bold"
                 style={{ background: "var(--accent-bg)", color: "var(--navy)" }}
               >
                 {STATUS_LABELS[task.status ?? "todo"]}
               </span>
               <span
-                className="inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-bold"
+                className="inline-flex items-center h-5 px-2 rounded text-[10px] font-bold"
                 style={{ background: urgencyBg, color: urgencyColor }}
               >
                 {(task.urgency ?? "medium").charAt(0).toUpperCase() +
@@ -149,14 +161,15 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
                   className="flex items-center gap-1.5 text-[13px] font-medium"
                   style={{ color: isPastDeadline ? "var(--clr-red)" : "var(--ink)" }}
                 >
-                  {isPastDeadline ? (
-                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  ) : (
-                    <Calendar className="h-4 w-4 flex-shrink-0" />
-                  )}
+                  {isPastDeadline
+                    ? <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    : <Calendar className="h-4 w-4 flex-shrink-0" />}
                   {deadline}
                   {isPastDeadline && (
-                    <span className="ml-1 text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--clr-red-bg)", color: "var(--clr-red)" }}>
+                    <span
+                      className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                      style={{ background: "var(--clr-red-bg)", color: "var(--clr-red)" }}
+                    >
                       Overdue
                     </span>
                   )}
@@ -183,7 +196,7 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
 
       <TaskFormDialog
         open={editOpen}
-        onClose={() => setEditOpen(false)}
+        onClose={() => { setEditOpen(false); router.refresh(); }}
         projectId={task.project_id}
         task={task}
       />

@@ -1,12 +1,23 @@
 import { z } from "zod";
 
+const datetimeField = z.preprocess(
+  (v) => {
+    if (!v || v === "") return undefined;
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) {
+      return new Date(v).toISOString();
+    }
+    return v;
+  },
+  z.string().datetime({ offset: true }).optional().nullable()
+);
+
 export const createTaskSchema = z.object({
   project_id: z.string().uuid("Must be a valid project ID"),
   name: z.string().min(1, "Task name is required").max(200, "Max 200 characters"),
   description: z.string().max(2000, "Max 2000 characters").optional().nullable(),
-  start_date: z.string().datetime({ offset: true }).optional().nullable(),
-  end_date: z.string().datetime({ offset: true }).optional().nullable(),
-  deadline: z.string().datetime({ offset: true }).optional().nullable(),
+  start_date: datetimeField,
+  end_date: datetimeField,
+  deadline: datetimeField,
   urgency: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
   status: z.enum(["todo", "in_progress", "done"]).default("todo"),
   color: z
@@ -20,9 +31,9 @@ export const createTaskSchema = z.object({
 export const updateTaskSchema = z.object({
   name: z.string().min(1, "Task name is required").max(200, "Max 200 characters").optional(),
   description: z.string().max(2000, "Max 2000 characters").optional().nullable(),
-  start_date: z.string().datetime({ offset: true }).optional().nullable(),
-  end_date: z.string().datetime({ offset: true }).optional().nullable(),
-  deadline: z.string().datetime({ offset: true }).optional().nullable(),
+  start_date: datetimeField,
+  end_date: datetimeField,
+  deadline: datetimeField,
   urgency: z.enum(["low", "medium", "high", "urgent"]).optional(),
   status: z.enum(["todo", "in_progress", "done"]).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color").optional().nullable(),

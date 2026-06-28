@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProjectById } from "@/lib/queries/projects";
 import { getTasksForProject, type TaskWithMeta } from "@/lib/queries/tasks";
 import { KanbanBoard } from "@/components/tasks/kanban-board";
+import { ProjectActivity } from "@/components/projects/project-activity";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Active",
@@ -107,7 +108,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
             <div className="flex items-center gap-3 mt-4 flex-wrap">
               {/* Status */}
               <span
-                className="inline-flex items-center h-6 px-3 rounded-full text-[11px] font-bold"
+                className="inline-flex items-center h-5 px-2.5 rounded-[6px] text-[10px] font-bold"
                 style={{ background: "var(--accent-bg)", color: "var(--navy)" }}
               >
                 {STATUS_LABELS[project.status ?? "active"]}
@@ -115,7 +116,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
 
               {/* Urgency */}
               <span
-                className="inline-flex items-center h-6 px-3 rounded-full text-[11px] font-bold"
+                className="inline-flex items-center h-5 px-2.5 rounded-[6px] text-[10px] font-bold"
                 style={{ background: urgencyBg, color: urgencyColor }}
               >
                 {(project.urgency ?? "medium").charAt(0).toUpperCase() +
@@ -152,6 +153,15 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         projectId={project.id}
         currentUserId={user?.id ?? ""}
       />
+
+      {/* Activity Feed */}
+      <div
+        className="rounded-xl border p-6"
+        style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
+      >
+        <h2 className="h3 mb-4" style={{ color: "var(--ink)" }}>Activity</h2>
+        <ProjectActivity projectId={project.id} />
+      </div>
     </div>
   );
 }

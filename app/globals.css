@@ -73,7 +73,11 @@
   --r-sm:           6px;
   --r-md:           8px;
   --r-lg:           12px;
+  --r-xl:           14px;
   --r-pill:         999px;
+
+  /* Hover states */
+  --navy-hover:     color-mix(in srgb, var(--navy) 85%, black);
 
   /* Shadows */
   --shadow-card:    0 1px 3px rgba(25, 24, 59, 0.06), 0 1px 2px rgba(25, 24, 59, 0.04);
@@ -244,7 +248,7 @@
   --radius-sm:                    var(--r-sm);
   --radius-md:                    var(--r-md);
   --radius-lg:                    var(--r-lg);
-  --radius-xl:                    var(--r-pill);
+  --radius-xl:                    var(--r-xl);
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -491,6 +495,140 @@
   transition: color 120ms var(--ease-out);
 }
 .float-label-toggle:hover { color: var(--ink); }
+
+/* ─────────────────────────────────────────────────────────
+   Float-label textarea variant
+───────────────────────────────────────────────────────── */
+
+.float-label-textarea {
+  display: block;
+  width: 100%;
+  min-height: 90px;
+  padding: 28px 14px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  resize: none;
+  caret-color: var(--navy);
+  transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+}
+.float-label-textarea::placeholder { color: transparent; }
+.float-label-textarea:hover:not(:disabled) { border-color: var(--text-muted); }
+.float-label-textarea:focus {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(161, 194, 189, 0.28);
+}
+.float-label-textarea.error-state {
+  border-color: var(--clr-red);
+  background: color-mix(in srgb, var(--clr-red-bg) 40%, var(--surface-bg));
+}
+.float-label-textarea.error-state:focus {
+  border-color: var(--clr-red);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+/* In a textarea context, label rests near the top (not vertically centered) */
+.float-label-wrap:has(.float-label-textarea) .float-label {
+  top: 18px;
+  transform: none;
+}
+.float-label-textarea:focus ~ .float-label,
+.float-label-textarea:not(:placeholder-shown) ~ .float-label {
+  top: 10px;
+  transform: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+}
+.float-label-textarea:focus ~ .float-label { color: var(--navy); }
+.float-label-textarea.error-state ~ .float-label,
+.float-label-textarea.error-state:focus ~ .float-label { color: var(--clr-red); }
+
+/* datetime-local: label is always lifted since the input always shows
+   native date format text (never triggers :placeholder-shown) */
+input[type="datetime-local"].float-label-input ~ .float-label {
+  top: 10px;
+  transform: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+}
+input[type="datetime-local"].float-label-input:focus ~ .float-label {
+  color: var(--navy);
+}
+
+/* ─────────────────────────────────────────────────────────
+   Select field with persistent top label (same height as float-label-input)
+───────────────────────────────────────────────────────── */
+
+.select-wrap { position: relative; }
+
+.select-field {
+  display: block;
+  width: 100%;
+  height: 56px;
+  padding: 22px 36px 6px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+}
+.select-field:hover:not(:disabled) { border-color: var(--text-muted); }
+.select-field:focus {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px rgba(161, 194, 189, 0.28);
+}
+
+.select-label {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+  pointer-events: none;
+  user-select: none;
+  transition: color 150ms var(--ease-out);
+}
+.select-field:focus ~ .select-label { color: var(--navy); }
+
+.select-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--text-muted);
+  width: 16px;
+  height: 16px;
+}
+.select-field:focus ~ .select-arrow { color: var(--navy); }
+
+/* ─────────────────────────────────────────────────────────
+   Responsive layout helpers
+───────────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .app-main  { margin-left: 0 !important; }
+  .app-topbar { left: 0 !important; }
+}
 
 /* ─────────────────────────────────────────────────────────
    Entrance animation system

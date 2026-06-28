@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Loader2, LogOut, Settings, User } from "lucide-react";
+import { Bell, Loader2, LogOut, Menu, Settings, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ interface TopbarProps {
   unreadCount?: number;
   onSignOut?: () => void;
   isSigningOut?: boolean;
+  onMobileMenuToggle?: () => void;
 }
 
 function getInitials(name?: string | null, email?: string | null): string {
@@ -39,19 +40,29 @@ function getInitials(name?: string | null, email?: string | null): string {
   return (email?.[0] ?? "U").toUpperCase();
 }
 
-export function Topbar({ sidebarWidth, user, unreadCount = 0, onSignOut, isSigningOut = false }: TopbarProps) {
+export function Topbar({ sidebarWidth, user, unreadCount = 0, onSignOut, isSigningOut = false, onMobileMenuToggle }: TopbarProps) {
   const router = useRouter();
 
   return (
     <header
-      className="fixed top-0 right-0 z-30 flex items-center h-[60px] px-4 gap-2"
+      className="app-topbar fixed top-0 right-0 z-30 flex items-center h-[60px] px-4 gap-2"
       style={{
-        left: sidebarWidth,
+        left: 224,
         backgroundColor: "var(--shell-bg)",
         borderBottom: "1px solid var(--line)",
-        transition: "left 200ms ease",
       }}
     >
+      {/* Hamburger — mobile only */}
+      <button
+        type="button"
+        onClick={onMobileMenuToggle}
+        className="md:hidden p-2 rounded-xl transition-colors hover:bg-[var(--line-soft)]"
+        style={{ color: "var(--text-secondary)" }}
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
       <div className="flex-1" />
 
       <div className="flex items-center gap-1">

@@ -4,15 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { createTaskSchema, type CreateTaskInput } from "@/lib/validations/tasks";
+import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
 
 const URGENCY_OPTIONS = [
@@ -34,9 +34,10 @@ interface Props {
   projectId: string;
   task?: Task;
   defaultStatus?: "todo" | "in_progress" | "done";
+  defaultDeadline?: string;
 }
 
-export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus = "todo" }: Props) {
+export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus = "todo", defaultDeadline }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!task;
@@ -77,10 +78,11 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
         description: "",
         urgency: "medium",
         status: defaultStatus,
+        deadline: defaultDeadline ? `${defaultDeadline}T09:00` : undefined,
       });
     }
     setServerError(null);
-  }, [open, task, projectId, defaultStatus, reset]);
+  }, [open, task, projectId, defaultStatus, defaultDeadline, reset]);
 
   const onSubmit: SubmitHandler<CreateTaskInput> = async (values) => {
     setServerError(null);
@@ -111,157 +113,118 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle className="h3">
+      <DialogContent
+        className="w-full max-w-[calc(100vw-2rem)] sm:max-w-[500px] p-0 gap-0 overflow-hidden"
+        showCloseButton={false}
+      >
+        {/* ── Header ────────────────────────────────────────────── */}
+        <DialogHeader className="flex flex-row items-center justify-between gap-3 px-6 py-4 border-b border-[var(--line)]">
+          <DialogTitle className="h3 text-[var(--ink)]">
             {isEdit ? "Edit Task" : "New Task"}
           </DialogTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--line-soft)] flex-shrink-0"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 mt-1">
-          {/* Hidden project_id */}
-          <input type="hidden" {...register("project_id")} />
+        {/* ── Form ──────────────────────────────────────────────── */}
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className="p-5 max-h-[65vh] overflow-y-auto">
+            <input type="hidden" {...register("project_id")} />
 
-          {/* Name */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-              Task name <span style={{ color: "var(--clr-red)" }}>*</span>
-            </label>
-            <input
-              {...register("name")}
-              className="h-10 px-3 rounded-lg border text-[14px] outline-none transition-[border-color] duration-150"
-              style={{
-                borderColor: errors.name ? "var(--clr-red)" : "var(--line)",
-                background: "var(--surface-bg)",
-                color: "var(--ink)",
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--navy)")}
-              onBlur={(e) =>
-                (e.currentTarget.style.borderColor = errors.name ? "var(--clr-red)" : "var(--line)")
-              }
-              placeholder="e.g. Design login screen mockup"
-            />
-            {errors.name && (
-              <p className="text-[12px] font-medium" style={{ color: "var(--clr-red)" }}>
-                {errors.name.message}
-              </p>
-            )}
-          </div>
+            {/* Form fields card */}
+            <div className="flex flex-col gap-4 p-4 rounded-lg bg-[var(--panel-bg)] border border-[var(--line-soft)]">
 
-          {/* Description */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-              Description
-            </label>
-            <textarea
-              {...register("description")}
-              rows={3}
-              className="px-3 py-2.5 rounded-lg border text-[14px] outline-none resize-none transition-[border-color] duration-150"
-              style={{
-                borderColor: "var(--line)",
-                background: "var(--surface-bg)",
-                color: "var(--ink)",
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--navy)")}
-              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--line)")}
-              placeholder="Optional details, context, or requirements…"
-            />
-          </div>
+              {/* Name */}
+              <div className="float-label-wrap">
+                <input
+                  {...register("name")}
+                  placeholder=" "
+                  className={cn("float-label-input", errors.name && "error-state")}
+                />
+                <label className="float-label">
+                  Task name <span className="text-[var(--clr-red)]">*</span>
+                </label>
+                {errors.name && (
+                  <p className="mt-1 text-[11px] font-semibold text-[var(--clr-red)]">
+                    {errors.name.message}
+                  </p>
+                )}
+              </div>
 
-          {/* Status + Urgency */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-                Status
-              </label>
-              <select
-                {...register("status")}
-                className="h-10 px-3 rounded-lg border text-[14px] outline-none"
-                style={{
-                  borderColor: "var(--line)",
-                  background: "var(--surface-bg)",
-                  color: "var(--ink)",
-                }}
-              >
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              {/* Description */}
+              <div className="float-label-wrap">
+                <textarea
+                  {...register("description")}
+                  placeholder=" "
+                  className="float-label-textarea"
+                />
+                <label className="float-label">Description (optional)</label>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-                Urgency
-              </label>
-              <select
-                {...register("urgency")}
-                className="h-10 px-3 rounded-lg border text-[14px] outline-none"
-                style={{
-                  borderColor: "var(--line)",
-                  background: "var(--surface-bg)",
-                  color: "var(--ink)",
-                }}
-              >
-                {URGENCY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              {/* Status + Urgency */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="select-wrap">
+                  <select {...register("status")} className="select-field">
+                    {STATUS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <span className="select-label">Status</span>
+                  <ChevronDown className="select-arrow" />
+                </div>
+                <div className="select-wrap">
+                  <select {...register("urgency")} className="select-field">
+                    {URGENCY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <span className="select-label">Urgency</span>
+                  <ChevronDown className="select-arrow" />
+                </div>
+              </div>
+
+              {/* Deadline — float-label-input keeps native calendar icon; label is always lifted */}
+              <div className="float-label-wrap">
+                <input
+                  {...register("deadline")}
+                  type="datetime-local"
+                  className="float-label-input"
+                />
+                <label className="float-label">Deadline (optional)</label>
+              </div>
+
+              {serverError && (
+                <p className="text-[13px] font-medium px-3 py-2 rounded-xl text-[var(--clr-red)] bg-[var(--clr-red-bg)]">
+                  {serverError}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Deadline */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-              Deadline
-            </label>
-            <input
-              {...register("deadline")}
-              type="datetime-local"
-              className="h-10 px-3 rounded-lg border text-[14px] outline-none"
-              style={{
-                borderColor: "var(--line)",
-                background: "var(--surface-bg)",
-                color: "var(--ink)",
-              }}
-            />
-          </div>
-
-          {serverError && (
-            <p
-              className="text-[13px] font-medium px-3 py-2 rounded-lg"
-              style={{ color: "var(--clr-red)", background: "var(--clr-red-bg)" }}
-            >
-              {serverError}
-            </p>
-          )}
-
-          <DialogFooter className="mt-2">
+          {/* ── Footer ────────────────────────────────────────────── */}
+          <div className="px-5 py-4 flex justify-end gap-2 border-t border-[var(--line)] bg-[var(--panel-bg)]">
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-5 rounded-xl text-[14px] font-semibold border transition-colors duration-150"
-              style={{
-                borderColor: "var(--line)",
-                color: "var(--text-secondary)",
-                background: "transparent",
-              }}
+              className="h-10 px-5 rounded-xl text-[13px] font-semibold border border-[var(--line)] text-[var(--text-secondary)] bg-transparent transition-colors duration-150 hover:bg-[var(--line-soft)]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-6 rounded-xl text-[14px] font-bold text-white flex items-center gap-2 transition-[box-shadow,opacity] duration-150 hover:shadow-[var(--shadow-needle)] disabled:opacity-50"
-              style={{ background: "var(--navy)" }}
+              className="h-10 px-6 rounded-xl text-[13px] font-bold text-white flex items-center gap-2 transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)] disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {isEdit ? "Save changes" : "Create task"}
             </button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

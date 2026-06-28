@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
 import { useLogout } from "@/lib/hooks/use-logout";
+import { Menu } from "lucide-react";
 
 interface AppShellProfile {
   name: string | null;
@@ -16,36 +16,66 @@ interface AppShellProps {
   profile: AppShellProfile | null;
 }
 
-/**
- * AppShell — client boundary for the authenticated app layout.
- *
- * Owns sidebar collapse state and the logout action.  Kept as a separate
- * client component so the parent (app/(app)/layout.tsx) can remain a server
- * component and fetch the user once at layout render time instead of on every
- * client navigation.
- */
 export function AppShell({ children, profile }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { logout, isLoading } = useLogout();
-  const sidebarWidth = collapsed ? 72 : 240;
+  const sidebarWidth = collapsed ? 64 : 224;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--page-bg)" }}>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
-      <Topbar
-        sidebarWidth={sidebarWidth}
-        user={profile ?? undefined}
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 md:hidden"
+          style={{ background: "rgba(0,0,0,0.35)" }}
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+        profile={profile}
         onSignOut={logout}
         isSigningOut={isLoading}
       />
+
+      {/* Mobile header — hamburger only, no white bar on desktop */}
+      <div
+        className="md:hidden fixed top-0 left-0 right-0 z-20 flex items-center h-14 px-4"
+        style={{ background: "var(--sidebar-bg)", borderBottom: "1px solid var(--line)" }}
+      >
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded-lg"
+          style={{ color: "var(--text-muted)" }}
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <span
+          className="ml-3 font-bold text-[17px]"
+          style={{ color: "var(--navy)", fontFamily: "var(--font-display)" }}
+        >
+          Task<span style={{ color: "var(--accent-d)" }}>Co</span>
+        </span>
+      </div>
+
       <main
-        className="pt-[60px] min-h-screen"
+        className="min-h-screen"
         style={{
           marginLeft: sidebarWidth,
           transition: "margin-left 200ms ease",
         }}
       >
-        <div className="px-6 py-6 max-w-[1400px]">{children}</div>
+        {/* Mobile top offset */}
+        <div className="md:hidden h-14" />
+        <div className="px-10 py-8 max-w-[1200px] mx-auto">{children}</div>
       </main>
     </div>
   );

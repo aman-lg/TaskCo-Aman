@@ -1,8 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, MoreHorizontal, Pencil, Trash2, Calendar, AlertCircle } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, Calendar, AlertCircle, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +59,23 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
   const [addingIn, setAddingIn] = useState<TaskStatus | null>(null);
   const [detailTask, setDetailTask] = useState<TaskWithChecklist | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
+
+  const activeTask = activeId ? tasks.find((t) => t.id === activeId) ?? null : null;
+
+  // Sync detailTask with updated tasks from server
+  useEffect(() => {
+    setDetailTask((prev) => {
+      if (!prev) return null;
+      return tasks.find((t) => t.id === prev.id) ?? prev;
+    });
+  }, [tasks]);
 
   async function deleteTask(task: Task) {
     if (!confirm(`Delete "${task.name}"?`)) return;
@@ -65,77 +93,50 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
     router.refresh();
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    setActiveId(null);
+    if (!over) return;
+    const task = tasks.find((t) => t.id === active.id);
+    const targetCol = over.id as TaskStatus;
+    if (!task || task.status === targetCol) return;
+    moveTask(task, targetCol);
+  }
+
   return (
     <>
-      <div className="grid grid-cols-3 gap-4 items-start">
-        {COLUMNS.map((col) => {
-          const colTasks = tasks.filter((t) => t.status === col.id);
-          return (
-            <div
-              key={col.id}
-              className="flex flex-col gap-3 rounded-xl p-3 min-h-[200px]"
-              style={{ background: "var(--panel-bg)", border: "1px solid var(--line-soft)" }}
-            >
-              {/* Column header */}
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: `var(${col.colorToken})` }}
-                  />
-                  <span
-                    className="text-[12px] font-bold uppercase tracking-[0.8px]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {col.label}
-                  </span>
-                  <span
-                    className="text-[11px] font-semibold px-1.5 rounded"
-                    style={{ background: "var(--line)", color: "var(--text-secondary)" }}
-                  >
-                    {colTasks.length}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAddingIn(col.id)}
-                  className="p-1 rounded-xl transition-opacity duration-100 hover:opacity-70"
-                  style={{ color: "var(--text-muted)" }}
-                  aria-label={`Add task to ${col.label}`}
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex gap-3 items-start overflow-x-auto pb-2">
+          {COLUMNS.map((col) => {
+            const colTasks = tasks.filter((t) => t.status === col.id);
+            return (
+              <KanbanColumn
+                key={col.id}
+                col={col}
+                tasks={colTasks}
+                activeId={activeId}
+                currentUserId={currentUserId}
+                onAddClick={() => setAddingIn(col.id)}
+                onOpen={(task) => setDetailTask(task)}
+                onEdit={(task) => setEditTask(task)}
+                onDelete={deleteTask}
+                onMove={moveTask}
+              />
+            );
+          })}
+        </div>
 
-              {/* Task cards */}
-              <div className="flex flex-col gap-2.5">
-                {colTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    currentUserId={currentUserId}
-                    onOpen={() => setDetailTask(task)}
-                    onEdit={() => setEditTask(task)}
-                    onDelete={() => deleteTask(task)}
-                    onMove={(s) => moveTask(task, s)}
-                  />
-                ))}
-              </div>
+        <DragOverlay>
+          {activeTask && (
+            <TaskCardOverlay task={activeTask} />
+          )}
+        </DragOverlay>
+      </DndContext>
 
-              {colTasks.length === 0 && (
-                <p
-                  className="text-center text-[12px] py-4"
-                  style={{ color: "var(--text-fine)" }}
-                >
-                  No tasks
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Add task dialog */}
       <TaskFormDialog
         open={!!addingIn}
         onClose={() => setAddingIn(null)}
@@ -143,7 +144,6 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
         defaultStatus={addingIn ?? "todo"}
       />
 
-      {/* Edit task dialog */}
       {editTask && (
         <TaskFormDialog
           open={!!editTask}
@@ -153,7 +153,6 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
         />
       )}
 
-      {/* Task detail sheet */}
       <TaskDetailSheet
         task={detailTask}
         open={!!detailTask}
@@ -161,6 +160,144 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
         currentUserId={currentUserId}
       />
     </>
+  );
+}
+
+// ── Column ────────────────────────────────────────────────────────────────────
+
+interface ColumnProps {
+  col: typeof COLUMNS[number];
+  tasks: TaskWithChecklist[];
+  activeId: string | null;
+  currentUserId: string;
+  onAddClick: () => void;
+  onOpen: (task: TaskWithChecklist) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
+  onMove: (task: Task, status: TaskStatus) => void;
+}
+
+function KanbanColumn({
+  col, tasks, activeId, currentUserId, onAddClick, onOpen, onEdit, onDelete, onMove,
+}: ColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: col.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="flex-shrink-0 w-[280px] sm:flex-1 sm:min-w-0 sm:w-auto flex flex-col gap-3 rounded-xl p-3 min-h-[200px] transition-colors duration-150"
+      style={{
+        background: isOver ? "var(--accent-bg)" : "var(--panel-bg)",
+        border: `1px solid ${isOver ? "var(--accent-brand)" : "var(--line-soft)"}`,
+      }}
+    >
+      {/* Column header */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ background: `var(${col.colorToken})` }}
+          />
+          <span
+            className="text-[12px] font-bold uppercase tracking-[0.8px]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {col.label}
+          </span>
+          <span
+            className="text-[11px] font-semibold px-1.5 rounded"
+            style={{ background: "var(--line)", color: "var(--text-secondary)" }}
+          >
+            {tasks.length}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onAddClick}
+          className="p-1 rounded-lg transition-opacity hover:opacity-70"
+          style={{ color: "var(--text-muted)" }}
+          aria-label={`Add task to ${col.label}`}
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Task cards */}
+      <div className="flex flex-col gap-2.5">
+        {tasks.map((task) => (
+          <DraggableTaskCard
+            key={task.id}
+            task={task}
+            isDragging={activeId === task.id}
+            currentUserId={currentUserId}
+            onOpen={() => onOpen(task)}
+            onEdit={() => onEdit(task)}
+            onDelete={() => onDelete(task)}
+            onMove={(s) => onMove(task, s)}
+          />
+        ))}
+      </div>
+
+      {tasks.length === 0 && (
+        <p className="text-center text-[12px] py-6" style={{ color: "var(--text-fine)" }}>
+          {activeId ? "Drop here" : "No tasks"}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Draggable card wrapper ────────────────────────────────────────────────────
+
+interface DraggableCardProps {
+  task: TaskWithChecklist;
+  isDragging: boolean;
+  currentUserId: string;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onMove: (status: TaskStatus) => void;
+}
+
+function DraggableTaskCard({ task, isDragging, ...rest }: DraggableCardProps) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id });
+
+  const style: React.CSSProperties = {
+    touchAction: "none",
+    cursor: isDragging ? "grabbing" : "grab",
+    opacity: isDragging ? 0 : 1,
+    ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : {}),
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+    >
+      <TaskCard task={task} {...rest} />
+    </div>
+  );
+}
+
+// ── Ghost overlay while dragging ──────────────────────────────────────────────
+
+function TaskCardOverlay({ task }: { task: TaskWithChecklist }) {
+  return (
+    <div
+      className="flex flex-col gap-2.5 p-3.5 rounded-xl border shadow-lg rotate-2 cursor-grabbing"
+      style={{
+        background: "var(--surface-bg)",
+        borderColor: "var(--navy)",
+        opacity: 0.95,
+        width: 260,
+      }}
+    >
+      <p className="text-[13px] font-semibold leading-snug" style={{ color: "var(--ink)" }}>
+        {task.name}
+      </p>
+    </div>
   );
 }
 
@@ -201,22 +338,31 @@ function TaskCard({ task, currentUserId, onOpen, onEdit, onDelete, onMove }: Car
 
   return (
     <article
-      className="group relative flex flex-col gap-2.5 p-3.5 rounded-lg border cursor-pointer transition-shadow duration-150 hover:shadow-[var(--shadow-soft)]"
+      className="group relative flex flex-col gap-2.5 p-3.5 rounded-xl border transition-shadow hover:shadow-[var(--shadow-soft)]"
       style={{ background: "var(--surface-bg)", borderColor: "var(--line)" }}
       onClick={onOpen}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onOpen()}
     >
-      {/* Card menu — stops propagation so it doesn't open the sheet */}
+      {/* Grip icon — visual hint only */}
+      <div
+        className="absolute top-2 left-2 opacity-0 group-hover:opacity-40 transition-opacity duration-100"
+        style={{ color: "var(--text-fine)" }}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </div>
+
+      {/* Dropdown menu — stops pointer propagation to prevent accidental drag */}
       {isCreator && (
         <div
           className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-100"
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
         >
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="p-1 rounded-lg transition-colors duration-100"
+              className="p-1 rounded-lg transition-colors"
               style={{ color: "var(--text-muted)" }}
               aria-label="Task options"
             >
@@ -232,10 +378,7 @@ function TaskCard({ task, currentUserId, onOpen, onEdit, onDelete, onMove }: Car
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={onDelete}
-                style={{ color: "var(--clr-red)" }}
-              >
+              <DropdownMenuItem onClick={onDelete} style={{ color: "var(--clr-red)" }}>
                 <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -244,9 +387,19 @@ function TaskCard({ task, currentUserId, onOpen, onEdit, onDelete, onMove }: Car
       )}
 
       {/* Task name */}
-      <p className="text-[13px] font-semibold pr-5 leading-snug" style={{ color: "var(--ink)" }}>
+      <p className="text-[13px] font-semibold pr-5 pl-3 leading-snug" style={{ color: "var(--ink)" }}>
         {task.name}
       </p>
+
+      {/* Description preview */}
+      {task.description && (
+        <p
+          className="text-[12px] leading-snug line-clamp-2 pl-3"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          {task.description}
+        </p>
+      )}
 
       {/* Urgency badge */}
       <span
@@ -258,24 +411,19 @@ function TaskCard({ task, currentUserId, onOpen, onEdit, onDelete, onMove }: Car
 
       {/* Meta row */}
       <div className="flex items-center justify-between gap-2">
-        {/* Checklist count */}
         {totalCnt > 0 && (
           <span className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
             ☑ {doneCnt}/{totalCnt}
           </span>
         )}
-
-        {/* Deadline */}
         {deadline && (
           <span
             className="flex items-center gap-1 text-[11px] font-medium ml-auto"
             style={{ color: isPastDeadline ? "var(--clr-red)" : "var(--text-muted)" }}
           >
-            {isPastDeadline ? (
-              <AlertCircle className="h-3 w-3" />
-            ) : (
-              <Calendar className="h-3 w-3" />
-            )}
+            {isPastDeadline
+              ? <AlertCircle className="h-3 w-3" />
+              : <Calendar className="h-3 w-3" />}
             {deadline}
           </span>
         )}

@@ -106,7 +106,7 @@ export function ProjectCard({ project, currentUserId }: Props) {
             {isOwner && (
               <DropdownMenu>
                 <DropdownMenuTrigger
-                  className="flex-shrink-0 p-1 rounded-lg transition-colors duration-100"
+                  className="flex-shrink-0 p-1 rounded-xl transition-colors duration-100"
                   style={{ color: "var(--text-muted)" }}
                   aria-label="Project options"
                 >

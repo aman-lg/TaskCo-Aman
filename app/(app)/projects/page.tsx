@@ -61,8 +61,7 @@ export default function ProjectsPage() {
         </div>
         <button
           onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 h-10 px-5 rounded-xl text-[14px] font-bold text-white transition-[box-shadow,opacity] duration-150 hover:shadow-[var(--shadow-needle)]"
-          style={{ background: "var(--navy)" }}
+          className="flex items-center gap-2 h-10 px-5 rounded-xl text-[14px] font-bold text-white transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)]"
         >
           <Plus className="h-4 w-4" />
           New project
@@ -78,7 +77,7 @@ export default function ProjectsPage() {
           <button
             key={tab.value}
             onClick={() => setStatusFilter(tab.value)}
-            className="h-8 px-3.5 rounded-lg text-[13px] font-semibold transition-[background,color,box-shadow] duration-150"
+            className="h-8 px-3.5 rounded-xl text-[13px] font-semibold transition-[background,color,box-shadow] duration-150"
             style={
               statusFilter === tab.value
                 ? {
@@ -128,8 +127,7 @@ export default function ProjectsPage() {
           {statusFilter === "all" && (
             <button
               onClick={() => setCreateOpen(true)}
-              className="mt-5 flex items-center gap-2 h-9 px-4 rounded-xl text-[13px] font-bold text-white"
-              style={{ background: "var(--navy)" }}
+              className="mt-5 flex items-center gap-2 h-9 px-4 rounded-xl text-[13px] font-bold text-white transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)]"
             >
               <Plus className="h-3.5 w-3.5" /> New project
             </button>

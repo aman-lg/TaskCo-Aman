@@ -4,15 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { createProjectSchema, type CreateProjectInput } from "@/lib/validations/projects";
+import { cn } from "@/lib/utils";
 import type { Project } from "@/types";
 
 const STATUS_OPTIONS = [
@@ -37,7 +37,7 @@ const PROJECT_COLORS = [
 interface Props {
   open: boolean;
   onClose: () => void;
-  project?: Project; // if provided → edit mode
+  project?: Project;
 }
 
 export function ProjectFormDialog({ open, onClose, project }: Props) {
@@ -112,171 +112,138 @@ export function ProjectFormDialog({ open, onClose, project }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[480px]">
-        <DialogHeader>
-          <DialogTitle className="h3">
+      <DialogContent
+        className="w-full max-w-[calc(100vw-2rem)] sm:max-w-[500px] p-0 gap-0 overflow-hidden"
+        showCloseButton={false}
+      >
+        {/* ── Header ────────────────────────────────────────────── */}
+        <DialogHeader className="flex flex-row items-center justify-between gap-3 px-6 py-4 border-b border-[var(--line)]">
+          <DialogTitle className="h3 text-[var(--ink)]">
             {isEdit ? "Edit Project" : "New Project"}
           </DialogTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--line-soft)] flex-shrink-0"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 mt-1">
-          {/* Title */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-              Title <span style={{ color: "var(--clr-red)" }}>*</span>
-            </label>
-            <input
-              {...register("title")}
-              className="h-10 px-3 rounded-lg border text-[14px] outline-none transition-[border-color,box-shadow] duration-150"
-              style={{
-                borderColor: errors.title ? "var(--clr-red)" : "var(--line)",
-                background: "var(--surface-bg)",
-                color: "var(--ink)",
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--navy)")}
-              onBlur={(e) =>
-                (e.currentTarget.style.borderColor = errors.title
-                  ? "var(--clr-red)"
-                  : "var(--line)")
-              }
-              placeholder="e.g. Q3 Product Redesign"
-            />
-            {errors.title && (
-              <p className="text-[12px] font-medium" style={{ color: "var(--clr-red)" }}>
-                {errors.title.message}
-              </p>
-            )}
-          </div>
+        {/* ── Form ──────────────────────────────────────────────── */}
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <div className="p-5 max-h-[65vh] overflow-y-auto">
+            {/* Form fields card */}
+            <div className="flex flex-col gap-4 p-4 rounded-lg bg-[var(--panel-bg)] border border-[var(--line-soft)]">
 
-          {/* Description */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-              Description
-            </label>
-            <textarea
-              {...register("description")}
-              rows={3}
-              className="px-3 py-2.5 rounded-lg border text-[14px] outline-none resize-none transition-[border-color] duration-150"
-              style={{
-                borderColor: "var(--line)",
-                background: "var(--surface-bg)",
-                color: "var(--ink)",
-              }}
-              onFocus={(e) => (e.currentTarget.style.borderColor = "var(--navy)")}
-              onBlur={(e) => (e.currentTarget.style.borderColor = "var(--line)")}
-              placeholder="Optional project overview…"
-            />
-          </div>
-
-          {/* Status + Urgency */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-                Status
-              </label>
-              <select
-                {...register("status")}
-                className="h-10 px-3 rounded-lg border text-[14px] outline-none"
-                style={{
-                  borderColor: "var(--line)",
-                  background: "var(--surface-bg)",
-                  color: "var(--ink)",
-                }}
-              >
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-                Urgency
-              </label>
-              <select
-                {...register("urgency")}
-                className="h-10 px-3 rounded-lg border text-[14px] outline-none"
-                style={{
-                  borderColor: "var(--line)",
-                  background: "var(--surface-bg)",
-                  color: "var(--ink)",
-                }}
-              >
-                {URGENCY_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Deadline */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-              Deadline
-            </label>
-            <input
-              {...register("deadline")}
-              type="datetime-local"
-              className="h-10 px-3 rounded-lg border text-[14px] outline-none"
-              style={{
-                borderColor: "var(--line)",
-                background: "var(--surface-bg)",
-                color: "var(--ink)",
-              }}
-            />
-          </div>
-
-          {/* Color swatch picker */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] font-semibold" style={{ color: "var(--ink)" }}>
-              Color
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {PROJECT_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setValue("color", c)}
-                  className="w-7 h-7 rounded-full border-2 transition-transform duration-100 hover:scale-110"
-                  style={{
-                    background: c,
-                    borderColor: selectedColor === c ? "var(--ink)" : "transparent",
-                  }}
-                  aria-label={`Pick color ${c}`}
+              {/* Title */}
+              <div className="float-label-wrap">
+                <input
+                  {...register("title")}
+                  placeholder=" "
+                  className={cn("float-label-input", errors.title && "error-state")}
                 />
-              ))}
+                <label className="float-label">
+                  Project title <span className="text-[var(--clr-red)]">*</span>
+                </label>
+                {errors.title && (
+                  <p className="mt-1 text-[11px] font-semibold text-[var(--clr-red)]">
+                    {errors.title.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Description */}
+              <div className="float-label-wrap">
+                <textarea
+                  {...register("description")}
+                  placeholder=" "
+                  className="float-label-textarea"
+                />
+                <label className="float-label">Description (optional)</label>
+              </div>
+
+              {/* Status + Urgency */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="select-wrap">
+                  <select {...register("status")} className="select-field">
+                    {STATUS_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <span className="select-label">Status</span>
+                  <ChevronDown className="select-arrow" />
+                </div>
+                <div className="select-wrap">
+                  <select {...register("urgency")} className="select-field">
+                    {URGENCY_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <span className="select-label">Urgency</span>
+                  <ChevronDown className="select-arrow" />
+                </div>
+              </div>
+
+              {/* Deadline — float-label-input keeps native calendar icon; label is always lifted */}
+              <div className="float-label-wrap">
+                <input
+                  {...register("deadline")}
+                  type="datetime-local"
+                  className="float-label-input"
+                />
+                <label className="float-label">Deadline (optional)</label>
+              </div>
+
+              {/* Colour picker */}
+              <div className="flex flex-col gap-2">
+                <p className="text-[10.5px] font-semibold text-[var(--text-muted)]" style={{ letterSpacing: "0.2px" }}>
+                  Project colour
+                </p>
+                <div className="flex gap-2 flex-wrap">
+                  {PROJECT_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setValue("color", c)}
+                      className="w-7 h-7 rounded-full border-2 transition-transform duration-100 hover:scale-110"
+                      style={{
+                        background: c,
+                        borderColor: selectedColor === c ? "var(--ink)" : "transparent",
+                      }}
+                      aria-label={`Pick colour ${c}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {serverError && (
+                <p className="text-[13px] font-medium px-3 py-2 rounded-xl text-[var(--clr-red)] bg-[var(--clr-red-bg)]">
+                  {serverError}
+                </p>
+              )}
             </div>
           </div>
 
-          {serverError && (
-            <p className="text-[13px] font-medium px-3 py-2 rounded-lg" style={{ color: "var(--clr-red)", background: "var(--clr-red-bg)" }}>
-              {serverError}
-            </p>
-          )}
-
-          <DialogFooter className="mt-2">
+          {/* ── Footer ────────────────────────────────────────────── */}
+          <div className="px-5 py-4 flex justify-end gap-2 border-t border-[var(--line)] bg-[var(--panel-bg)]">
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-5 rounded-xl text-[14px] font-semibold border transition-colors duration-150"
-              style={{ borderColor: "var(--line)", color: "var(--text-secondary)", background: "transparent" }}
+              className="h-10 px-5 rounded-xl text-[13px] font-semibold border border-[var(--line)] text-[var(--text-secondary)] bg-transparent transition-colors duration-150 hover:bg-[var(--line-soft)]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-6 rounded-xl text-[14px] font-bold text-white flex items-center gap-2 transition-[box-shadow,opacity] duration-150 hover:shadow-[var(--shadow-needle)] disabled:opacity-50"
-              style={{ background: "var(--navy)" }}
+              className="h-10 px-6 rounded-xl text-[13px] font-bold text-white flex items-center gap-2 transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)] disabled:opacity-50"
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               {isEdit ? "Save changes" : "Create project"}
             </button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

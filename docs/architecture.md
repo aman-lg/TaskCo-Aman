@@ -117,5 +117,25 @@ These two systems track different things and must never be conflated:
 | `X-Content-Type-Options` | `nosniff` |
 | `Referrer-Policy` | `strict-origin-when-cross-origin` |
 | `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `Content-Security-Policy` | `default-src 'self'`; scripts and styles allow `'unsafe-inline'`; fonts from `fonts.gstatic.com`; images from `data:`, `blob:`, `*.supabase.co`; connects to `*.supabase.co` (https + wss); `frame-ancestors 'none'` |
 
 Remote image patterns are restricted to `*.supabase.co` and `*.supabase.in` (avatar URLs stored in Supabase Storage).
+
+---
+
+## Client Component Patterns
+
+### Suspense boundary for `useSearchParams()`
+
+`useSearchParams()` must only be called in a `"use client"` component, and that component must be rendered inside a `<Suspense>` boundary in its parent Server Component page. The codebase uses a `page.tsx` + `content.tsx` split for this:
+
+- `page.tsx` — Server Component; renders `<Suspense fallback={...}><PageContent /></Suspense>`
+- `content.tsx` — `"use client"`; contains `useSearchParams()` and all client logic
+
+### Optimistic updates
+
+For mutations where immediate UI feedback is important (e.g., Kanban card drag-and-drop), use a local `useState` copy of the server-provided list. Apply the change to local state immediately on user action, fire the API call, then revert local state if the call fails. Sync the authoritative server value back via `useEffect([serverProp])` so a page refresh or navigation always shows the correct state.
+
+### CSS variables
+
+CSS custom properties (`var(--token)`) work directly on HTML elements — no JavaScript resolution is needed. The only exception is recharts SVG fills, which require `getCSSVar()` from `lib/utils/` to resolve the variable to a hex string at render time (the SVG `fill` attribute does not support CSS variables in all browsers).

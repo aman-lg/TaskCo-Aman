@@ -27,6 +27,21 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 - `attendance_sessions` = working hours clock. One open session per user. Source of truth for hours worked.
 - `task_time_entries` = effort per task, overlapping allowed. Never sum these for "hours worked" (double-counts overlaps).
 
+## Deployment
+- **Platform**: Vercel. Auto-deploys on every push to `main`.
+- Required env vars on Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`.
+
+## Security patterns
+- **UUID validation**: call `isValidUUID()` from `lib/utils/validate.ts` on every `[id]` path param before querying the DB. Return `ApiError.badRequest()` if invalid.
+- **Error handling**: `ApiError.internal()` never takes `error.message` as an argument — log server-side with `console.error("[route]", error)` and return a generic message to the client.
+- **Open redirects**: any redirect using a user-supplied URL must verify the path starts with `/` and does not start with `//`. Only relative paths are safe.
+- **Avatar URL**: must be HTTPS and hosted on `*.supabase.co`. Validated at the API layer.
+
+## Client component patterns
+- **`useSearchParams()`** must always be inside a `"use client"` component, and that component must be wrapped in `<Suspense>` in its parent page. Use the `page.tsx` + `content.tsx` split: `page.tsx` is the Server Component that renders `<Suspense><Content /></Suspense>`, and `content.tsx` holds the client logic.
+- **Optimistic updates**: use local `useState` for immediate UI feedback on mutations. Sync back from the server-authoritative value via `useEffect([serverProp])` so the UI reverts if the API call fails.
+- **CSS variables**: HTML elements use `var(--token)` directly in Tailwind/inline styles — no JS resolution needed. Only recharts SVG fills require `getCSSVar()` to resolve to a hex string at render time.
+
 ## Never do
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client. Never import `lib/supabase/admin` in `"use client"` files.
 - Never ship a table without RLS enabled.

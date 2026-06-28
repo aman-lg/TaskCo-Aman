@@ -1,5 +1,24 @@
 # Development Guide
 
+## Deployment
+
+The app is deployed on **Vercel**. Every push to the `main` branch triggers an automatic deployment.
+
+### Environment variables on Vercel
+
+Set the same variables as `.env.local` in the Vercel project's Environment Variables settings:
+
+| Variable | Notes |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key — server-only, never expose to client |
+| `RESEND_API_KEY` | Resend transactional email key |
+| `RESEND_FROM_EMAIL` | Sender address |
+| `NEXT_PUBLIC_APP_URL` | Production URL (e.g., `https://taskco.vercel.app`) |
+
+---
+
 ## Local Setup
 
 ### Option A: Cloud Supabase project
@@ -111,37 +130,84 @@ From `CLAUDE.md`:
 
 ---
 
+## Security Patterns
+
+### UUID validation on `[id]` path params
+
+Every route that reads an `[id]` segment from the URL must validate it before querying the database:
+
+```typescript
+import { isValidUUID } from "@/lib/utils/validate";
+
+if (!isValidUUID(params.id)) {
+  return ApiError.badRequest("Invalid ID");
+}
+```
+
+`isValidUUID()` is in `lib/utils/validate.ts`. It returns `false` for anything that is not a lowercase hyphenated UUID. Returning `400` early prevents probing queries against the database.
+
+### Error handling — never leak internal errors
+
+Catch database or library errors, log them server-side, and return a generic message:
+
+```typescript
+if (error) {
+  console.error("[route POST]", error);
+  return ApiError.internal(); // no error.message passed
+}
+```
+
+`ApiError.internal()` must never receive `error.message` as an argument.
+
+### Open redirect prevention
+
+When redirecting to a user-supplied `next` parameter (e.g., after login), validate that the path starts with `/` and does not start with `//`:
+
+```typescript
+const next = searchParams.get("next") ?? "/dashboard";
+const safePath = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+```
+
+---
+
 ## Adding a New API Route
 
 1. **Create the route file** at the correct path under `app/api/`. Use kebab-case for folder names. Named export the HTTP verbs (`GET`, `POST`, `PATCH`, `DELETE`).
 
 2. **Wrap with `withAuth()`** from `lib/api/handler.ts`. This verifies the session and provides `{ user, params }` to the handler.
 
-3. **Define and apply a Zod schema** before any database call. Return `ApiError.badRequest()` on parse failure.
+3. **Validate `[id]` path params** using `isValidUUID()` from `lib/utils/validate.ts`. Return `ApiError.badRequest()` if not a valid UUID. This is required for every route with a dynamic segment.
 
-4. **Use `ok()` and `ApiError.*`** from `lib/api/response.ts` for all responses.
+4. **Define and apply a Zod schema** before any database call. Return `ApiError.badRequest()` on parse failure.
 
-5. **Let RLS do authorization**. Do not duplicate permission checks in the application layer. A zero-row result from a guarded write indicates RLS blocked it — return `ApiError.forbidden()`.
+5. **Use `ok()` and `ApiError.*`** from `lib/api/response.ts` for all responses.
+
+6. **Let RLS do authorization**. Do not duplicate permission checks in the application layer. A zero-row result from a guarded write indicates RLS blocked it — return `ApiError.forbidden()`.
 
 ### Template
 
 ```typescript
-// app/api/widgets/route.ts
+// app/api/widgets/[id]/route.ts
 import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
+import { isValidUUID } from "@/lib/utils/validate";
 import { z } from "zod";
 
-const createWidgetSchema = z.object({
-  name: z.string().min(1).max(100),
+const updateWidgetSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
 });
 
-export const POST = withAuth(async (req: NextRequest, { user }) => {
+export const PATCH = withAuth(async (req: NextRequest, { user, params }) => {
+  // 1. Validate the [id] path param
+  if (!isValidUUID(params.id)) return ApiError.badRequest("Invalid ID");
+
   const body = await req.json().catch(() => null);
   if (!body) return ApiError.badRequest("Request body is required");
 
-  const parsed = createWidgetSchema.safeParse(body);
+  // 2. Validate the request body
+  const parsed = updateWidgetSchema.safeParse(body);
   if (!parsed.success) {
     return ApiError.badRequest(parsed.error.issues[0]?.message ?? "Invalid input");
   }
@@ -151,16 +217,19 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
   const db = supabase as any; // required if TypeScript infers never on narrow selects
   const { data, error } = await db
     .from("widgets")
-    .insert({ ...parsed.data, owner_id: user.id })
+    .update(parsed.data)
+    .eq("id", params.id)
     .select("id, name, owner_id")
     .single();
 
-  if (error) { console.error("[widgets POST]", error); return ApiError.internal(); }
-  return ok(data, 201);
+  // 3. Log error server-side; never pass error.message to the client
+  if (error) { console.error("[widgets PATCH]", error); return ApiError.internal(); }
+  if (!data) return ApiError.forbidden();
+  return ok(data);
 });
 ```
 
-6. **Write unit tests** in `tests/unit/api/` using Vitest. Mock `createClient` and `withAuth` — see existing tests in `tests/unit/api/` for the pattern.
+7. **Write unit tests** in `tests/unit/api/` using Vitest. Mock `createClient` and `withAuth` — see existing tests in `tests/unit/api/` for the pattern.
 
 ---
 

@@ -32,6 +32,14 @@ Every protected route handler is wrapped with `withAuth()` (`lib/api/handler.ts`
 | 404 | `NOT_FOUND` | Resource does not exist |
 | 500 | `INTERNAL_ERROR` | Unexpected server error |
 
+### ID validation
+
+All `[id]` path parameters (e.g., `/api/projects/:id`, `/api/tasks/:id`) are validated as UUIDs using `isValidUUID()` from `lib/utils/validate.ts` before any database call. A non-UUID value returns `400 BAD_REQUEST` immediately.
+
+### Internal error responses
+
+`500 INTERNAL_ERROR` responses never include the raw database or library error message. The error is logged server-side (`console.error`) and only a generic message is returned to the client. This prevents leaking schema details or query internals.
+
 ---
 
 ## Auth Routes

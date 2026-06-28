@@ -10,7 +10,8 @@ const updateProfileSchema = z.object({
     (url) => {
       try {
         const u = new URL(url);
-        return u.protocol === "https:" && (u.hostname.endsWith(".supabase.co") || u.hostname === "localhost");
+        const appHost = process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL).hostname : "localhost";
+        return u.protocol === "https:" && (u.hostname.endsWith(".supabase.co") || u.hostname === appHost);
       } catch { return false; }
     },
     { message: "Avatar URL must be a valid HTTPS Supabase storage URL" }

@@ -13,6 +13,7 @@ import {
   useDroppable,
   useSensor,
   useSensors,
+  closestCenter,
 } from "@dnd-kit/core";
 import {
   DropdownMenu,
@@ -54,12 +55,18 @@ interface Props {
   currentUserId: string;
 }
 
-export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
+export function KanbanBoard({ tasks: serverTasks, projectId, currentUserId }: Props) {
   const router = useRouter();
+  const [tasks, setTasks] = useState<TaskWithChecklist[]>(serverTasks);
   const [addingIn, setAddingIn] = useState<TaskStatus | null>(null);
   const [detailTask, setDetailTask] = useState<TaskWithChecklist | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Sync local tasks when server data changes (after refresh)
+  useEffect(() => {
+    setTasks(serverTasks);
+  }, [serverTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -69,7 +76,7 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
 
   const activeTask = activeId ? tasks.find((t) => t.id === activeId) ?? null : null;
 
-  // Sync detailTask with updated tasks from server
+  // Sync detailTask with updated tasks
   useEffect(() => {
     setDetailTask((prev) => {
       if (!prev) return null;
@@ -79,17 +86,29 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
 
   async function deleteTask(task: Task) {
     if (!confirm(`Delete "${task.name}"?`)) return;
-    await fetch(`/api/tasks/${task.id}`, { method: "DELETE", credentials: "same-origin" });
+    // Optimistic remove
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE", credentials: "same-origin" });
+    if (!res.ok) {
+      setTasks(serverTasks); // revert on failure
+    }
     router.refresh();
   }
 
   async function moveTask(task: Task, newStatus: TaskStatus) {
-    await fetch(`/api/tasks/${task.id}`, {
+    // Optimistic update — move card immediately
+    setTasks((prev) =>
+      prev.map((t) => t.id === task.id ? { ...t, status: newStatus } : t)
+    );
+    const res = await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       body: JSON.stringify({ status: newStatus }),
     });
+    if (!res.ok) {
+      setTasks(serverTasks); // revert on failure
+    }
     router.refresh();
   }
 
@@ -109,7 +128,7 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
 
   return (
     <>
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-3 items-start overflow-x-auto pb-2">
           {COLUMNS.map((col) => {
             const colTasks = tasks.filter((t) => t.status === col.id);
@@ -260,19 +279,16 @@ interface DraggableCardProps {
 }
 
 function DraggableTaskCard({ task, isDragging, ...rest }: DraggableCardProps) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id });
-
-  const style: React.CSSProperties = {
-    touchAction: "none",
-    cursor: isDragging ? "grabbing" : "grab",
-    opacity: isDragging ? 0 : 1,
-    ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : {}),
-  };
+  const { attributes, listeners, setNodeRef } = useDraggable({ id: task.id });
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        touchAction: "none",
+        cursor: isDragging ? "grabbing" : "grab",
+        opacity: isDragging ? 0 : 1,
+      }}
       {...attributes}
       {...listeners}
     >

@@ -172,7 +172,7 @@ describe("GET /api/tasks/:id", () => {
 
   it("returns 404 when task is not found", async () => {
     mockFrom.mockReturnValue(stubChain(null));
-    const res = await getTask(makeReq("GET"), { params: Promise.resolve({ id: "missing" }) });
+    const res = await getTask(makeReq("GET"), { params: Promise.resolve({ id: PROJ_UUID }) });
     expect(res.status).toBe(404);
   });
 });
@@ -233,7 +233,7 @@ describe("DELETE /api/tasks/:id", () => {
   it("returns 403 when RLS blocks deletion (not the creator)", async () => {
     const eqMock = vi.fn().mockResolvedValue({ data: null, error: null, count: 0 });
     mockFrom.mockReturnValue({ delete: vi.fn().mockReturnValue({ eq: eqMock }) });
-    const res = await deleteTask(makeReq("DELETE"), { params: Promise.resolve({ id: "other-task" }) });
+    const res = await deleteTask(makeReq("DELETE"), { params: Promise.resolve({ id: ITEM_UUID }) });
     expect(res.status).toBe(403);
   });
 });
@@ -312,7 +312,7 @@ describe("DELETE /api/tasks/:id/checklist/:itemId", () => {
     const eqMock = vi.fn().mockResolvedValue({ data: null, error: null, count: 0 });
     mockFrom.mockReturnValue({ delete: vi.fn().mockReturnValue({ eq: eqMock }) });
     const res = await deleteChecklistItem(makeReq("DELETE"), {
-      params: Promise.resolve({ id: TASK_UUID, itemId: "missing" }),
+      params: Promise.resolve({ id: TASK_UUID, itemId: PROJ_UUID }),
     });
     expect(res.status).toBe(404);
   });

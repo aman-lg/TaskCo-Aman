@@ -262,9 +262,15 @@ The following features are intentionally excluded from the v1 release:
 
 ---
 
+## Deployment
+
+The app is deployed on **Vercel** and auto-deploys on every push to the `main` branch. Required environment variables must be set in the Vercel project settings (see the Environment Variables section above).
+
+---
+
 ## Known Security Issues (Unfixed)
 
-These items were identified in a security audit and have not yet been resolved:
+The following items were identified in a security audit. The seven issues found have been resolved; these five remain open:
 
 - **No rate limiting** on auth endpoints (`/login`, `/register`, `/forgot-password`) — Supabase's built-in limits apply but no application-level throttle is in place
 - **CSRF**: `SameSite=Lax` on auth cookies provides partial coverage; there is no explicit CSRF middleware

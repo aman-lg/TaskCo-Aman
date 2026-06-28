@@ -25,15 +25,20 @@ vi.mock("@/lib/supabase/server", () => ({
 import { GET as listProjects, POST as createProject } from "@/app/api/projects/route";
 import { GET as getProject, PATCH as updateProject, DELETE as deleteProject } from "@/app/api/projects/[id]/route";
 
+const PROJECT_UUID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+const TASK_UUID = "b2c3d4e5-f6a7-8901-bcde-f12345678901";
+const ITEM_UUID = "c3d4e5f6-a7b8-9012-cdef-123456789012";
+const USER_UUID = "d4e5f6a7-b8c9-0123-defa-234567890123";
+
 const MOCK_USER = { id: "user-1", email: "user@test.com" };
 const MOCK_PROJECT = {
-  id: "proj-1",
+  id: PROJECT_UUID,
   title: "Test Project",
   description: null,
   urgency: "medium",
   status: "active",
   color: null,
-  owner_id: "user-1",
+  owner_id: USER_UUID,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
@@ -151,17 +156,17 @@ describe("GET /api/projects/:id", () => {
 
   it("returns 200 with project data", async () => {
     mockFrom.mockReturnValue(chainBuilder(MOCK_PROJECT));
-    const res = await getProject(makeReq("GET", undefined, "http://localhost/api/projects/proj-1"), {
-      params: Promise.resolve({ id: "proj-1" }),
+    const res = await getProject(makeReq("GET", undefined, `http://localhost/api/projects/${PROJECT_UUID}`), {
+      params: Promise.resolve({ id: PROJECT_UUID }),
     });
     expect(res.status).toBe(200);
     const { data } = await res.json();
-    expect(data.id).toBe("proj-1");
+    expect(data.id).toBe(PROJECT_UUID);
   });
 
   it("returns 404 when project is not found", async () => {
     mockFrom.mockReturnValue(chainBuilder(null));
-    const res = await getProject(makeReq("GET"), { params: Promise.resolve({ id: "missing" }) });
+    const res = await getProject(makeReq("GET"), { params: Promise.resolve({ id: TASK_UUID }) });
     expect(res.status).toBe(404);
   });
 });
@@ -178,7 +183,7 @@ describe("PATCH /api/projects/:id", () => {
     mockFrom.mockReturnValue(chainBuilder({ ...MOCK_PROJECT, title: "Updated" }));
     const res = await updateProject(
       makeReq("PATCH", { title: "Updated" }),
-      { params: Promise.resolve({ id: "proj-1" }) }
+      { params: Promise.resolve({ id: PROJECT_UUID }) }
     );
     expect(res.status).toBe(200);
   });
@@ -186,7 +191,7 @@ describe("PATCH /api/projects/:id", () => {
   it("returns 400 when body has no valid fields", async () => {
     const res = await updateProject(
       makeReq("PATCH", {}),
-      { params: Promise.resolve({ id: "proj-1" }) }
+      { params: Promise.resolve({ id: PROJECT_UUID }) }
     );
     expect(res.status).toBe(400);
     const { error } = await res.json();
@@ -196,7 +201,7 @@ describe("PATCH /api/projects/:id", () => {
   it("returns 400 when status value is invalid", async () => {
     const res = await updateProject(
       makeReq("PATCH", { status: "paused" }),
-      { params: Promise.resolve({ id: "proj-1" }) }
+      { params: Promise.resolve({ id: PROJECT_UUID }) }
     );
     expect(res.status).toBe(400);
   });
@@ -205,7 +210,7 @@ describe("PATCH /api/projects/:id", () => {
     mockGetUser.mockResolvedValue({ data: { user: null }, error: null });
     const res = await updateProject(
       makeReq("PATCH", { title: "X" }),
-      { params: Promise.resolve({ id: "proj-1" }) }
+      { params: Promise.resolve({ id: PROJECT_UUID }) }
     );
     expect(res.status).toBe(401);
   });
@@ -222,7 +227,7 @@ describe("DELETE /api/projects/:id", () => {
   it("returns 200 with deleted:true when project is deleted", async () => {
     const eqMock = vi.fn().mockResolvedValue({ data: null, error: null, count: 1 });
     mockFrom.mockReturnValue({ delete: vi.fn().mockReturnValue({ eq: eqMock }) });
-    const res = await deleteProject(makeReq("DELETE"), { params: Promise.resolve({ id: "proj-1" }) });
+    const res = await deleteProject(makeReq("DELETE"), { params: Promise.resolve({ id: PROJECT_UUID }) });
     expect(res.status).toBe(200);
     const { data } = await res.json();
     expect(data.deleted).toBe(true);
@@ -231,7 +236,7 @@ describe("DELETE /api/projects/:id", () => {
   it("returns 403 when RLS blocks deletion (count=0)", async () => {
     const eqMock = vi.fn().mockResolvedValue({ data: null, error: null, count: 0 });
     mockFrom.mockReturnValue({ delete: vi.fn().mockReturnValue({ eq: eqMock }) });
-    const res = await deleteProject(makeReq("DELETE"), { params: Promise.resolve({ id: "not-mine" }) });
+    const res = await deleteProject(makeReq("DELETE"), { params: Promise.resolve({ id: ITEM_UUID }) });
     expect(res.status).toBe(403);
   });
 });

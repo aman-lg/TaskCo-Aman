@@ -16,7 +16,7 @@ export function AuthPhoneField({ countryCode, localPhone, onCodeChange, onPhoneC
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="float-label-wrap">
+      <div>
         {/* Outer wrapper matches float-label-input dimensions exactly */}
         <div
           className="flex items-stretch w-full overflow-hidden"
@@ -61,7 +61,7 @@ export function AuthPhoneField({ countryCode, localPhone, onCodeChange, onPhoneC
               fontSize: 15,
               color: "var(--ink)",
               caretColor: "var(--navy)",
-              padding: "22px 14px 8px",
+              padding: "0 14px",
             }}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
@@ -69,23 +69,6 @@ export function AuthPhoneField({ countryCode, localPhone, onCodeChange, onPhoneC
           />
         </div>
 
-        {/* Label — always in lifted state since country code is always visible */}
-        <label
-          style={{
-            position: "absolute",
-            left: 14,
-            top: 10,
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: 0.2,
-            color: error ? "var(--clr-red)" : focused ? "var(--navy)" : "var(--text-muted)",
-            pointerEvents: "none",
-            userSelect: "none",
-            transition: "color 150ms",
-          }}
-        >
-          Phone number
-        </label>
       </div>
 
       {error && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Search } from "lucide-react";
 
 interface Country {
@@ -181,8 +182,8 @@ export function CountryCodeSelect({ value, onChange, disabled, insideField }: Pr
         <ChevronDown style={{ width: 12, height: 12, opacity: 0.5, flexShrink: 0 }} />
       </button>
 
-      {/* Fixed-position dropdown — escapes overflow:hidden parents */}
-      {open && pos && (
+      {/* Portal into document.body — escapes CSS transform stacking contexts */}
+      {open && pos && typeof document !== "undefined" && createPortal(
         <div
           id="cc-dropdown"
           style={{
@@ -284,7 +285,8 @@ export function CountryCodeSelect({ value, onChange, disabled, insideField }: Pr
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

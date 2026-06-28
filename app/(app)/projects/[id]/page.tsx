@@ -90,7 +90,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
           <div className="flex-1 min-w-0">
             <h1
               className="h1 text-balance"
-              style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}
+              style={{ color: "var(--ink)" }}
             >
               {project.title}
             </h1>

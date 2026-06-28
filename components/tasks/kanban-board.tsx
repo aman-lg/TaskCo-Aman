@@ -99,7 +99,7 @@ export function KanbanBoard({ tasks, projectId, currentUserId }: Props) {
                 <button
                   type="button"
                   onClick={() => setAddingIn(col.id)}
-                  className="p-1 rounded-lg transition-opacity duration-100 hover:opacity-70"
+                  className="p-1 rounded-xl transition-opacity duration-100 hover:opacity-70"
                   style={{ color: "var(--text-muted)" }}
                   aria-label={`Add task to ${col.label}`}
                 >
@@ -216,7 +216,7 @@ function TaskCard({ task, currentUserId, onOpen, onEdit, onDelete, onMove }: Car
         >
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="p-1 rounded-md transition-colors duration-100"
+              className="p-1 rounded-lg transition-colors duration-100"
               style={{ color: "var(--text-muted)" }}
               aria-label="Task options"
             >
@@ -234,7 +234,7 @@ function TaskCard({ task, currentUserId, onOpen, onEdit, onDelete, onMove }: Car
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={onDelete}
-                className="text-red-600 focus:text-red-600"
+                style={{ color: "var(--clr-red)" }}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
               </DropdownMenuItem>

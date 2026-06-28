@@ -51,7 +51,7 @@ export default async function TasksPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="h1" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+        <h1 className="h1" style={{ color: "var(--ink)" }}>
           All Tasks
         </h1>
         <p className="mt-1 text-[14px]" style={{ color: "var(--text-secondary)" }}>
@@ -70,7 +70,7 @@ export default async function TasksPage() {
           <p className="text-[13px]">Open a project to create tasks.</p>
           <Link
             href="/projects"
-            className="mt-5 h-9 px-4 rounded-full text-[13px] font-bold text-white flex items-center"
+            className="mt-5 h-9 px-4 rounded-xl text-[13px] font-bold text-white flex items-center"
             style={{ background: "var(--navy)" }}
           >
             Go to Projects

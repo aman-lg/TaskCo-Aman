@@ -69,7 +69,7 @@ export function Topbar({ sidebarWidth, user, unreadCount = 0, onSignOut, isSigni
           {unreadCount > 0 && (
             <Badge
               className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 text-[10px] font-bold flex items-center justify-center rounded-full border-0"
-              style={{ backgroundColor: "var(--accent-brand)", color: "#fff" }}
+              style={{ backgroundColor: "var(--clr-red)", color: "#fff" }}
             >
               {unreadCount > 99 ? "99+" : unreadCount}
             </Badge>

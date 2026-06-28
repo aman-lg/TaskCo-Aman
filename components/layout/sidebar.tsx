@@ -46,10 +46,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           className="flex items-center h-[60px] px-4 shrink-0"
           style={{ borderBottom: "1px solid var(--line)" }}
         >
-          <Link href="/dashboard" className="font-extrabold text-base tracking-tight" style={{ color: "var(--navy)" }}>
+          <Link
+            href="/dashboard"
+            className="font-bold text-[17px] tracking-tight"
+            style={{ color: "var(--navy)", fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }}
+          >
             {collapsed ? "T" : (
               <>
-                Task<span style={{ color: "var(--accent-brand)" }}>Co</span>
+                Task<span style={{ color: "var(--accent-d)" }}>Co</span>
               </>
             )}
           </Link>
@@ -65,12 +69,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 <Tooltip key={href}>
                   <TooltipTrigger
                     className={cn(
-                      "flex items-center justify-center h-10 w-10 mx-auto rounded-lg transition-colors cursor-pointer",
+                      "flex items-center justify-center h-10 w-10 mx-auto rounded-xl transition-colors cursor-pointer",
                       active
                         ? "text-white"
                         : "text-[var(--text-secondary)] hover:bg-[var(--line-soft)] hover:text-[var(--ink)]"
                     )}
-                    style={active ? { backgroundColor: "var(--accent-brand)" } : undefined}
+                    style={active ? { backgroundColor: "var(--navy)" } : undefined}
                     onClick={() => { window.location.href = href; }}
                     aria-label={label}
                   >
@@ -86,12 +90,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex items-center gap-3 h-10 px-3 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 h-10 px-3 rounded-xl text-sm font-medium transition-colors",
                   active
                     ? "text-white"
                     : "text-[var(--text-secondary)] hover:bg-[var(--line-soft)] hover:text-[var(--ink)]"
                 )}
-                style={active ? { backgroundColor: "var(--accent-brand)" } : undefined}
+                style={active ? { backgroundColor: "var(--navy)" } : undefined}
               >
                 <Icon className="h-5 w-5 shrink-0" />
                 <span>{label}</span>
@@ -105,7 +109,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           <button
             onClick={onToggle}
             className={cn(
-              "flex items-center h-9 rounded-lg text-sm font-medium transition-colors w-full",
+              "flex items-center h-9 rounded-xl text-sm font-medium transition-colors w-full",
               "text-[var(--text-muted)] hover:bg-[var(--line-soft)] hover:text-[var(--ink)]",
               collapsed ? "justify-center px-0" : "gap-3 px-3"
             )}

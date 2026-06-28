@@ -52,7 +52,7 @@ export default function ProjectsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="h1" style={{ color: "var(--ink)", fontFamily: "var(--font-display)" }}>
+          <h1 className="h1" style={{ color: "var(--ink)" }}>
             Projects
           </h1>
           <p className="mt-1 text-[14px]" style={{ color: "var(--text-secondary)" }}>
@@ -61,7 +61,7 @@ export default function ProjectsPage() {
         </div>
         <button
           onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 h-10 px-5 rounded-full text-[14px] font-bold text-white transition-[box-shadow,opacity] duration-150 hover:shadow-[var(--shadow-needle)]"
+          className="flex items-center gap-2 h-10 px-5 rounded-xl text-[14px] font-bold text-white transition-[box-shadow,opacity] duration-150 hover:shadow-[var(--shadow-needle)]"
           style={{ background: "var(--navy)" }}
         >
           <Plus className="h-4 w-4" />
@@ -128,7 +128,7 @@ export default function ProjectsPage() {
           {statusFilter === "all" && (
             <button
               onClick={() => setCreateOpen(true)}
-              className="mt-5 flex items-center gap-2 h-9 px-4 rounded-full text-[13px] font-bold text-white"
+              className="mt-5 flex items-center gap-2 h-9 px-4 rounded-xl text-[13px] font-bold text-white"
               style={{ background: "var(--navy)" }}
             >
               <Plus className="h-3.5 w-3.5" /> New project

@@ -114,7 +114,7 @@ export function ProjectFormDialog({ open, onClose, project }: Props) {
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="h3" style={{ fontFamily: "var(--font-display)" }}>
+          <DialogTitle className="h3">
             {isEdit ? "Edit Project" : "New Project"}
           </DialogTitle>
         </DialogHeader>
@@ -262,7 +262,7 @@ export function ProjectFormDialog({ open, onClose, project }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="h-10 px-5 rounded-full text-[14px] font-semibold border transition-colors duration-150"
+              className="h-10 px-5 rounded-xl text-[14px] font-semibold border transition-colors duration-150"
               style={{ borderColor: "var(--line)", color: "var(--text-secondary)", background: "transparent" }}
             >
               Cancel
@@ -270,7 +270,7 @@ export function ProjectFormDialog({ open, onClose, project }: Props) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="h-10 px-6 rounded-full text-[14px] font-bold text-white flex items-center gap-2 transition-[box-shadow,opacity] duration-150 hover:shadow-[var(--shadow-needle)] disabled:opacity-50"
+              className="h-10 px-6 rounded-xl text-[14px] font-bold text-white flex items-center gap-2 transition-[box-shadow,opacity] duration-150 hover:shadow-[var(--shadow-needle)] disabled:opacity-50"
               style={{ background: "var(--navy)" }}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}

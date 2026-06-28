@@ -120,7 +120,7 @@ export function ProjectCard({ project, currentUserId }: Props) {
                   <DropdownMenuItem
                     onClick={handleDelete}
                     disabled={deleting}
-                    className="text-red-600 focus:text-red-600"
+                    style={{ color: "var(--clr-red)" }}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
                   </DropdownMenuItem>

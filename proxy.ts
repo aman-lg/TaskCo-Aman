@@ -1,12 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-// /book and /api/booking/ must stay public — the public booking page (and the
-// availability/submission API routes it calls) is meant for unauthenticated
-// visitors. Everything else under /api is still gated below. Note the trailing
-// slash on /api/booking/ — without it this would also prefix-match the
-// separate (host-only, authenticated) /api/bookings routes.
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/book", "/api/booking/"];
+// /api/* is excluded from this middleware entirely (see matcher below) — every
+// route handler already re-verifies the session itself via withAuth(), so
+// running it here too was a second, wasted round trip to Supabase's Auth
+// server on every single API call (mutations included). It was also actively
+// wrong for API calls: this middleware's redirect-to-login response would get
+// silently followed by fetch(), handing client code an HTML login page
+// instead of the clean JSON 401 withAuth() returns. /book stays listed here
+// only because it's a real page navigation route rendered by this app.
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/book"];
 const AUTH_CALLBACK_PATHS = ["/auth/callback", "/auth/confirm"];
 
 export async function proxy(request: NextRequest) {
@@ -38,6 +41,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

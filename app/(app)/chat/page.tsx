@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getConversations, ensureSelfConversation } from "@/lib/queries/chat";
 import { ChatLayout } from "@/components/chat/chat-layout";
+import type { Conversation } from "@/types/chat";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export default async function ChatPage() {
   };
 
   // Wrap in try-catch — if the chat migration hasn't been run yet, tables won't exist
-  let conversations = [];
+  let conversations: Conversation[] = [];
   try {
     await ensureSelfConversation(supabase, user.id);
     conversations = await getConversations(supabase, user.id);

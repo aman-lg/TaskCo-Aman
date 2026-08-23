@@ -545,24 +545,22 @@ export function MessageInput({
             <div style={{ display: "flex", gap: 2, paddingBottom: 4, flexShrink: 0 }}>
               {/* Attachment dropdown */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    disabled={!canSend}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      cursor: canSend ? "pointer" : "not-allowed",
-                      padding: "6px",
-                      color: "var(--text-muted)",
-                      borderRadius: 6,
-                      display: "flex",
-                      alignItems: "center",
-                      opacity: canSend ? 1 : 0.5,
-                    }}
-                    aria-label="Attach file"
-                  >
-                    <Paperclip size={20} />
-                  </button>
+                <DropdownMenuTrigger
+                  disabled={!canSend}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: canSend ? "pointer" : "not-allowed",
+                    padding: "6px",
+                    color: "var(--text-muted)",
+                    borderRadius: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    opacity: canSend ? 1 : 0.5,
+                  }}
+                  aria-label="Attach file"
+                >
+                  <Paperclip size={20} />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align="start">
                   <DropdownMenuItem

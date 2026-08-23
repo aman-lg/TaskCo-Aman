@@ -18,7 +18,8 @@ export interface ICSEventInput {
   startISO: string;
   endISO: string;
   organizerEmail: string;
-  attendeeEmail: string;
+  /** One or more invitees. */
+  attendeeEmails: string[];
   /** REQUEST for a new/updated invite, CANCEL for a cancellation notice. Defaults to REQUEST. */
   method?: "REQUEST" | "CANCEL";
   /** Bump for each update to the same UID (reschedule, cancel) so calendar apps treat it as a revision, not a duplicate. Defaults to 0. */
@@ -41,7 +42,7 @@ export function buildICS(opts: ICSEventInput): string {
     opts.description ? `DESCRIPTION:${escapeICS(opts.description)}` : null,
     opts.location ? `LOCATION:${escapeICS(opts.location)}` : null,
     `ORGANIZER:mailto:${opts.organizerEmail}`,
-    `ATTENDEE;RSVP=TRUE:mailto:${opts.attendeeEmail}`,
+    ...opts.attendeeEmails.map((email) => `ATTENDEE;RSVP=TRUE:mailto:${email}`),
     `STATUS:${method === "CANCEL" ? "CANCELLED" : "CONFIRMED"}`,
     `SEQUENCE:${opts.sequence ?? 0}`,
     "END:VEVENT",

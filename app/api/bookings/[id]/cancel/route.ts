@@ -61,18 +61,19 @@ export const POST = withAuth(async (_req: NextRequest, { user, params }) => {
     dateStyle: "full",
     timeStyle: "short",
   });
+  const attendeeEmails = [booking.requester_email, ...(booking.participant_emails ?? [])];
   const ics = buildICS({
     uid: `${booking.id}@taskco`,
     summary: `Call with ${user.user_metadata?.full_name ?? "TaskCo"}`,
     startISO: booking.start_at,
     endISO: booking.end_at,
     organizerEmail: user.email ?? "noreply@taskco.app",
-    attendeeEmail: booking.requester_email,
+    attendeeEmails,
     method: "CANCEL",
     sequence: 1,
   });
   const emailResult = await sendEmail({
-    to: booking.requester_email,
+    to: attendeeEmails,
     subject: "Your call has been cancelled",
     html: `
       <p>Hi ${booking.requester_name},</p>

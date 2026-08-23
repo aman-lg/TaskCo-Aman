@@ -3,7 +3,7 @@
 // small fetch wrapper avoids adding a dependency for one call site.
 
 interface SendEmailInput {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   attachments?: { filename: string; content: string /* base64 */ }[];

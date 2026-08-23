@@ -157,7 +157,7 @@ export interface CreatedMeetEvent {
 export async function createCalendarEventWithMeet(
   accessToken: string,
   calendarId: string,
-  opts: { summary: string; description?: string; startISO: string; endISO: string; attendeeEmail: string }
+  opts: { summary: string; description?: string; startISO: string; endISO: string; attendeeEmails: string[] }
 ): Promise<CreatedMeetEvent> {
   const url =
     `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events` +
@@ -171,7 +171,7 @@ export async function createCalendarEventWithMeet(
       description: opts.description,
       start: { dateTime: opts.startISO },
       end: { dateTime: opts.endISO },
-      attendees: [{ email: opts.attendeeEmail }],
+      attendees: opts.attendeeEmails.map((email) => ({ email })),
       conferenceData: {
         createRequest: {
           requestId: crypto.randomUUID(),

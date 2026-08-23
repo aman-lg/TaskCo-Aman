@@ -99,6 +99,7 @@ export const POST = withAuth(async (req: NextRequest, { user, params }) => {
     dateStyle: "full",
     timeStyle: "short",
   });
+  const attendeeEmails = [booking.requester_email, ...(booking.participant_emails ?? [])];
   const ics = buildICS({
     uid: `${booking.id}@taskco`,
     summary: `Call with ${user.user_metadata?.full_name ?? "TaskCo"}`,
@@ -106,11 +107,11 @@ export const POST = withAuth(async (req: NextRequest, { user, params }) => {
     startISO: start_at,
     endISO: end_at,
     organizerEmail: user.email ?? "noreply@taskco.app",
-    attendeeEmail: booking.requester_email,
+    attendeeEmails,
     sequence: 1,
   });
   const emailResult = await sendEmail({
-    to: booking.requester_email,
+    to: attendeeEmails,
     subject: "Your call has been rescheduled",
     html: `
       <p>Hi ${booking.requester_name},</p>

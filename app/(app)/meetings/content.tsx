@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Video, Copy, Check, ExternalLink, Loader2, Unlink, CalendarDays, XCircle, CalendarClock } from "lucide-react";
+import { Video, Copy, Check, ExternalLink, Loader2, Unlink, CalendarDays, XCircle, CalendarClock, Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { MonthCalendar } from "@/components/meetings/month-calendar";
+import { ScheduleCallDialog } from "@/components/meetings/schedule-call-dialog";
 
 interface Booking {
   id: string;
@@ -68,6 +70,8 @@ export function MeetingsContent() {
   const [rescheduleValue, setRescheduleValue] = useState("");
   const [rescheduling, setRescheduling] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -231,11 +235,22 @@ export function MeetingsContent() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="h1" style={{ color: "var(--ink)" }}>Meetings</h1>
-        <p className="mt-1 text-[14px]" style={{ color: "var(--text-muted)" }}>
-          Let people book time on your calendar — you confirm before a Meet link goes out.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="h1" style={{ color: "var(--ink)" }}>Meetings</h1>
+          <p className="mt-1 text-[14px]" style={{ color: "var(--text-muted)" }}>
+            Let people book time on your calendar — you confirm before a Meet link goes out.
+          </p>
+        </div>
+        {status?.connected && (
+          <button
+            onClick={() => { setScheduleDate(null); setScheduleOpen(true); }}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-[13px] font-bold text-white transition-colors flex-shrink-0"
+            style={{ background: "var(--navy)" }}
+          >
+            <Plus className="h-3.5 w-3.5" /> Schedule a call
+          </button>
+        )}
       </div>
 
       {/* Connection card */}
@@ -315,6 +330,12 @@ export function MeetingsContent() {
 
       {status?.connected && (
         <>
+          {/* Month calendar — click a day to schedule a call directly */}
+          <MonthCalendar
+            bookings={bookings}
+            onDayClick={(dateStr) => { setScheduleDate(dateStr); setScheduleOpen(true); }}
+          />
+
           {/* Your calendar — read-only view of what's already on your Google Calendar */}
           <section className="flex flex-col gap-3">
             <h2 className="h3 flex items-center gap-2" style={{ color: "var(--ink)" }}>
@@ -550,6 +571,13 @@ export function MeetingsContent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ScheduleCallDialog
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        defaultDate={scheduleDate}
+        onScheduled={load}
+      />
     </div>
   );
 }

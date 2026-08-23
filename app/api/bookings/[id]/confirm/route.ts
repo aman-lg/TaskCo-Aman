@@ -33,6 +33,8 @@ export const POST = withAuth(async (_req: NextRequest, { user, params }) => {
   const connection = await getValidAccessToken(user.id);
   if (!connection) return ApiError.badRequest("Connect Google Calendar first");
 
+  const attendeeEmails = [booking.requester_email, ...(booking.participant_emails ?? [])];
+
   let event;
   try {
     event = await createCalendarEventWithMeet(connection.accessToken, connection.calendarId, {
@@ -40,7 +42,7 @@ export const POST = withAuth(async (_req: NextRequest, { user, params }) => {
       description: booking.note ?? undefined,
       startISO: booking.start_at,
       endISO: booking.end_at,
-      attendeeEmail: booking.requester_email,
+      attendeeEmails,
     });
   } catch (err) {
     console.error("[bookings/confirm] calendar event creation failed", err);
@@ -76,10 +78,10 @@ export const POST = withAuth(async (_req: NextRequest, { user, params }) => {
     startISO: booking.start_at,
     endISO: booking.end_at,
     organizerEmail: user.email ?? "noreply@taskco.app",
-    attendeeEmail: booking.requester_email,
+    attendeeEmails,
   });
   const emailResult = await sendEmail({
-    to: booking.requester_email,
+    to: attendeeEmails,
     subject: "Your call is confirmed",
     html: `
       <p>Hi ${booking.requester_name},</p>

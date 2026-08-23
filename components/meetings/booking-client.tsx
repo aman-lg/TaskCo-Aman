@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Calendar, Clock, Loader2, CheckCircle2, Video } from "lucide-react";
+import { Calendar, Clock, Loader2, CheckCircle2, Video, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Slot {
@@ -26,6 +26,7 @@ export function BookingClient({ slug, hostName }: Props) {
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [participantEmails, setParticipantEmails] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -69,12 +70,31 @@ export function BookingClient({ slug, hostName }: Props) {
   const effectiveDate = selectedDate ?? dayGroups[0]?.date ?? null;
   const activeDaySlots = dayGroups.find((g) => g.date === effectiveDate)?.slots ?? [];
 
+  function addParticipant() {
+    setParticipantEmails((prev) => [...prev, ""]);
+  }
+
+  function updateParticipant(index: number, value: string) {
+    setParticipantEmails((prev) => prev.map((e, i) => (i === index ? value : e)));
+  }
+
+  function removeParticipant(index: number) {
+    setParticipantEmails((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function submit() {
     if (!selectedSlot) return;
     if (!name.trim() || !email.trim()) {
       toast.error("Name and email are required.");
       return;
     }
+    const cleanedParticipants = participantEmails.map((e) => e.trim()).filter(Boolean);
+    const invalidParticipant = cleanedParticipants.find((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (invalidParticipant) {
+      toast.error(`"${invalidParticipant}" doesn't look like a valid email.`);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch(`/api/booking/${slug}`, {
@@ -84,6 +104,7 @@ export function BookingClient({ slug, hostName }: Props) {
         body: JSON.stringify({
           requester_name: name.trim(),
           requester_email: email.trim(),
+          participant_emails: cleanedParticipants.length > 0 ? cleanedParticipants : undefined,
           note: note.trim() || undefined,
           start_at: selectedSlot.startISO,
           end_at: selectedSlot.endISO,
@@ -249,6 +270,41 @@ export function BookingClient({ slug, hostName }: Props) {
                 />
                 <label className="float-label">Email *</label>
               </div>
+
+              {participantEmails.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {participantEmails.map((pEmail, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <input
+                        type="email"
+                        value={pEmail}
+                        onChange={(e) => updateParticipant(idx, e.target.value)}
+                        placeholder="participant@email.com"
+                        className="flex-1 h-10 px-3 rounded-lg text-[13px]"
+                        style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeParticipant(idx)}
+                        className="p-2 rounded-lg transition-colors hover:bg-[var(--line-soft)]"
+                        style={{ color: "var(--text-muted)" }}
+                        aria-label="Remove participant"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={addParticipant}
+                className="self-start flex items-center gap-1.5 text-[12px] font-semibold transition-opacity hover:opacity-70"
+                style={{ color: "var(--navy)" }}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add another participant
+              </button>
+
               <div className="float-label-wrap">
                 <textarea
                   value={note}

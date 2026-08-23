@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ slug: 
 
   const parsed = createBookingSchema.safeParse(body);
   if (!parsed.success) return ApiError.badRequest(parsed.error.issues[0]?.message ?? "Invalid input");
-  const { start_at, end_at, requester_name, requester_email, note } = parsed.data;
+  const { start_at, end_at, requester_name, requester_email, participant_emails, note } = parsed.data;
 
   if (new Date(end_at).getTime() <= new Date(start_at).getTime()) {
     return ApiError.badRequest("end_at must be after start_at");
@@ -61,7 +61,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ slug: 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: booking, error } = await (admin as any)
     .from("bookings")
-    .insert({ host_id: host.id, requester_name, requester_email, note: note ?? null, start_at, end_at })
+    .insert({
+      host_id: host.id,
+      requester_name,
+      requester_email,
+      participant_emails: participant_emails ?? [],
+      note: note ?? null,
+      start_at,
+      end_at,
+    })
     .select("id")
     .single();
 
@@ -77,7 +85,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ slug: 
     user_id: host.id,
     type: "booking_request",
     title: "New booking request",
-    body: `${requester_name} requested a call for ${whenLabel} IST`,
+    body: `${requester_name}${participant_emails?.length ? ` (+${participant_emails.length})` : ""} requested a call for ${whenLabel} IST`,
     entity_type: "booking",
     entity_id: booking.id,
   });

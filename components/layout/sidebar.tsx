@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -67,6 +68,25 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [chatUnread, setChatUnread] = useState(0);
+
+  const loadChatUnread = useCallback(() => {
+    fetch("/api/chat/unread-count", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j) setChatUnread(j.data.count ?? 0); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadChatUnread();
+    const id = setInterval(loadChatUnread, 30_000);
+    return () => clearInterval(id);
+  }, [loadChatUnread]);
+
+  // Hide the badge as soon as the user opens Chat, without waiting for the
+  // next poll — they've just read the messages that made it non-zero. Derived
+  // at render time rather than reset via a separate effect+setState.
+  const displayedChatUnread = pathname?.startsWith("/chat") ? 0 : chatUnread;
 
   const navItems = [
     ...NAV_ITEMS,
@@ -187,6 +207,7 @@ export function Sidebar({
           <div className="flex flex-col gap-0.5 px-3">
             {navItems.map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + "/");
+              const badgeCount = href === "/chat" ? displayedChatUnread : 0;
 
               if (collapsed) {
                 return (
@@ -203,6 +224,14 @@ export function Sidebar({
                         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full" style={{ background: C.pill }} />
                       )}
                       <Icon style={{ width: 17, height: 17 }} />
+                      {badgeCount > 0 && (
+                        <span
+                          className="absolute top-0.5 right-1.5 flex items-center justify-center text-[9px] font-bold text-white rounded-full"
+                          style={{ minWidth: 14, height: 14, padding: "0 3px", background: "#ef4444" }}
+                        >
+                          {badgeCount > 9 ? "9+" : badgeCount}
+                        </span>
+                      )}
                     </TooltipTrigger>
                     <TooltipContent side="right">{label}</TooltipContent>
                   </Tooltip>
@@ -231,7 +260,15 @@ export function Sidebar({
                     className="flex-shrink-0"
                     style={{ width: 17, height: 17, color: active ? C.pill : C.textOff }}
                   />
-                  <span style={{ fontSize: 14 }}>{label}</span>
+                  <span className="flex-1" style={{ fontSize: 14 }}>{label}</span>
+                  {badgeCount > 0 && (
+                    <span
+                      className="flex items-center justify-center text-[10px] font-bold text-white rounded-full flex-shrink-0"
+                      style={{ minWidth: 18, height: 18, padding: "0 5px", background: "#ef4444" }}
+                    >
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, CornerUpLeft, Pencil } from "lucide-react";
+import { MoreHorizontal, CornerUpLeft, Pencil, FileText, Download } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatMessage } from "@/types/chat";
-import { formatMessageTime, getMessageStatus, getMemberColor } from "@/lib/utils/chat";
+import { formatMessageTime, getMessageStatus, getMemberColor, formatFileSize } from "@/lib/utils/chat";
 import { MessageStatus } from "./message-status";
 import { MessageActionsMenu } from "./message-actions-menu";
+import PollDisplay from "./poll-display";
+import MediaViewer from "./media-viewer";
 
 interface Props {
   message: ChatMessage;
@@ -38,6 +40,7 @@ export function MessageBubble({
   const [hovered, setHovered]   = useState(false);
   const [menuPos, setMenuPos]   = useState<{ x: number; y: number } | null>(null);
   const [emojiHover, setEmojiHover] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const isDeleted = !!message.deleted_at;
   const isSystem  = message.type === "system";
@@ -169,8 +172,81 @@ export function MessageBubble({
                 </p>
               )}
 
-              {/* Non-text types placeholder */}
-              {message.type !== "text" && message.type !== "system" && (
+              {/* Poll */}
+              {message.type === "poll" && message.poll && (
+                <PollDisplay
+                  poll={message.poll}
+                  currentUserId={currentUserId}
+                  messageId={message.id}
+                  onVoteChange={onRefreshMessages}
+                />
+              )}
+
+              {/* Image */}
+              {message.type === "image" && message.metadata?.url && (
+                <>
+                  <img
+                    src={message.metadata.url}
+                    alt={message.metadata.filename ?? "Image"}
+                    onClick={() => setViewerOpen(true)}
+                    className="rounded-lg max-w-[240px] max-h-[300px] object-cover cursor-pointer"
+                    style={{ display: "block" }}
+                  />
+                  {viewerOpen && (
+                    <MediaViewer
+                      src={message.metadata.url}
+                      type="image"
+                      filename={message.metadata.filename ?? undefined}
+                      onClose={() => setViewerOpen(false)}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* Video */}
+              {message.type === "video" && message.metadata?.url && (
+                <>
+                  <div className="relative cursor-pointer" onClick={() => setViewerOpen(true)}>
+                    <video src={message.metadata.url} className="rounded-lg max-w-[240px] max-h-[300px]" />
+                  </div>
+                  {viewerOpen && (
+                    <MediaViewer
+                      src={message.metadata.url}
+                      type="video"
+                      filename={message.metadata.filename ?? undefined}
+                      onClose={() => setViewerOpen(false)}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* Audio / voice note */}
+              {(message.type === "audio" || message.type === "voice_note") && message.metadata?.url && (
+                <audio src={message.metadata.url} controls className="max-w-[240px]" style={{ height: 36 }} />
+              )}
+
+              {/* Document */}
+              {message.type === "document" && message.metadata?.url && (
+                <a
+                  href={message.metadata.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 min-w-[180px] transition-opacity hover:opacity-85"
+                  style={{ background: isOwn ? "rgba(255,255,255,0.12)" : "var(--panel-bg)" }}
+                >
+                  <FileText className="h-6 w-6 flex-shrink-0" style={{ color: isOwn ? "#fff" : "var(--navy)" }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12.5px] font-medium truncate">{message.metadata.filename ?? "Document"}</p>
+                    {message.metadata.size != null && (
+                      <p className="text-[10.5px] opacity-70">{formatFileSize(message.metadata.size)}</p>
+                    )}
+                  </div>
+                  <Download className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+                </a>
+              )}
+
+              {/* Other unhandled types (sticker, gif, contact) */}
+              {["sticker", "gif", "contact"].includes(message.type) && (
                 <p className="text-[13px] italic opacity-70">[{message.type}]</p>
               )}
             </>

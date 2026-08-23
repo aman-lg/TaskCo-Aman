@@ -115,13 +115,21 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
   // OR: ALTER PUBLICATION supabase_realtime ADD TABLE tasks;  in SQL Editor
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
     const channel = supabase
       .channel("dashboard-tasks-rt")
       .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => {
         refresh();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+      });
+    // Subscribing before the session finishes loading opens the channel as
+    // `anon`, and RLS then silently drops every event for it — the 30s poll
+    // below was masking this rather than it actually working live.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (session) supabase.realtime.setAuth(session.access_token);
+      channel.subscribe();
+    });
+    return () => { cancelled = true; supabase.removeChannel(channel); };
   }, [refresh]);
 
   // ── 30-second fallback poll (catches reconnects / missed events) ─────────────

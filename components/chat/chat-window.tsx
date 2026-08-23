@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import type { Conversation, ChatMessage, TypingUser, ChatProfile, MessageReaction, MessageRead } from "@/types/chat";
 import { useChatRealtime, useOnlinePresence } from "@/lib/hooks/use-chat-realtime";
 import { ChatHeader } from "./chat-header";
@@ -18,6 +19,7 @@ interface Props {
 export function ChatWindow({
   conversation, currentUserId, currentUserProfile, initialMessages,
 }: Props) {
+  const router = useRouter();
   const [messages, setMessages]     = useState<ChatMessage[]>(initialMessages);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [replyTo, setReplyTo]       = useState<ChatMessage | null>(null);
@@ -27,6 +29,15 @@ export function ChatWindow({
   const memberCount = conversation.members?.length ?? 2;
   const myMember    = conversation.members?.find(m => m.user_id === currentUserId);
   const isAdmin     = myMember?.role === "owner" || myMember?.role === "admin";
+
+  // Esc closes the open conversation, back to the chat list.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") router.push("/chat");
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [router]);
 
   const onlineUserIds = useOnlinePresence(currentUserId, currentUserProfile.full_name);
 

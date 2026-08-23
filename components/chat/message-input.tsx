@@ -230,7 +230,10 @@ export function MessageInput({
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    await uploadAndSend(file, isMedia);
+  }
 
+  async function uploadAndSend(file: File, isMedia: boolean) {
     setIsUploading(true);
     try {
       const uploaded = await uploadFile(file);
@@ -253,6 +256,24 @@ export function MessageInput({
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setIsUploading(false);
+    }
+  }
+
+  // Pasting a screenshot/copied image directly into the message box sends it
+  // as an image attachment, same as picking one via the paperclip menu.
+  async function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+        // Clipboard image files often have no name/extension — give them one.
+        const named = new File([file], file.name || `pasted-image-${Date.now()}.png`, { type: file.type });
+        await uploadAndSend(named, true);
+        return;
+      }
     }
   }
 
@@ -663,6 +684,7 @@ export function MessageInput({
               onChange={handleTextChange}
               onKeyDown={handleKeyDown}
               onBlur={handleBlur}
+              onPaste={(e) => void handlePaste(e)}
               disabled={!canSend}
               rows={1}
               placeholder={

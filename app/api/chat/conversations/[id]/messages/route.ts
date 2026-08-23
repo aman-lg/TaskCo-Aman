@@ -6,6 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { isValidUUID } from "@/lib/utils/validate";
 import { getMessages } from "@/lib/queries/chat";
 
+const pollInputSchema = z.object({
+  question: z.string().min(1).max(255),
+  options: z.array(z.string().min(1).max(200)).min(2).max(10),
+  is_anonymous: z.boolean().default(false),
+  is_multiple: z.boolean().default(false),
+  closes_at: z.string().optional(),
+});
+
 const metadataSchema = z.object({
   url: z.string().url().optional(),
   filename: z.string().optional(),
@@ -16,6 +24,10 @@ const metadataSchema = z.object({
   duration: z.number().optional(),
   thumbnail: z.string().optional(),
   waveform: z.array(z.number()).optional(),
+  // Poll definition, only meaningful when type === "poll" — the message
+  // itself is never persisted with this; it's consumed to create real
+  // polls/poll_options rows instead (see POST handler below).
+  poll: pollInputSchema.optional(),
 }).optional();
 
 const sendSchema = z.object({
@@ -68,7 +80,7 @@ export const GET = withAuth(async (req: NextRequest, ctx) => {
     return ok({ messages: results ?? [], has_more: false });
   }
 
-  const messages = await getMessages(supabase, id, limit, before);
+  const messages = await getMessages(supabase, id, limit, before, user.id);
   const has_more = messages.length === limit;
 
   // Mark delivered for all messages from others
@@ -109,6 +121,9 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
   if (type === "text" && (!content || content.trim() === "")) {
     return ApiError.badRequest("Text messages cannot be empty.");
   }
+  if (type === "poll" && !metadata?.poll) {
+    return ApiError.badRequest("Poll definition is required.");
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -137,6 +152,11 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
     return ApiError.forbidden("Only admins can send messages in this group.");
   }
 
+  // Poll data lives in dedicated polls/poll_options tables, not the
+  // message's own metadata — strip it out before inserting the message row.
+  const { poll: pollInput, ...restMetadata } = metadata ?? {};
+  const messageMetadata = Object.keys(restMetadata).length > 0 ? restMetadata : null;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: msg, error: msgError } = await (supabase as any)
     .from("messages")
@@ -148,7 +168,7 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
       reply_to_id: reply_to_id ?? null,
       forwarded_from_id: forwarded_from_id ?? null,
       is_forwarded: is_forwarded ?? false,
-      metadata: metadata ?? null,
+      metadata: messageMetadata,
       disappears_at: disappears_at ?? null,
     })
     .select(`
@@ -160,6 +180,49 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
   if (msgError || !msg) {
     console.error("[chat/messages POST]", msgError);
     return ApiError.internal();
+  }
+
+  // Create the real poll + options rows now that we have a message id to
+  // attach them to, and shape the response the same way getMessages() would
+  // for an existing poll (options with vote_count, user_votes) so the client
+  // doesn't need a separate re-fetch to render it.
+  if (type === "poll" && pollInput) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: poll, error: pollError } = await (supabase as any)
+      .from("polls")
+      .insert({
+        message_id: msg.id,
+        question: pollInput.question,
+        is_anonymous: pollInput.is_anonymous,
+        is_multiple: pollInput.is_multiple,
+        closes_at: pollInput.closes_at ? new Date(pollInput.closes_at).toISOString() : null,
+      })
+      .select("*")
+      .single();
+
+    if (pollError || !poll) {
+      console.error("[chat/messages POST] poll insert failed", pollError);
+      return ApiError.internal();
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: options, error: optionsError } = await (supabase as any)
+      .from("poll_options")
+      .insert(pollInput.options.map((text: string, position: number) => ({ poll_id: poll.id, text, position })))
+      .select("id, text, position");
+
+    if (optionsError || !options) {
+      console.error("[chat/messages POST] poll options insert failed", optionsError);
+      return ApiError.internal();
+    }
+
+    msg.poll = {
+      ...poll,
+      options: options
+        .sort((a: { position: number }, b: { position: number }) => a.position - b.position)
+        .map((o: { id: string; text: string; position: number }) => ({ ...o, vote_count: 0 })),
+      user_votes: [],
+    };
   }
 
   // Mark as read for sender

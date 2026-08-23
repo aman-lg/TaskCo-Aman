@@ -25,7 +25,7 @@ export const GET = withAuth(async (_req: NextRequest, ctx) => {
 
   const [conversation, messages] = await Promise.all([
     getConversationById(supabase, id),
-    getMessages(supabase, id, 50),
+    getMessages(supabase, id, 50, undefined, user.id),
   ]);
 
   if (!conversation) return ApiError.notFound("Conversation not found.");

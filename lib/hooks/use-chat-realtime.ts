@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type {
   ChatMessage, MessageReaction, MessageRead,
@@ -33,7 +33,6 @@ export function useChatRealtime({
   onTyping,
   onMemberChange,
 }: UseChatRealtimeOptions): { sendTyping: (isTyping: boolean) => void } {
-  const typingRef = useRef<Map<string, TypingUser>>(new Map());
   const typingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const channelRef = useRef<any>(null);
@@ -58,6 +57,7 @@ export function useChatRealtime({
   useEffect(() => {
     if (!conversationId) return;
     const supabase = createClient();
+    let cancelled = false;
 
     const channel = supabase.channel(`chat:${conversationId}`, {
       config: { presence: { key: currentUserId } },
@@ -131,11 +131,20 @@ export function useChatRealtime({
       onTypingRef.current(typingList);
     });
 
-    channel.subscribe();
+    // Explicitly sync the Realtime socket's auth token before subscribing —
+    // subscribing while the session is still loading opens the channel as
+    // `anon`, and RLS then silently drops every event for it.
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session) supabase.realtime.setAuth(session.access_token);
+      channel.subscribe();
+    })();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     channelRef.current = channel as any;
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
       typingTimersRef.current.forEach(clearTimeout);
       typingTimersRef.current.clear();
@@ -166,6 +175,7 @@ export function useConversationListRealtime(
   useEffect(() => {
     if (!currentUserId) return;
     const supabase = createClient();
+    let cancelled = false;
 
     const channel = supabase.channel(`conv-list:${currentUserId}`);
 
@@ -192,8 +202,15 @@ export function useConversationListRealtime(
       onUpdateRef.current();
     });
 
-    channel.subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // See useChatRealtime above for why this awaits the session first.
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session) supabase.realtime.setAuth(session.access_token);
+      channel.subscribe();
+    })();
+
+    return () => { cancelled = true; supabase.removeChannel(channel); };
   }, [currentUserId]);
 }
 
@@ -204,7 +221,11 @@ export function useOnlinePresence(
   currentUserId: string,
   name: string | null,
 ): Set<string> {
-  const onlineRef = useRef<Set<string>>(new Set());
+  // Was a plain ref mutated in place — mutating a ref never triggers a
+  // re-render, so consumers (e.g. the online dot in ChatHeader) only ever
+  // reflected presence changes incidentally, whenever something ELSE
+  // happened to re-render them. useState makes it actually reactive.
+  const [online, setOnline] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -216,21 +237,28 @@ export function useOnlinePresence(
 
     channel.on("presence", { event: "sync" }, () => {
       const state = channel.presenceState();
-      onlineRef.current = new Set(Object.keys(state));
+      setOnline(new Set(Object.keys(state)));
     });
 
     channel.on("presence", { event: "join" }, ({ key }: { key: string }) => {
-      onlineRef.current.add(key);
+      setOnline((prev) => new Set(prev).add(key));
     });
 
     channel.on("presence", { event: "leave" }, ({ key }: { key: string }) => {
-      onlineRef.current.delete(key);
+      setOnline((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
     });
 
-    channel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await channel.track({ online: true, name });
-      }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) supabase.realtime.setAuth(session.access_token);
+      channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ online: true, name });
+        }
+      });
     });
 
     return () => {
@@ -239,7 +267,7 @@ export function useOnlinePresence(
     };
   }, [currentUserId, name]);
 
-  return onlineRef.current;
+  return online;
 }
 
 // ─── useTypingBroadcast ───────────────────────────────────────────────────────

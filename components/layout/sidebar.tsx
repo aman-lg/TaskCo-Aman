@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, Clock, ChevronLeft, ChevronRight,
-  User, Video, Bell, LogOut, Loader2, Settings, ShieldCheck, MessageSquare, Search,
+  User, Video, LogOut, Loader2, Settings, ShieldCheck, MessageSquare, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { openGlobalSearch } from "@/components/layout/global-search";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -244,18 +245,7 @@ export function Sidebar({
           <div className={cn("flex gap-0.5 items-center", collapsed ? "flex-col" : "flex-row px-1")}>
             <div style={{ color: C.iconOff }}><ThemeToggle /></div>
 
-            <Tooltip>
-              <TooltipTrigger
-                style={iconBtn()}
-                onClick={() => router.push("/notifications")}
-                aria-label="Notifications"
-                onMouseEnter={e => { e.currentTarget.style.background = C.hover; e.currentTarget.style.color = C.iconOn; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.iconOff; }}
-              >
-                <Bell style={{ width: 16, height: 16 }} />
-              </TooltipTrigger>
-              <TooltipContent side="right">Notifications</TooltipContent>
-            </Tooltip>
+            <NotificationBell />
 
             <Tooltip>
               <TooltipTrigger

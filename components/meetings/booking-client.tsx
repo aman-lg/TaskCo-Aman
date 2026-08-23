@@ -156,7 +156,11 @@ export function BookingClient({ slug, hostName }: Props) {
         </div>
 
         {/* Right: picker / form */}
-        <div className="flex-1 p-6">
+        {/* min-w-0 is load-bearing: without it, the day-picker's overflow-x-auto
+            row (8 day buttons) forces this flex item to grow past the card's
+            width instead of scrolling internally, clipping the 3rd grid column
+            behind the card's overflow-hidden. */}
+        <div className="flex-1 min-w-0 p-6">
           {slots === null ? (
             <div className="flex items-center gap-2 py-10 justify-center" style={{ color: "var(--text-muted)" }}>
               <Loader2 className="h-4 w-4 animate-spin" /> Loading availability…

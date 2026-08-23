@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { CheckSquare, Folder } from "lucide-react";
+import { CheckSquare, Folder, Video } from "lucide-react";
 import {
   Command,
   CommandDialog,
@@ -23,6 +23,12 @@ interface SearchProject {
   id: string;
   title: string;
 }
+interface SearchBooking {
+  id: string;
+  requester_name: string;
+  status: string;
+  start_at: string;
+}
 
 // Sidebar's search button dispatches this to open the palette without prop-drilling
 // open state through AppShell — this component is mounted once, self-contained.
@@ -34,6 +40,7 @@ export function GlobalSearch() {
   const [query, setQuery] = useState("");
   const [tasks, setTasks] = useState<SearchTask[]>([]);
   const [projects, setProjects] = useState<SearchProject[]>([]);
+  const [bookings, setBookings] = useState<SearchBooking[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -63,6 +70,7 @@ export function GlobalSearch() {
           const { data } = await res.json();
           setTasks(data.tasks ?? []);
           setProjects(data.projects ?? []);
+          setBookings(data.bookings ?? []);
         }
       } finally {
         setLoading(false);
@@ -89,19 +97,19 @@ export function GlobalSearch() {
       open={open}
       onOpenChange={(v) => (v ? setOpen(true) : closeAndReset())}
       title="Search"
-      description="Search tasks and projects"
+      description="Search tasks, projects, and meetings"
     >
       {/* shouldFilter=false — results are already filtered server-side; cmdk's
           own fuzzy filter would otherwise match against the `value` prop
-          (task/project ids), not the visible label, and hide everything. */}
+          (task/project/booking ids), not the visible label, and hide everything. */}
       <Command shouldFilter={false}>
-        <CommandInput placeholder="Search tasks and projects…" value={query} onValueChange={setQuery} />
+        <CommandInput placeholder="Search tasks, projects, meetings…" value={query} onValueChange={setQuery} />
         <CommandList>
           {!showResults ? (
             <CommandEmpty>Type at least 2 characters to search…</CommandEmpty>
           ) : loading ? (
             <CommandEmpty>Searching…</CommandEmpty>
-          ) : tasks.length === 0 && projects.length === 0 ? (
+          ) : tasks.length === 0 && projects.length === 0 && bookings.length === 0 ? (
             <CommandEmpty>No results found.</CommandEmpty>
           ) : (
             <>
@@ -124,6 +132,17 @@ export function GlobalSearch() {
                     <CommandItem key={p.id} value={p.id} onSelect={() => go(`/projects/${p.id}`)}>
                       <Folder className="h-4 w-4" />
                       <span className="flex-1 truncate">{p.title}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+              {bookings.length > 0 && (
+                <CommandGroup heading="Meetings">
+                  {bookings.map((b) => (
+                    <CommandItem key={b.id} value={b.id} onSelect={() => go("/meetings")}>
+                      <Video className="h-4 w-4" />
+                      <span className="flex-1 truncate">{b.requester_name}</span>
+                      <span className="text-xs opacity-60 flex-shrink-0 capitalize">{b.status}</span>
                     </CommandItem>
                   ))}
                 </CommandGroup>

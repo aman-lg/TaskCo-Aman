@@ -19,14 +19,19 @@ export interface ICSEventInput {
   endISO: string;
   organizerEmail: string;
   attendeeEmail: string;
+  /** REQUEST for a new/updated invite, CANCEL for a cancellation notice. Defaults to REQUEST. */
+  method?: "REQUEST" | "CANCEL";
+  /** Bump for each update to the same UID (reschedule, cancel) so calendar apps treat it as a revision, not a duplicate. Defaults to 0. */
+  sequence?: number;
 }
 
 export function buildICS(opts: ICSEventInput): string {
+  const method = opts.method ?? "REQUEST";
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//TaskCo//Booking//EN",
-    "METHOD:REQUEST",
+    `METHOD:${method}`,
     "BEGIN:VEVENT",
     `UID:${opts.uid}`,
     `DTSTAMP:${toICSDate(new Date().toISOString())}`,
@@ -37,8 +42,8 @@ export function buildICS(opts: ICSEventInput): string {
     opts.location ? `LOCATION:${escapeICS(opts.location)}` : null,
     `ORGANIZER:mailto:${opts.organizerEmail}`,
     `ATTENDEE;RSVP=TRUE:mailto:${opts.attendeeEmail}`,
-    "STATUS:CONFIRMED",
-    "SEQUENCE:0",
+    `STATUS:${method === "CANCEL" ? "CANCELLED" : "CONFIRMED"}`,
+    `SEQUENCE:${opts.sequence ?? 0}`,
     "END:VEVENT",
     "END:VCALENDAR",
   ].filter((line): line is string => line !== null);

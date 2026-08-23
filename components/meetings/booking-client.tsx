@@ -189,21 +189,32 @@ export function BookingClient({ slug, hostName }: Props) {
                 ))}
               </div>
 
-              <div className="flex items-center gap-2 text-[13px] font-semibold mt-2" style={{ color: "var(--ink)" }}>
-                <Clock className="h-4 w-4" /> Pick a time (IST)
+              <div className="flex items-center justify-between gap-2 mt-2">
+                <div className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
+                  <Clock className="h-4 w-4" /> Pick a time (IST)
+                </div>
+                <span className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
+                  {activeDaySlots.length} time{activeDaySlots.length !== 1 ? "s" : ""} available
+                </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                {activeDaySlots.map((s) => (
-                  <button
-                    key={s.startISO}
-                    onClick={() => setSelectedSlot(s)}
-                    className="h-9 rounded-lg text-[12px] font-semibold transition-colors"
-                    style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
-                  >
-                    {new Date(s.startISO).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}
-                  </button>
-                ))}
-              </div>
+              {activeDaySlots.length === 0 ? (
+                <p className="text-[12px] py-4 text-center" style={{ color: "var(--text-muted)" }}>
+                  No open times on this day — try another day above.
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 max-h-[340px] overflow-y-auto pr-1">
+                  {activeDaySlots.map((s) => (
+                    <button
+                      key={s.startISO}
+                      onClick={() => setSelectedSlot(s)}
+                      className="h-9 rounded-lg text-[12px] font-semibold transition-colors"
+                      style={{ border: "1px solid var(--line)", color: "var(--ink)" }}
+                    >
+                      {new Date(s.startISO).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-4">

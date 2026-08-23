@@ -102,6 +102,52 @@ export async function queryFreeBusy(
   return json.calendars?.[calendarId]?.busy ?? [];
 }
 
+export interface CalendarEventSummary {
+  id: string;
+  summary: string;
+  start: string | null; // null for all-day events lacking a dateTime
+  end: string | null;
+  allDay: boolean;
+  htmlLink: string;
+  meetLink: string | null;
+}
+
+export async function listUpcomingEvents(
+  accessToken: string,
+  calendarId: string,
+  timeMinISO: string,
+  timeMaxISO: string
+): Promise<CalendarEventSummary[]> {
+  const params = new URLSearchParams({
+    timeMin: timeMinISO,
+    timeMax: timeMaxISO,
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "50",
+  });
+  const res = await fetch(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`Google events list failed (${res.status}): ${await res.text()}`);
+  const json = await res.json();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (json.items ?? []).map((item: any) => {
+    const meetEntry = item.conferenceData?.entryPoints?.find(
+      (e: { entryPointType: string }) => e.entryPointType === "video"
+    );
+    return {
+      id: item.id,
+      summary: item.summary ?? "(No title)",
+      start: item.start?.dateTime ?? null,
+      end: item.end?.dateTime ?? null,
+      allDay: !item.start?.dateTime && !!item.start?.date,
+      htmlLink: item.htmlLink,
+      meetLink: meetEntry?.uri ?? item.hangoutLink ?? null,
+    };
+  });
+}
+
 export interface CreatedMeetEvent {
   eventId: string;
   meetLink: string | null;
@@ -144,4 +190,33 @@ export async function createCalendarEventWithMeet(
     meetLink: meetEntry?.uri ?? json.hangoutLink ?? null,
     htmlLink: json.htmlLink,
   };
+}
+
+export async function patchCalendarEventTime(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  startISO: string,
+  endISO: string
+): Promise<void> {
+  const url =
+    `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}` +
+    `?sendUpdates=all`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ start: { dateTime: startISO }, end: { dateTime: endISO } }),
+  });
+  if (!res.ok) throw new Error(`Google event reschedule failed (${res.status}): ${await res.text()}`);
+}
+
+export async function deleteCalendarEvent(accessToken: string, calendarId: string, eventId: string): Promise<void> {
+  const url =
+    `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}` +
+    `?sendUpdates=all`;
+  const res = await fetch(url, { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
+  // 410 Gone = already deleted on Google's side — treat as success (idempotent).
+  if (!res.ok && res.status !== 410) {
+    throw new Error(`Google event delete failed (${res.status}): ${await res.text()}`);
+  }
 }

@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Pencil, Trash2, Calendar, AlertCircle, X } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TaskFormDialog } from "./task-form-dialog";
 import { TaskChecklist } from "./task-checklist";
 import type { Task } from "@/types";
@@ -39,6 +41,7 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   if (!task) return null;
 
@@ -60,14 +63,26 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
     task.deadline && new Date(task.deadline) < new Date() && task.status !== "done";
 
   async function handleDelete() {
-    if (!confirm(`Delete "${task!.name}"?`)) return;
     setDeleting(true);
-    await fetch(`/api/tasks/${task!.id}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    onClose();
-    router.refresh();
+    try {
+      const res = await fetch(`/api/tasks/${task!.id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        toast.error(json?.error?.message ?? "Failed to delete task");
+        return;
+      }
+      setConfirmDeleteOpen(false);
+      onClose();
+      router.refresh();
+    } catch (err) {
+      console.error("[task-detail-sheet] delete failed", err);
+      toast.error("Failed to delete task — check your connection");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -100,7 +115,7 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
                   </button>
                   <button
                     type="button"
-                    onClick={handleDelete}
+                    onClick={() => setConfirmDeleteOpen(true)}
                     disabled={deleting}
                     className="p-2 rounded-lg text-[var(--clr-red)] transition-colors hover:bg-[var(--clr-red-bg)]"
                     aria-label="Delete task"
@@ -199,6 +214,17 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
         onClose={() => { setEditOpen(false); router.refresh(); }}
         projectId={task.project_id}
         task={task}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={`Delete "${task.name}"?`}
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDelete}
       />
     </>
   );

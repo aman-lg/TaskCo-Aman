@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, Clock, ChevronLeft, ChevronRight,
-  User, Video, Bell, LogOut, Loader2, Settings, ShieldCheck,
+  User, Video, Bell, LogOut, Loader2, Settings, ShieldCheck, MessageSquare, Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { openGlobalSearch } from "@/components/layout/global-search";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +19,7 @@ import {
 const NAV_ITEMS = [
   { href: "/dashboard",  label: "Dashboard",  icon: LayoutDashboard },
   { href: "/projects",   label: "Projects",   icon: FolderKanban },
+  { href: "/chat",       label: "Chat",       icon: MessageSquare },
   { href: "/meetings",   label: "Meetings",   icon: Video },
   { href: "/attendance", label: "Attendance", icon: Clock },
 ];
@@ -136,6 +138,41 @@ export function Sidebar({
                 <TooltipContent side="right">Collapse</TooltipContent>
               </Tooltip>
             </>
+          )}
+        </div>
+
+        {/* ── Search trigger ── */}
+        <div style={{ padding: collapsed ? "12px 0 0" : "12px 12px 0" }}>
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger
+                onClick={openGlobalSearch}
+                aria-label="Search"
+                className="flex w-10 h-10 mx-auto rounded-xl items-center justify-center transition-colors"
+                style={{ color: C.iconOff }}
+                onMouseEnter={e => { e.currentTarget.style.background = C.hover; e.currentTarget.style.color = C.iconOn; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.iconOff; }}
+              >
+                <Search style={{ width: 17, height: 17 }} />
+              </TooltipTrigger>
+              <TooltipContent side="right">Search</TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              type="button"
+              onClick={openGlobalSearch}
+              className="flex items-center gap-2 w-full h-9 px-3 rounded-xl text-[13px] transition-colors"
+              style={{ background: C.hover, color: C.textOff }}
+            >
+              <Search style={{ width: 15, height: 15, flexShrink: 0 }} />
+              <span className="flex-1 text-left">Search…</span>
+              <span
+                className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                style={{ background: "rgba(255,255,255,0.1)", color: C.textMuted }}
+              >
+                ⌘K
+              </span>
+            </button>
           )}
         </div>
 

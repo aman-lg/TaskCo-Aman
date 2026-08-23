@@ -1,7 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
+// /book and /api/booking/ must stay public — the public booking page (and the
+// availability/submission API routes it calls) is meant for unauthenticated
+// visitors. Everything else under /api is still gated below. Note the trailing
+// slash on /api/booking/ — without it this would also prefix-match the
+// separate (host-only, authenticated) /api/bookings routes.
+const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/book", "/api/booking/"];
 const AUTH_CALLBACK_PATHS = ["/auth/callback", "/auth/confirm"];
 
 export async function proxy(request: NextRequest) {

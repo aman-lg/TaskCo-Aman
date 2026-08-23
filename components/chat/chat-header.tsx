@@ -1,0 +1,190 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { ArrowLeft, MoreVertical, Phone, Video, Users } from "lucide-react";
+import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { Conversation, ChatProfile } from "@/types/chat";
+import { getConversationName, getConversationAvatar, formatLastSeen } from "@/lib/utils/chat";
+
+interface Props {
+  conversation: Conversation;
+  currentUserId: string;
+  onlineUserIds?: Set<string>;
+}
+
+function initials(name: string | null, email: string | null) {
+  if (name) return name.split(" ").map(p => p[0]).join("").toUpperCase().slice(0, 2);
+  return (email?.[0] ?? "?").toUpperCase();
+}
+
+export function ChatHeader({ conversation, currentUserId, onlineUserIds }: Props) {
+  const router = useRouter();
+  const name   = getConversationName(conversation, currentUserId);
+  const avatar = getConversationAvatar(conversation, currentUserId);
+  const isSelf = conversation.type === "self";
+  const isDM   = conversation.type === "direct";
+  const isGroup = conversation.type === "group";
+
+  const memberCount = conversation.members?.length ?? 0;
+  const otherUser   = isDM ? conversation.other_user : null;
+  const isOnline    = otherUser ? onlineUserIds?.has(otherUser.id) : false;
+
+  const statusText = isSelf
+    ? "Your private notes"
+    : isDM
+    ? isOnline
+      ? "Online"
+      : formatLastSeen(otherUser?.last_seen_at ?? null)
+    : `${memberCount} member${memberCount !== 1 ? "s" : ""}`;
+
+  async function leaveGroup() {
+    const res = await fetch(`/api/chat/conversations/${conversation.id}`, { method: "DELETE" });
+    if (res.ok) {
+      router.push("/chat");
+      router.refresh();
+    } else {
+      toast.error("Failed to leave group.");
+    }
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
+      style={{
+        background: "var(--surface-bg)",
+        borderBottom: "1px solid var(--line-soft)",
+      }}
+    >
+      {/* Back button (mobile) */}
+      <button
+        type="button"
+        onClick={() => router.push("/chat")}
+        className="md:hidden p-1 rounded-lg"
+        style={{ color: "var(--text-muted)" }}
+        aria-label="Back"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+
+      {/* Avatar */}
+      {isSelf ? (
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
+          style={{ background: "var(--navy-l)" }}
+        >
+          📝
+        </div>
+      ) : (
+        <Avatar className="w-9 h-9 flex-shrink-0">
+          <AvatarImage src={avatar ?? undefined} />
+          <AvatarFallback
+            className="text-[12px] font-semibold"
+            style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+          >
+            {initials(name, otherUser?.email ?? null)}
+          </AvatarFallback>
+        </Avatar>
+      )}
+
+      {/* Name + status */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>
+          {isSelf ? "My Notes" : name}
+        </p>
+        <div className="flex items-center gap-1.5">
+          {isDM && isOnline && (
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--clr-green)" }} />
+          )}
+          <p className="text-[11px] truncate" style={{ color: isOnline ? "var(--clr-green)" : "var(--text-muted)" }}>
+            {statusText}
+          </p>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      {!isSelf && (
+        <div className="flex items-center gap-1">
+          {isDM && (
+            <>
+              <button
+                type="button"
+                onClick={() => toast.info("Voice calls coming soon!")}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                style={{ color: "var(--text-muted)" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--panel-bg)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+              >
+                <Phone className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => toast.info("Video calls coming soon!")}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                style={{ color: "var(--text-muted)" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--panel-bg)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+              >
+                <Video className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
+          {isGroup && (
+            <button
+              type="button"
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--panel-bg)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              <Users className="w-4 h-4" />
+            </button>
+          )}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--panel-bg)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              <MoreVertical className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {isDM && (
+                <DropdownMenuItem onClick={() => toast.info("Profile view coming soon!")}>
+                  View profile
+                </DropdownMenuItem>
+              )}
+              {isGroup && (
+                <DropdownMenuItem onClick={() => toast.info("Group info coming soon!")}>
+                  Group info
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => toast.info("Mute coming soon!")}>
+                Mute notifications
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => toast.info("Clear chat coming soon!")}>
+                Clear chat
+              </DropdownMenuItem>
+              {isGroup && (
+                <DropdownMenuItem
+                  className="text-red-500"
+                  onClick={leaveGroup}
+                >
+                  Leave group
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+    </div>
+  );
+}

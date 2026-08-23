@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic"; // never serve cached task data
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getProjects } from "@/lib/queries/projects";
 import { getTaskStats, getTodayTasks } from "@/lib/queries/tasks";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
@@ -14,7 +14,7 @@ export default async function DashboardPage() {
     taskStats,
     todayTasks,
   ] = await Promise.all([
-    supabase.auth.getUser(),
+    getAuthUser(),
     getProjects(supabase),
     getTaskStats(supabase),
     getTodayTasks(supabase),

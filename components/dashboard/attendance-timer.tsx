@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { Coffee, Square } from "lucide-react";
 
 interface Session {
@@ -18,10 +19,18 @@ function formatDuration(seconds: number): string {
 }
 
 async function apiFetch(url: string, method = "GET") {
-  const res = await fetch(url, { method, credentials: "same-origin" });
-  if (!res.ok) return null;
-  const { data } = await res.json();
-  return data;
+  try {
+    const res = await fetch(url, { method, credentials: "same-origin" });
+    if (!res.ok) return null;
+    const { data } = await res.json();
+    return data;
+  } catch (err) {
+    // A thrown fetch (offline, DNS blip, etc.) used to propagate uncaught out of
+    // this function, leaving callers' loading state stuck true forever — the
+    // timer would show its skeleton and never tick. Always resolve to null instead.
+    console.error("[attendance]", url, err);
+    return null;
+  }
 }
 
 export function AttendanceTimer() {
@@ -41,16 +50,23 @@ export function AttendanceTimer() {
     }
   }, []);
 
-  // On mount: fetch today's state, auto clock-in if nothing is open
+  // On mount: fetch today's attendance state.
+  // If somehow no session is open (e.g. race with AppShell auto-start), start one.
   useEffect(() => {
     let cancelled = false;
     async function init() {
       const data = await apiFetch("/api/attendance/today");
-      if (cancelled || !data) { setLoading(false); return; }
+      if (cancelled) return;
+      if (!data) {
+        toast.error("Couldn't load attendance status.");
+        setLoading(false);
+        return;
+      }
       if (!data.openSession) {
+        // Clock-in is now idempotent — safe to call even if AppShell already did it
         await apiFetch("/api/attendance/clock-in", "POST");
         const data2 = await apiFetch("/api/attendance/today");
-        if (!cancelled && data2) { applyState(data2); }
+        if (!cancelled && data2) applyState(data2);
       } else {
         if (!cancelled) applyState(data);
       }
@@ -69,18 +85,26 @@ export function AttendanceTimer() {
 
   async function clockOut() {
     setActionLoading(true);
-    await apiFetch("/api/attendance/clock-out", "POST");
-    const data = await apiFetch("/api/attendance/today");
-    if (data) applyState(data);
-    setActionLoading(false);
+    try {
+      const result = await apiFetch("/api/attendance/clock-out", "POST");
+      if (!result) toast.error("Couldn't update attendance — try again.");
+      const data = await apiFetch("/api/attendance/today");
+      if (data) applyState(data);
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   async function clockIn() {
     setActionLoading(true);
-    await apiFetch("/api/attendance/clock-in", "POST");
-    const data = await apiFetch("/api/attendance/today");
-    if (data) applyState(data);
-    setActionLoading(false);
+    try {
+      const result = await apiFetch("/api/attendance/clock-in", "POST");
+      if (!result) toast.error("Couldn't update attendance — try again.");
+      const data = await apiFetch("/api/attendance/today");
+      if (data) applyState(data);
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   if (loading) {

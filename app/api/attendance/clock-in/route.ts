@@ -19,20 +19,42 @@ function getISTDateString() {
 export const POST = withAuth(async (_req: NextRequest, { user }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = (await createClient()) as any;
+  const today = getISTDateString();
 
-  const { data: open } = await db
+  // Find any open session for this user
+  const { data: openSessions } = await db
     .from("attendance_sessions")
-    .select("id")
+    .select("id, ist_date")
     .eq("user_id", user.id)
-    .is("check_out_at", null)
-    .maybeSingle();
+    .is("check_out_at", null);
 
-  if (open) return ApiError.badRequest("A work session is already open");
+  if (openSessions && openSessions.length > 0) {
+    const todayOpen = openSessions.find((s: { ist_date: string }) => s.ist_date === today);
+    if (todayOpen) {
+      // Already clocked in today — return the existing session (idempotent)
+      const { data: existing } = await db
+        .from("attendance_sessions")
+        .select("id, check_in_at, check_out_at, ist_date")
+        .eq("id", todayOpen.id)
+        .single();
+      return ok(existing, 200);
+    }
+    // Stale open sessions from previous days — auto-close them
+    const staleIds = openSessions
+      .filter((s: { ist_date: string }) => s.ist_date !== today)
+      .map((s: { id: string }) => s.id);
+    if (staleIds.length > 0) {
+      await db
+        .from("attendance_sessions")
+        .update({ check_out_at: new Date().toISOString() })
+        .in("id", staleIds);
+    }
+  }
 
   const now = new Date().toISOString();
   const { data, error } = await db
     .from("attendance_sessions")
-    .insert({ user_id: user.id, check_in_at: now, ist_date: getISTDateString() })
+    .insert({ user_id: user.id, check_in_at: now, ist_date: today })
     .select("id, check_in_at, check_out_at, ist_date")
     .single();
 

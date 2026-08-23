@@ -35,9 +35,11 @@ interface Props {
   task?: Task;
   defaultStatus?: "todo" | "in_progress" | "done";
   defaultDeadline?: string;
+  /** When provided, renders a visible Project selector instead of a fixed hidden field (used where the target project is ambiguous, e.g. the dashboard). */
+  projects?: { id: string; title: string }[];
 }
 
-export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus = "todo", defaultDeadline }: Props) {
+export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus = "todo", defaultDeadline, projects }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!task;
@@ -135,10 +137,30 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
         {/* ── Form ──────────────────────────────────────────────── */}
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="p-5 max-h-[65vh] overflow-y-auto">
-            <input type="hidden" {...register("project_id")} />
-
             {/* Form fields card */}
             <div className="flex flex-col gap-4 p-4 rounded-lg bg-[var(--panel-bg)] border border-[var(--line-soft)]">
+
+              {/* Project — visible selector when the target project is ambiguous
+                  (e.g. dashboard); fixed elsewhere (e.g. inside a project's board),
+                  and never changeable once a task exists. */}
+              {projects && projects.length > 0 && !isEdit ? (
+                <div className="select-wrap">
+                  <select {...register("project_id")} className="select-field">
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>{p.title}</option>
+                    ))}
+                  </select>
+                  <span className="select-label">Project</span>
+                  <ChevronDown className="select-arrow" />
+                </div>
+              ) : (
+                <input type="hidden" {...register("project_id")} />
+              )}
+              {isEdit && projects && projects.length > 0 && (
+                <p className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>
+                  Project: {projects.find((p) => p.id === projectId)?.title ?? "—"}
+                </p>
+              )}
 
               {/* Name */}
               <div className="float-label-wrap">

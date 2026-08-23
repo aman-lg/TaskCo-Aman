@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, ChevronRight, Plus, CheckSquare, Folder,
@@ -67,8 +69,39 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
   const [calMonth, setCalMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addTaskDate, setAddTaskDate] = useState<string | null>(null);
-  const [addTaskProject, setAddTaskProject] = useState<string | null>(() => projects[0]?.id ?? null);
   const [refreshing, setRefreshing] = useState(false);
+  const [meetingsConnected, setMeetingsConnected] = useState<boolean | null>(null);
+  const [pendingBookings, setPendingBookings] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [statusRes, bookingsRes] = await Promise.all([
+          fetch("/api/meetings/status", { credentials: "same-origin" }),
+          fetch("/api/bookings", { credentials: "same-origin" }),
+        ]);
+        if (cancelled) return;
+        if (statusRes.ok) setMeetingsConnected((await statusRes.json()).data.connected);
+        if (bookingsRes.ok) {
+          const rows: { status: string }[] = (await bookingsRes.json()).data ?? [];
+          setPendingBookings(rows.filter((b) => b.status === "pending").length);
+        }
+      } catch {
+        // Non-critical widget — leave it in its default state on failure.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  function openAddTask(date: string | null) {
+    if (projects.length === 0) {
+      toast.error("Create a project first — tasks must belong to one.");
+      return;
+    }
+    setAddTaskDate(date);
+    setAddTaskOpen(true);
+  }
 
   // ── Refresh helper ──────────────────────────────────────────────────────────
   const refresh = useCallback(() => {
@@ -189,15 +222,13 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
             >
               <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
             </button>
-            {addTaskProject && (
-              <button
-                onClick={() => { setAddTaskDate(todayStr); setAddTaskOpen(true); }}
-                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[12px] font-semibold"
-                style={{ background: "var(--navy)", color: "#fff" }}
-              >
-                <Plus className="h-3.5 w-3.5" /> Add
-              </button>
-            )}
+            <button
+              onClick={() => openAddTask(todayStr)}
+              className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[12px] font-semibold"
+              style={{ background: "var(--navy)", color: "#fff" }}
+            >
+              <Plus className="h-3.5 w-3.5" /> Add
+            </button>
           </div>
         </div>
 
@@ -310,7 +341,7 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
             return (
               <button
                 key={ds}
-                onClick={() => { setAddTaskDate(ds); setAddTaskOpen(true); }}
+                onClick={() => openAddTask(ds)}
                 className={cn(
                   "relative h-9 w-full rounded-lg text-[13px] font-medium flex flex-col items-center justify-center transition-colors",
                   isToday ? "text-white" : "text-[var(--ink)] hover:bg-[var(--line-soft)]"
@@ -326,21 +357,6 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
             );
           })}
         </div>
-        {projects.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t" style={{ borderColor: "var(--line-soft)" }}>
-            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Add to:</span>
-            {projects.map((p) => (
-              <button key={p.id} onClick={() => setAddTaskProject(p.id)}
-                className={cn("flex items-center gap-1 h-5 px-2 rounded text-[11px] font-semibold transition-colors",
-                  addTaskProject === p.id ? "text-white" : "text-[var(--text-secondary)] hover:bg-[var(--line-soft)]"
-                )}
-                style={addTaskProject === p.id ? { background: p.color ?? "var(--navy)" } : {}}>
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color ?? "var(--text-muted)" }} />
-                {p.title}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* ── Task status donut (2 cols) ── */}
@@ -429,33 +445,43 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
       <div className="col-span-4 rounded-xl p-5 flex flex-col gap-4" style={card}>
         <div className="flex items-center justify-between">
           <h2 className="h3" style={{ color: "var(--ink)" }}>Meetings</h2>
-          <span className="text-[11px] font-semibold px-2 py-1 rounded-lg"
-            style={{ background: "var(--navy-l)", color: "var(--navy)" }}>
-            Google Meet — coming soon
-          </span>
+          {meetingsConnected && pendingBookings > 0 && (
+            <span className="text-[11px] font-bold px-2 py-1 rounded-lg"
+              style={{ background: "var(--clr-red-bg)", color: "var(--clr-red)" }}>
+              {pendingBookings} pending request{pendingBookings !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "var(--panel-bg)" }}>
             <Video className="h-6 w-6" style={{ color: "var(--text-muted)" }} />
           </div>
           <div>
-            <p className="text-[14px] font-semibold" style={{ color: "var(--ink)" }}>No meetings scheduled</p>
+            <p className="text-[14px] font-semibold" style={{ color: "var(--ink)" }}>
+              {meetingsConnected ? "Manage booking requests" : "No meetings scheduled"}
+            </p>
             <p className="text-[12px] mt-1 max-w-xs mx-auto" style={{ color: "var(--text-muted)" }}>
-              Connect your Google account to see and join meetings directly from TaskCo.
+              {meetingsConnected
+                ? "Confirm requests to generate a Google Meet link and notify the requester."
+                : "Connect your Google Calendar to get a booking link people can use to request time with you."}
             </p>
           </div>
-          <button className="h-8 px-4 rounded-lg text-[12px] font-semibold transition-colors hover:bg-[var(--line-soft)]"
-            style={{ border: "1px solid var(--line)", color: "var(--text-secondary)" }}>
-            Connect Google Meet
-          </button>
+          <Link
+            href="/meetings"
+            className="h-8 px-4 rounded-lg text-[12px] font-semibold transition-colors hover:bg-[var(--line-soft)]"
+            style={{ border: "1px solid var(--line)", color: "var(--text-secondary)" }}
+          >
+            {meetingsConnected ? "View Meetings" : "Connect Google Calendar"}
+          </Link>
         </div>
       </div>
 
-      {addTaskProject && (
+      {projects.length > 0 && (
         <TaskFormDialog
           open={addTaskOpen}
           onClose={() => setAddTaskOpen(false)}
-          projectId={addTaskProject}
+          projectId={projects[0].id}
+          projects={projects}
           defaultDeadline={addTaskDate ?? undefined}
         />
       )}

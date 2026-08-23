@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   MoreHorizontal,
   Pencil,
@@ -17,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ProjectFormDialog } from "./project-form-dialog";
 import type { Project } from "@/types";
 
@@ -50,6 +52,7 @@ export function ProjectCard({ project, currentUserId }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const isOwner = project.owner_id === currentUserId;
 
   const urgencyColor = `var(${URGENCY_TOKEN[project.urgency ?? "medium"]})`;
@@ -67,13 +70,25 @@ export function ProjectCard({ project, currentUserId }: Props) {
     project.deadline && new Date(project.deadline) < new Date() && project.status !== "completed";
 
   async function handleDelete() {
-    if (!confirm(`Delete "${project.title}"? This will delete all tasks inside.`)) return;
     setDeleting(true);
-    await fetch(`/api/projects/${project.id}`, {
-      method: "DELETE",
-      credentials: "same-origin",
-    });
-    router.refresh();
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        toast.error(json?.error?.message ?? "Failed to delete project");
+        return;
+      }
+      setConfirmDeleteOpen(false);
+      router.refresh();
+    } catch (err) {
+      console.error("[project-card] delete failed", err);
+      toast.error("Failed to delete project — check your connection");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -118,7 +133,7 @@ export function ProjectCard({ project, currentUserId }: Props) {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={handleDelete}
+                    onClick={() => setConfirmDeleteOpen(true)}
                     disabled={deleting}
                     style={{ color: "var(--clr-red)" }}
                   >
@@ -179,6 +194,17 @@ export function ProjectCard({ project, currentUserId }: Props) {
       </article>
 
       <ProjectFormDialog open={editOpen} onClose={() => setEditOpen(false)} project={project} />
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={`Delete "${project.title}"?`}
+        description="This will delete all tasks inside it. This action cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

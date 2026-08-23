@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
+import { NavProgress } from "@/components/layout/nav-progress";
+import { GlobalSearch } from "@/components/layout/global-search";
 import { useLogout } from "@/lib/hooks/use-logout";
+import { useAttendanceAutoStart } from "@/lib/hooks/use-attendance-auto-start";
 import { Menu } from "lucide-react";
 
 interface AppShellProfile {
@@ -21,10 +25,17 @@ export function AppShell({ children, profile }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { logout, isLoading } = useLogout();
+  const pathname = usePathname();
+  const isChat = pathname?.startsWith("/chat") ?? false;
   const sidebarWidth = collapsed ? 64 : 224;
+
+  // Auto clock-in once on first app load after login
+  useAttendanceAutoStart();
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "var(--page-bg)" }}>
+      <NavProgress />
+      <GlobalSearch />
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -69,15 +80,25 @@ export function AppShell({ children, profile }: AppShellProps) {
       </div>
 
       <main
-        className="min-h-screen"
+        className={isChat ? "flex flex-col overflow-hidden" : "min-h-screen"}
         style={{
           marginLeft: sidebarWidth,
           transition: "margin-left 200ms ease",
+          ...(isChat ? { height: "100vh" } : {}),
         }}
       >
-        {/* Mobile top offset */}
-        <div className="md:hidden h-14" />
-        <div className="px-4 py-6 md:px-10 md:py-8 max-w-[1200px] mx-auto">{children}</div>
+        {/* Mobile top offset — only adds space when mobile header is visible */}
+        {isChat ? (
+          <>
+            <div className="md:hidden h-14 flex-shrink-0" />
+            <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
+          </>
+        ) : (
+          <>
+            <div className="md:hidden h-14 flex-shrink-0" />
+            <div className="px-4 py-6 md:px-10 md:py-8 max-w-[1200px] mx-auto">{children}</div>
+          </>
+        )}
       </main>
     </div>
   );

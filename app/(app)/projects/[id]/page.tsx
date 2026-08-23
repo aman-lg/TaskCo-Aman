@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, Calendar, AlertCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getProjectById } from "@/lib/queries/projects";
 import { getTasksForProject, type TaskWithMeta } from "@/lib/queries/tasks";
 import { KanbanBoard } from "@/components/tasks/kanban-board";
@@ -39,7 +39,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const [project, tasks, { data: { user } }] = await Promise.all([
     getProjectById(supabase, id),
     getTasksForProject(supabase, id),
-    supabase.auth.getUser(),
+    getAuthUser(),
   ]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

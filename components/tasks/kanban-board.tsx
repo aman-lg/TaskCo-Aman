@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Plus, MoreHorizontal, Pencil, Trash2, Calendar, AlertCircle, GripVertical } from "lucide-react";
 import {
   DndContext,
@@ -22,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TaskFormDialog } from "./task-form-dialog";
 import { TaskDetailSheet } from "./task-detail-sheet";
 import type { Task } from "@/types";
@@ -62,6 +64,8 @@ export function KanbanBoard({ tasks: serverTasks, projectId, currentUserId }: Pr
   const [detailTask, setDetailTask] = useState<TaskWithChecklist | null>(null);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Sync local tasks when server data changes (after refresh)
   useEffect(() => {
@@ -84,15 +88,29 @@ export function KanbanBoard({ tasks: serverTasks, projectId, currentUserId }: Pr
     });
   }, [tasks]);
 
-  async function deleteTask(task: Task) {
-    if (!confirm(`Delete "${task.name}"?`)) return;
+  async function confirmDeleteTask() {
+    if (!pendingDelete) return;
+    const task = pendingDelete;
+    setDeleting(true);
     // Optimistic remove
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
-    const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE", credentials: "same-origin" });
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE", credentials: "same-origin" });
+      if (!res.ok) {
+        setTasks(serverTasks); // revert on failure
+        const json = await res.json().catch(() => null);
+        toast.error(json?.error?.message ?? "Failed to delete task");
+        return;
+      }
+      setPendingDelete(null);
+      router.refresh();
+    } catch (err) {
       setTasks(serverTasks); // revert on failure
+      console.error("[kanban-board] delete failed", err);
+      toast.error("Failed to delete task — check your connection");
+    } finally {
+      setDeleting(false);
     }
-    router.refresh();
   }
 
   async function moveTask(task: Task, newStatus: TaskStatus) {
@@ -142,7 +160,7 @@ export function KanbanBoard({ tasks: serverTasks, projectId, currentUserId }: Pr
                 onAddClick={() => setAddingIn(col.id)}
                 onOpen={(task) => setDetailTask(task)}
                 onEdit={(task) => setEditTask(task)}
-                onDelete={deleteTask}
+                onDelete={(task) => setPendingDelete(task)}
                 onMove={moveTask}
               />
             );
@@ -177,6 +195,17 @@ export function KanbanBoard({ tasks: serverTasks, projectId, currentUserId }: Pr
         open={!!detailTask}
         onClose={() => setDetailTask(null)}
         currentUserId={currentUserId}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(v) => !v && setPendingDelete(null)}
+        title={`Delete "${pendingDelete?.name}"?`}
+        description="This action cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        loading={deleting}
+        onConfirm={confirmDeleteTask}
       />
     </>
   );

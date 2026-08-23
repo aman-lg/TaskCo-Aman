@@ -3,6 +3,7 @@ import { Calendar, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getAllTasks } from "@/lib/queries/tasks";
 import { getProjects } from "@/lib/queries/projects";
+import { ExportTasksButton, type TaskExportRow } from "@/components/tasks/export-tasks-button";
 
 const STATUS_LABELS: Record<string, string> = {
   todo: "To Do",
@@ -48,15 +49,34 @@ export default async function TasksPage() {
     {}
   );
 
+  const exportRows: TaskExportRow[] = tasks.map((task) => {
+    const checklist = task.task_checklist_items ?? [];
+    const assignees = task.task_assignees ?? [];
+    return {
+      Project: projectMap[task.project_id]?.title ?? "Unknown Project",
+      Task: task.name,
+      Status: STATUS_LABELS[task.status ?? "todo"],
+      Urgency: (task.urgency ?? "medium").toUpperCase(),
+      Assignees: assignees.map((a) => a.assignee?.full_name).filter(Boolean).join(", "),
+      Checklist: checklist.length ? `${checklist.filter((c) => c.is_done).length}/${checklist.length}` : "",
+      Deadline: task.deadline ? new Date(task.deadline).toLocaleDateString("en-IN") : "",
+      "Created By": task.creator?.full_name ?? "",
+      "Created At": task.created_at ? new Date(task.created_at).toLocaleDateString("en-IN") : "",
+    };
+  });
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="h1" style={{ color: "var(--ink)" }}>
-          All Tasks
-        </h1>
-        <p className="mt-1 text-[14px]" style={{ color: "var(--text-secondary)" }}>
-          {tasks.length} task{tasks.length !== 1 ? "s" : ""} across {projects.length} project{projects.length !== 1 ? "s" : ""}
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="h1" style={{ color: "var(--ink)" }}>
+            All Tasks
+          </h1>
+          <p className="mt-1 text-[14px]" style={{ color: "var(--text-secondary)" }}>
+            {tasks.length} task{tasks.length !== 1 ? "s" : ""} across {projects.length} project{projects.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        {tasks.length > 0 && <ExportTasksButton rows={exportRows} />}
       </div>
 
       {tasks.length === 0 ? (

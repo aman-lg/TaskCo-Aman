@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
 
 /**
@@ -14,7 +14,7 @@ import { AppShell } from "@/components/layout/app-shell";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await getAuthUser();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: dbProfile } = user ? await (supabase as any)

@@ -20,6 +20,7 @@ export type Database = {
           avatar_url: string | null;
           phone: string | null;
           email: string | null;
+          role: Database["public"]["Enums"]["company_role"];
           created_at: string;
           updated_at: string | null;
         };
@@ -29,6 +30,7 @@ export type Database = {
           avatar_url?: string | null;
           phone?: string | null;
           email?: string | null;
+          role?: Database["public"]["Enums"]["company_role"];
           created_at?: string;
           updated_at?: string | null;
         };
@@ -38,6 +40,7 @@ export type Database = {
           avatar_url?: string | null;
           phone?: string | null;
           email?: string | null;
+          role?: Database["public"]["Enums"]["company_role"];
           updated_at?: string | null;
         };
         Relationships: [];
@@ -92,6 +95,7 @@ export type Database = {
           unit_id: string;
           user_id: string;
           title: string | null;
+          unit_role: Database["public"]["Enums"]["unit_role"];
           added_by: string | null;
           added_at: string;
         };
@@ -100,11 +104,13 @@ export type Database = {
           unit_id: string;
           user_id: string;
           title?: string | null;
+          unit_role?: Database["public"]["Enums"]["unit_role"];
           added_by: string;
           added_at?: string;
         };
         Update: {
           title?: string | null;
+          unit_role?: Database["public"]["Enums"]["unit_role"];
         };
         Relationships: [
           { foreignKeyName: "org_unit_members_unit_id_fkey"; columns: ["unit_id"]; referencedRelation: "org_units"; referencedColumns: ["id"] },
@@ -492,6 +498,8 @@ export type Database = {
         | "task_status_changed"
         | "project_due_soon"
         | "mention";
+      company_role: "ceo" | "manager" | "team_member";
+      unit_role: "lead" | "facilitator" | "member";
     };
   };
 };
@@ -510,6 +518,8 @@ export type UrgencyLevel = Enums<"urgency_level">;
 export type ProjectStatus = Enums<"project_status">;
 export type TaskStatus = Enums<"task_status">;
 export type NotificationType = Enums<"notification_type">;
+export type CompanyRole = Enums<"company_role">;
+export type UnitRole = Enums<"unit_role">;
 
 export type Profile = Tables<"profiles">;
 export type Project = Tables<"projects">;

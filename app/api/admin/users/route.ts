@@ -9,7 +9,7 @@ export const GET = withAdmin(async () => {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, email, avatar_url, is_admin, created_at");
+    .select("id, full_name, email, avatar_url, is_admin, role, created_at");
 
   if (error) {
     console.error("[admin/users GET]", error);

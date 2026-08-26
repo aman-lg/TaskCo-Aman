@@ -8,6 +8,8 @@ import {
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
+type CompanyRole = "ceo" | "manager" | "team_member";
+
 interface UserProfile {
   id: string;
   full_name: string | null;
@@ -15,8 +17,15 @@ interface UserProfile {
   avatar_url: string | null;
   phone: string | null;
   is_admin: boolean;
+  role: CompanyRole;
   created_at: string;
 }
+
+const ROLE_LABEL: Record<CompanyRole, string> = {
+  ceo: "CEO",
+  manager: "Manager",
+  team_member: "Team Member",
+};
 
 interface TaskRow {
   id: string;
@@ -385,6 +394,32 @@ export function AdminUsersClient({
     }
   }
 
+  async function updateRole(user: UserProfile, role: CompanyRole) {
+    if (role === user.role) return;
+    setTogglingId(user.id);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ role }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body?.error?.message ?? "Failed to update role");
+        return;
+      }
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role } : u));
+      setDetail(prev => prev[user.id]
+        ? { ...prev, [user.id]: { ...prev[user.id], profile: { ...prev[user.id].profile, role } } }
+        : prev
+      );
+      toast.success(`${user.full_name ?? "User"} is now ${ROLE_LABEL[role]}`);
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
   async function toggleAdmin(user: UserProfile) {
     setTogglingId(user.id);
     try {
@@ -496,6 +531,11 @@ export function AdminUsersClient({
                         <Shield className="w-2.5 h-2.5" /> ADMIN
                       </span>
                     )}
+                    {user.role !== "team_member" && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--navy-l)", color: "var(--navy)" }}>
+                        {ROLE_LABEL[user.role].toUpperCase()}
+                      </span>
+                    )}
                     {isSelf && (
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--line)", color: "var(--text-muted)" }}>YOU</span>
                     )}
@@ -504,6 +544,18 @@ export function AdminUsersClient({
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  <select
+                    value={user.role}
+                    onChange={(e) => updateRole(user, e.target.value as CompanyRole)}
+                    disabled={isToggling}
+                    className="h-8 px-2 rounded-lg text-[12px] font-semibold outline-none disabled:opacity-50"
+                    style={{ border: "1px solid var(--line)", background: "var(--surface-bg)", color: "var(--text-secondary)" }}
+                    title="Company role"
+                  >
+                    <option value="team_member">Team Member</option>
+                    <option value="manager">Manager</option>
+                    <option value="ceo">CEO</option>
+                  </select>
                   {!isSelf && (
                     <button
                       onClick={() => toggleAdmin(user)}

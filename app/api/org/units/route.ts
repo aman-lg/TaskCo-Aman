@@ -12,7 +12,7 @@ export const GET = withAuth(async (_req: NextRequest) => {
     .from("org_units")
     .select(`
       id, parent_id, name, created_at,
-      members:org_unit_members(user_id, title, added_at, profile:profiles!user_id(id, full_name, avatar_url, email))
+      members:org_unit_members(user_id, title, unit_role, added_at, profile:profiles!user_id(id, full_name, avatar_url, email))
     `)
     .order("created_at", { ascending: true });
 

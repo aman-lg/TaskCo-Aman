@@ -18,9 +18,18 @@ interface Profile {
   email: string | null;
 }
 
+type UnitRole = "lead" | "facilitator" | "member";
+
+const UNIT_ROLE_LABEL: Record<UnitRole, string> = {
+  lead: "Team Lead",
+  facilitator: "Team Facilitator",
+  member: "Member",
+};
+
 interface Member {
   user_id: string;
   title: string | null;
+  unit_role: UnitRole;
   added_at: string;
   profile: Profile;
 }
@@ -112,16 +121,17 @@ function AddMemberDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onSubmit: (userId: string, title: string) => Promise<void>;
+  onSubmit: (userId: string, title: string, unitRole: UnitRole) => Promise<void>;
   candidates: Profile[];
 }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Profile | null>(null);
   const [title, setTitle] = useState("");
+  const [unitRole, setUnitRole] = useState<UnitRole>("member");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open) { setSearch(""); setSelected(null); setTitle(""); }
+    if (open) { setSearch(""); setSelected(null); setTitle(""); setUnitRole("member"); }
   }, [open]);
 
   const filtered = candidates.filter((p) =>
@@ -133,7 +143,7 @@ function AddMemberDialog({
     if (!selected) return;
     setSaving(true);
     try {
-      await onSubmit(selected.id, title.trim());
+      await onSubmit(selected.id, title.trim(), unitRole);
       onClose();
     } finally {
       setSaving(false);
@@ -196,10 +206,23 @@ function AddMemberDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              placeholder="Title (optional, e.g. Team Lead)"
+              placeholder="Title (optional, e.g. Senior Engineer)"
               className="h-9 px-3 rounded-lg text-[13px] outline-none"
               style={{ background: "var(--panel-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
             />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold" style={{ color: "var(--text-muted)" }}>Department role</label>
+              <select
+                value={unitRole}
+                onChange={(e) => setUnitRole(e.target.value as UnitRole)}
+                className="h-9 px-3 rounded-lg text-[13px] outline-none"
+                style={{ background: "var(--panel-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
+              >
+                <option value="member">Member</option>
+                <option value="lead">Team Lead</option>
+                <option value="facilitator">Team Facilitator</option>
+              </select>
+            </div>
             <div className="flex justify-end gap-2">
               <button onClick={onClose} className="h-9 px-4 rounded-lg text-[13px] font-semibold" style={{ color: "var(--text-secondary)" }}>
                 Cancel
@@ -223,15 +246,16 @@ function AddMemberDialog({
 // ── One department box + its sub-departments ─────────────────────────────────
 
 function OrgNode({
-  unit, childrenMap, isAdmin, allProfiles, onAddChild, onAddMember, onRemoveMember, onRename, onDelete,
+  unit, childrenMap, isAdmin, allProfiles, onAddChild, onAddMember, onRemoveMember, onChangeRole, onRename, onDelete,
 }: {
   unit: Unit;
   childrenMap: Record<string, Unit[]>;
   isAdmin: boolean;
   allProfiles: Profile[];
   onAddChild: (parentId: string, name: string) => Promise<void>;
-  onAddMember: (unitId: string, userId: string, title: string) => Promise<void>;
+  onAddMember: (unitId: string, userId: string, title: string, unitRole: UnitRole) => Promise<void>;
   onRemoveMember: (unitId: string, userId: string) => Promise<void>;
+  onChangeRole: (unitId: string, userId: string, unitRole: UnitRole) => Promise<void>;
   onRename: (unitId: string, name: string) => Promise<void>;
   onDelete: (unitId: string) => Promise<void>;
 }) {
@@ -243,6 +267,7 @@ function OrgNode({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [changingRoleId, setChangingRoleId] = useState<string | null>(null);
 
   const existingMemberIds = new Set(unit.members.map((m) => m.user_id));
   const candidates = allProfiles.filter((p) => !existingMemberIds.has(p.id));
@@ -287,7 +312,7 @@ function OrgNode({
         )}
 
         {expanded && unit.members.length > 0 && (
-          <div className="flex flex-col gap-1 pt-1" style={{ borderTop: "1px solid var(--line-soft)" }}>
+          <div className="flex flex-col gap-1.5 pt-1" style={{ borderTop: "1px solid var(--line-soft)" }}>
             {unit.members.map((m) => (
               <div key={m.user_id} className="flex items-center gap-2">
                 <Avatar className="h-5 w-5 flex-shrink-0">
@@ -300,6 +325,27 @@ function OrgNode({
                   <p className="text-[11px] font-medium truncate" style={{ color: "var(--ink)" }}>{m.profile.full_name ?? m.profile.email}</p>
                   {m.title && <p className="text-[10px] truncate" style={{ color: "var(--text-muted)" }}>{m.title}</p>}
                 </div>
+                {isAdmin ? (
+                  <select
+                    value={m.unit_role}
+                    onChange={async (e) => {
+                      setChangingRoleId(m.user_id);
+                      await onChangeRole(unit.id, m.user_id, e.target.value as UnitRole);
+                      setChangingRoleId(null);
+                    }}
+                    disabled={changingRoleId === m.user_id}
+                    className="h-6 px-1.5 rounded text-[10px] font-semibold outline-none flex-shrink-0 disabled:opacity-50"
+                    style={{ border: "1px solid var(--line)", background: "var(--surface-bg)", color: "var(--text-secondary)" }}
+                  >
+                    <option value="member">Member</option>
+                    <option value="lead">Team Lead</option>
+                    <option value="facilitator">Facilitator</option>
+                  </select>
+                ) : m.unit_role !== "member" ? (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "var(--navy-l)", color: "var(--navy)" }}>
+                    {UNIT_ROLE_LABEL[m.unit_role]}
+                  </span>
+                ) : null}
                 {isAdmin && (
                   <button
                     onClick={async () => { setRemovingId(m.user_id); await onRemoveMember(unit.id, m.user_id); setRemovingId(null); }}
@@ -340,7 +386,7 @@ function OrgNode({
           {kids.map((k) => (
             <OrgNode
               key={k.id} unit={k} childrenMap={childrenMap} isAdmin={isAdmin} allProfiles={allProfiles}
-              onAddChild={onAddChild} onAddMember={onAddMember} onRemoveMember={onRemoveMember}
+              onAddChild={onAddChild} onAddMember={onAddMember} onRemoveMember={onRemoveMember} onChangeRole={onChangeRole}
               onRename={onRename} onDelete={onDelete}
             />
           ))}
@@ -349,7 +395,7 @@ function OrgNode({
 
       <UnitDialog open={showRename} onClose={() => setShowRename(false)} title="Rename department" initialValue={unit.name} onSubmit={(name) => onRename(unit.id, name)} />
       <UnitDialog open={showAddChild} onClose={() => setShowAddChild(false)} title="Add sub-department" onSubmit={(name) => onAddChild(unit.id, name)} />
-      <AddMemberDialog open={showAddMember} onClose={() => setShowAddMember(false)} candidates={candidates} onSubmit={(userId, title) => onAddMember(unit.id, userId, title)} />
+      <AddMemberDialog open={showAddMember} onClose={() => setShowAddMember(false)} candidates={candidates} onSubmit={(userId, title, unitRole) => onAddMember(unit.id, userId, title, unitRole)} />
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
@@ -455,12 +501,12 @@ export function OrgChartClient({ initialName, initialUnits, allProfiles, isAdmin
     toast.success("Deleted");
   }
 
-  async function addMember(unitId: string, userId: string, title: string) {
+  async function addMember(unitId: string, userId: string, title: string, unitRole: UnitRole) {
     const res = await fetch(`/api/org/units/${unitId}/members`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ user_id: userId, title: title || null }),
+      body: JSON.stringify({ user_id: userId, title: title || null, unit_role: unitRole }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { toast.error(body?.error?.message ?? "Failed to add member"); return; }
@@ -473,6 +519,21 @@ export function OrgChartClient({ initialName, initialUnits, allProfiles, isAdmin
     const body = await res.json().catch(() => ({}));
     if (!res.ok) { toast.error(body?.error?.message ?? "Failed to remove member"); return; }
     setUnits((prev) => prev.map((u) => (u.id === unitId ? { ...u, members: u.members.filter((m) => m.user_id !== userId) } : u)));
+  }
+
+  async function changeMemberRole(unitId: string, userId: string, unitRole: UnitRole) {
+    const res = await fetch(`/api/org/units/${unitId}/members`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ user_id: userId, unit_role: unitRole }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { toast.error(body?.error?.message ?? "Failed to update role"); return; }
+    setUnits((prev) => prev.map((u) => (u.id === unitId
+      ? { ...u, members: u.members.map((m) => (m.user_id === userId ? { ...m, unit_role: unitRole } : m)) }
+      : u)));
+    toast.success(`Role updated to ${UNIT_ROLE_LABEL[unitRole]}`);
   }
 
   return (
@@ -538,6 +599,7 @@ export function OrgChartClient({ initialName, initialUnits, allProfiles, isAdmin
                   onAddChild={(parentId, name) => addUnit(name, parentId)}
                   onAddMember={addMember}
                   onRemoveMember={removeMember}
+                  onChangeRole={changeMemberRole}
                   onRename={renameUnit}
                   onDelete={deleteUnit}
                 />

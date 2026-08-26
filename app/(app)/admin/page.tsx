@@ -19,7 +19,7 @@ export default async function AdminPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: users } = await (supabase as any)
     .from("profiles")
-    .select("id, full_name, email, avatar_url, is_admin, created_at")
+    .select("id, full_name, email, avatar_url, is_admin, role, created_at")
     .order("created_at", { ascending: true });
 
   return (

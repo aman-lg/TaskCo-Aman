@@ -21,7 +21,7 @@ export const GET = withAdmin(async (_req: NextRequest, { params }) => {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, email, avatar_url, phone, is_admin, created_at")
+      .select("id, full_name, email, avatar_url, phone, is_admin, role, created_at")
       .eq("id", id)
       .single(),
     supabase
@@ -52,29 +52,40 @@ export const GET = withAdmin(async (_req: NextRequest, { params }) => {
 });
 
 const patchSchema = z.object({
-  is_admin: z.boolean(),
+  is_admin: z.boolean().optional(),
+  role: z.enum(["ceo", "manager", "team_member"]).optional(),
+}).refine((data) => data.is_admin !== undefined || data.role !== undefined, {
+  message: "Provide is_admin and/or role",
 });
 
-// PATCH /api/admin/users/[id] — toggle admin status
+// PATCH /api/admin/users/[id] — toggle admin status and/or company-wide role.
+// Self-changing is_admin is blocked (can't lock yourself out of the admin panel);
+// self-changing role is allowed — it doesn't gate anything the way is_admin does.
 export const PATCH = withAdmin(async (req: NextRequest, { user, params }) => {
   const id = params?.id;
   if (!isValidUUID(id)) return ApiError.badRequest("Invalid user id");
-  if (id === user.id) return ApiError.badRequest("Cannot change your own admin status");
 
   const body = await req.json().catch(() => null);
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) return ApiError.badRequest(parsed.error.issues[0].message);
+  if (parsed.data.is_admin !== undefined && id === user.id) {
+    return ApiError.badRequest("Cannot change your own admin status");
+  }
+
+  const update: { is_admin?: boolean; role?: "ceo" | "manager" | "team_member" } = {};
+  if (parsed.data.is_admin !== undefined) update.is_admin = parsed.data.is_admin;
+  if (parsed.data.role !== undefined) update.role = parsed.data.role;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const supabase = createAdminClient() as any;
   const { error } = await supabase
     .from("profiles")
-    .update({ is_admin: parsed.data.is_admin })
+    .update(update)
     .eq("id", id);
 
   if (error) { console.error("[admin/users/[id] PATCH]", error); return ApiError.internal(); }
 
-  return ok({ id, is_admin: parsed.data.is_admin });
+  return ok({ id, ...update });
 });
 
 // DELETE /api/admin/users/[id] — permanently delete the auth user (cascades to profile,

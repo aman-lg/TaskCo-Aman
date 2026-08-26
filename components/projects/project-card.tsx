@@ -46,9 +46,13 @@ const URGENCY_BG_TOKEN: Record<string, string> = {
 interface Props {
   project: Project;
   currentUserId: string;
+  /** Called after a successful edit or delete so the parent list can refetch —
+   * this page is client-fetched, not server-rendered, so router.refresh()
+   * alone does nothing here. */
+  onChanged?: () => void;
 }
 
-export function ProjectCard({ project, currentUserId }: Props) {
+export function ProjectCard({ project, currentUserId, onChanged }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -83,6 +87,7 @@ export function ProjectCard({ project, currentUserId }: Props) {
       }
       setConfirmDeleteOpen(false);
       router.refresh();
+      onChanged?.();
     } catch (err) {
       console.error("[project-card] delete failed", err);
       toast.error("Failed to delete project — check your connection");
@@ -193,7 +198,11 @@ export function ProjectCard({ project, currentUserId }: Props) {
         </div>
       </article>
 
-      <ProjectFormDialog open={editOpen} onClose={() => setEditOpen(false)} project={project} />
+      <ProjectFormDialog
+        open={editOpen}
+        onClose={() => { setEditOpen(false); onChanged?.(); }}
+        project={project}
+      />
 
       <ConfirmDialog
         open={confirmDeleteOpen}

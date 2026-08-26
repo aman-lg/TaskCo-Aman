@@ -2,18 +2,26 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { FileText, Image as ImageIcon, Film, Crown, Shield, LogOut } from "lucide-react";
+import { FileText, Film, Crown, Shield, LogOut, UserPlus, X, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import MediaViewer from "./media-viewer";
-import type { Conversation } from "@/types/chat";
+import { DocumentViewer } from "@/components/ui/document-viewer";
+import type { Conversation, ConversationMember } from "@/types/chat";
 import { formatFileSize, formatLastSeen } from "@/lib/utils/chat";
+
+interface CandidateProfile {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  email: string | null;
+}
 
 interface MediaItem {
   id: string;
   type: "image" | "video" | "document";
-  metadata: { url?: string; filename?: string; size?: number } | null;
+  metadata: { url?: string; filename?: string; size?: number; mime?: string } | null;
   created_at: string;
   sender_id: string | null;
   sender: { id: string; full_name: string | null; avatar_url: string | null } | null;
@@ -37,12 +45,23 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
   const [viewerItem, setViewerItem] = useState<MediaItem | null>(null);
+  const [docViewerItem, setDocViewerItem] = useState<MediaItem | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [members, setMembers] = useState<ConversationMember[]>(conversation.members ?? []);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [candidates, setCandidates] = useState<CandidateProfile[]>([]);
+  const [search, setSearch] = useState("");
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  useEffect(() => { setMembers(conversation.members ?? []); }, [conversation.members]);
 
   const isGroup = conversation.type === "group";
-  const otherMember = conversation.members?.find((m) => m.user_id !== currentUserId);
+  const otherMember = members.find((m) => m.user_id !== currentUserId);
   const other = conversation.other_user ?? otherMember?.profile ?? null;
+  const myMember = members.find((m) => m.user_id === currentUserId);
+  const canManage = myMember?.role === "owner" || myMember?.role === "admin";
 
   const loadMedia = useCallback(async () => {
     setLoadingMedia(true);
@@ -62,8 +81,65 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
   }, [open, tab, media.length, loadMedia]);
 
   useEffect(() => {
-    if (!open) setTab("info");
+    if (!open) { setTab("info"); setShowAddMember(false); }
   }, [open]);
+
+  useEffect(() => {
+    if (!showAddMember || candidates.length > 0) return;
+    fetch("/api/profile/all", { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((j) => setCandidates(j.data ?? []));
+  }, [showAddMember, candidates.length]);
+
+  const memberIds = new Set(members.map((m) => m.user_id));
+  const filteredCandidates = candidates.filter((p) =>
+    !memberIds.has(p.id) &&
+    ((p.full_name ?? "").toLowerCase().includes(search.toLowerCase()) ||
+     (p.email ?? "").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  async function addMember(userId: string) {
+    setAddingId(userId);
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversation.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body?.error?.message ?? "Failed to add member");
+        return;
+      }
+      const candidate = candidates.find((c) => c.id === userId);
+      if (candidate) {
+        setMembers((prev) => [...prev, { conversation_id: conversation.id, user_id: userId, role: "member", added_by: currentUserId, added_at: new Date().toISOString(), last_read_at: null, is_muted: false, muted_until: null, is_pinned: false, is_archived: false, is_banned: false, profile: candidate }]);
+      }
+      toast.success("Member added");
+    } finally {
+      setAddingId(null);
+    }
+  }
+
+  async function removeMember(userId: string) {
+    setRemovingId(userId);
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversation.id}/members?user_id=${userId}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(body?.error?.message ?? "Failed to remove member");
+        return;
+      }
+      setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+      toast.success("Member removed");
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   async function handleLeave() {
     setLeaving(true);
@@ -107,7 +183,7 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
                 </p>
                 <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>
                   {isGroup
-                    ? `${conversation.members?.length ?? 0} member${(conversation.members?.length ?? 0) !== 1 ? "s" : ""}`
+                    ? `${members.length} member${members.length !== 1 ? "s" : ""}`
                     : other?.email ?? formatLastSeen(other?.last_seen_at ?? null)}
                 </p>
                 {isGroup && conversation.description && (
@@ -137,7 +213,64 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
               {tab === "info" ? (
                 isGroup ? (
                   <div className="flex flex-col gap-1">
-                    {(conversation.members ?? []).map((m) => (
+                    {canManage && (
+                      <button
+                        onClick={() => setShowAddMember((v) => !v)}
+                        className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-semibold mb-2 self-start transition-colors"
+                        style={{
+                          background: showAddMember ? "var(--navy)" : "var(--navy-l)",
+                          color: showAddMember ? "#fff" : "var(--navy)",
+                        }}
+                      >
+                        <UserPlus className="h-3.5 w-3.5" /> Add member
+                      </button>
+                    )}
+
+                    {showAddMember && canManage && (
+                      <div
+                        className="mb-3 rounded-xl p-3 flex flex-col gap-2"
+                        style={{ background: "var(--panel-bg)", border: "1px solid var(--line-soft)" }}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Search by name or email…"
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          className="w-full h-8 px-3 rounded-lg text-[13px] outline-none"
+                          style={{ background: "var(--surface-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                        />
+                        <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                          {filteredCandidates.length === 0 ? (
+                            <p className="text-[12px] text-center py-2" style={{ color: "var(--text-muted)" }}>
+                              {search ? "No users match your search" : "Everyone is already in this group"}
+                            </p>
+                          ) : filteredCandidates.map((p) => (
+                            <div key={p.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-[var(--line-soft)]">
+                              <Avatar className="h-6 w-6 flex-shrink-0">
+                                <AvatarImage src={p.avatar_url ?? undefined} />
+                                <AvatarFallback className="text-[10px]" style={{ background: "var(--navy-l)", color: "var(--navy)" }}>
+                                  {initials(p.full_name, p.email)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-medium truncate" style={{ color: "var(--ink)" }}>{p.full_name ?? "Unnamed"}</p>
+                                <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>{p.email}</p>
+                              </div>
+                              <button
+                                onClick={() => addMember(p.id)}
+                                disabled={addingId === p.id}
+                                className="h-6 px-2.5 rounded text-[11px] font-semibold transition-colors flex-shrink-0"
+                                style={{ background: "var(--navy)", color: "#fff" }}
+                              >
+                                {addingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Add"}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {members.map((m) => (
                       <div key={m.user_id} className="flex items-center gap-2.5 py-2 px-2 rounded-lg" style={{ background: "var(--panel-bg)" }}>
                         <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarImage src={m.profile?.avatar_url ?? undefined} />
@@ -160,6 +293,17 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
                           <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "var(--accent-bg)", color: "var(--accent-brand)" }}>
                             <Shield className="h-2.5 w-2.5" /> Admin
                           </span>
+                        )}
+                        {canManage && m.role !== "owner" && m.user_id !== currentUserId && (
+                          <button
+                            onClick={() => removeMember(m.user_id)}
+                            disabled={removingId === m.user_id}
+                            className="p-1 rounded-lg transition-colors flex-shrink-0 hover:bg-[var(--clr-red-bg)]"
+                            style={{ color: "var(--clr-red)" }}
+                            title="Remove from group"
+                          >
+                            {removingId === m.user_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                          </button>
                         )}
                       </div>
                     ))}
@@ -220,12 +364,11 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
                       <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Documents</p>
                       <div className="flex flex-col gap-1.5">
                         {docs.map((item) => (
-                          <a
+                          <button
                             key={item.id}
-                            href={item.metadata?.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-[var(--panel-bg)]"
+                            type="button"
+                            onClick={() => setDocViewerItem(item)}
+                            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--panel-bg)]"
                           >
                             <FileText className="h-6 w-6 flex-shrink-0" style={{ color: "var(--navy)" }} />
                             <div className="flex-1 min-w-0">
@@ -234,7 +377,7 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
                                 <p className="text-[10.5px]" style={{ color: "var(--text-muted)" }}>{formatFileSize(item.metadata.size)}</p>
                               )}
                             </div>
-                          </a>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -252,6 +395,15 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
           type={viewerItem.type}
           filename={viewerItem.metadata.filename}
           onClose={() => setViewerItem(null)}
+        />
+      )}
+
+      {docViewerItem && docViewerItem.metadata?.url && (
+        <DocumentViewer
+          url={docViewerItem.metadata.url}
+          filename={docViewerItem.metadata.filename}
+          mime={docViewerItem.metadata.mime}
+          onClose={() => setDocViewerItem(null)}
         />
       )}
 

@@ -9,6 +9,7 @@ import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
 import { TypingIndicator } from "./typing-indicator";
 import { ConversationInfoPanel } from "./conversation-info-panel";
+import { ForwardDialog } from "./forward-dialog";
 
 interface Props {
   conversation: Conversation;
@@ -24,6 +25,8 @@ export function ChatWindow({
   const [messages, setMessages]     = useState<ChatMessage[]>(initialMessages);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [replyTo, setReplyTo]       = useState<ChatMessage | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
+  const [forwardMessage, setForwardMessage] = useState<ChatMessage | null>(null);
   const [hasMore, setHasMore]       = useState(initialMessages.length === 50);
   const [loadingMore, setLoadingMore] = useState(false);
   const [infoOpen, setInfoOpen]     = useState(false);
@@ -117,6 +120,10 @@ export function ChatWindow({
     });
   }, []);
 
+  const handleMessageEdited = useCallback((msg: ChatMessage) => {
+    setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
+  }, []);
+
   // ── Load more (scroll to top) ──────────────────────────────────────────────
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -173,9 +180,9 @@ export function ChatWindow({
         conversationType={conversation.type}
         memberCount={memberCount}
         isGroupAdmin={isAdmin}
-        onReply={setReplyTo}
-        onEdit={() => {}}
-        onForward={() => {}}
+        onReply={(msg) => { setEditingMessage(null); setReplyTo(msg); }}
+        onEdit={(msg) => { setReplyTo(null); setEditingMessage(msg); }}
+        onForward={setForwardMessage}
         onRefreshMessages={refreshMessages}
         onReact={(msgId, emoji) => handleReactionChange(
           msgId,
@@ -196,11 +203,20 @@ export function ChatWindow({
         currentUserId={currentUserId}
         replyTo={replyTo}
         onClearReply={() => setReplyTo(null)}
+        editingMessage={editingMessage}
+        onCancelEdit={() => setEditingMessage(null)}
         onMessageSent={handleMessageSent}
+        onMessageEdited={handleMessageEdited}
         sendTyping={sendTyping}
         disabled={false}
         adminOnly={conversation.admin_only_messages && !isAdmin}
         isAdmin={isAdmin}
+      />
+
+      <ForwardDialog
+        message={forwardMessage}
+        currentUserId={currentUserId}
+        onClose={() => setForwardMessage(null)}
       />
     </div>
   );

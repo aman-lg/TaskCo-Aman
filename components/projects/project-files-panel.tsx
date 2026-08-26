@@ -3,9 +3,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
-  Link2, Upload, Loader2, FileText, Trash2, Download, ExternalLink,
+  Link2, Upload, Loader2, FileText, Trash2, Eye, ExternalLink,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DocumentViewer } from "@/components/ui/document-viewer";
+
+const PREVIEWABLE_EXTENSIONS = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
+
+function isPreviewable(nameOrUrl: string, mime: string | null) {
+  const ext = nameOrUrl.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
+  if (ext && PREVIEWABLE_EXTENSIONS.includes(ext)) return true;
+  return !!mime && (mime === "application/pdf" || mime.includes("officedocument") || mime === "application/msword" || mime === "application/vnd.ms-excel" || mime === "application/vnd.ms-powerpoint");
+}
 
 interface ProjectFile {
   id: string;
@@ -44,6 +53,7 @@ export function ProjectFilesPanel({ projectId, currentUserId, canManage }: Props
   const [linkName, setLinkName] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [addingLink, setAddingLink] = useState(false);
+  const [docViewer, setDocViewer] = useState<{ url: string; name: string; mime: string | null } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -109,7 +119,14 @@ export function ProjectFilesPanel({ projectId, currentUserId, canManage }: Props
 
   async function handleOpen(file: ProjectFile) {
     if (file.kind === "link") {
-      window.open(file.url ?? "#", "_blank", "noopener,noreferrer");
+      // PDF/Word/Excel links preview in-app like uploads; anything else (a
+      // Notion page, a Google Doc, etc.) can't be extension-detected and
+      // still opens normally — this app doesn't control what that URL is.
+      if (file.url && isPreviewable(file.url, file.mime)) {
+        setDocViewer({ url: file.url, name: file.name, mime: file.mime });
+      } else {
+        window.open(file.url ?? "#", "_blank", "noopener,noreferrer");
+      }
       return;
     }
     setOpeningId(file.id);
@@ -120,7 +137,11 @@ export function ProjectFilesPanel({ projectId, currentUserId, canManage }: Props
         toast.error(body?.error?.message ?? "Failed to open file");
         return;
       }
-      window.open(body.data.url, "_blank", "noopener,noreferrer");
+      if (isPreviewable(file.name, file.mime)) {
+        setDocViewer({ url: body.data.url, name: file.name, mime: file.mime });
+      } else {
+        window.open(body.data.url, "_blank", "noopener,noreferrer");
+      }
     } finally {
       setOpeningId(null);
     }
@@ -251,9 +272,9 @@ export function ProjectFilesPanel({ projectId, currentUserId, canManage }: Props
                 >
                   <p className="text-[13px] font-medium truncate flex items-center gap-1.5" style={{ color: "var(--ink)" }}>
                     {f.name}
-                    {f.kind === "link"
-                      ? <ExternalLink className="h-3 w-3 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-                      : <Download className="h-3 w-3 flex-shrink-0" style={{ color: "var(--text-muted)" }} />}
+                    {(f.kind === "file" && isPreviewable(f.name, f.mime)) || (f.kind === "link" && f.url && isPreviewable(f.url, f.mime))
+                      ? <Eye className="h-3 w-3 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                      : <ExternalLink className="h-3 w-3 flex-shrink-0" style={{ color: "var(--text-muted)" }} />}
                   </p>
                   <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
                     {f.kind === "file" ? formatSize(f.size) : f.url}
@@ -287,6 +308,15 @@ export function ProjectFilesPanel({ projectId, currentUserId, canManage }: Props
         loading={deleting}
         onConfirm={handleDelete}
       />
+
+      {docViewer && (
+        <DocumentViewer
+          url={docViewer.url}
+          filename={docViewer.name}
+          mime={docViewer.mime}
+          onClose={() => setDocViewer(null)}
+        />
+      )}
     </div>
   );
 }

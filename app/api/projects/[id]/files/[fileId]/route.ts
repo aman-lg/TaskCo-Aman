@@ -6,7 +6,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidUUID } from "@/lib/utils/validate";
 
 const BUCKET = "project-files";
-const SIGNED_URL_TTL = 60; // seconds — just long enough for the browser to follow the redirect
+// PDF/Office documents open in an embedded in-app viewer rather than a
+// direct link — Office files in particular route through Microsoft's
+// online viewer, which needs time to fetch the file and keep it available
+// for as long as the viewer stays open, not just long enough to redirect.
+const SIGNED_URL_TTL = 600; // 10 minutes
 
 // GET /api/projects/[id]/files/[fileId] — resolve to an openable URL.
 // Links return their url as-is; files get a short-lived signed URL from the

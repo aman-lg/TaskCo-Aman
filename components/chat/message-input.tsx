@@ -10,6 +10,7 @@ import {
   FileText,
   ImageIcon,
   BarChart2,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -31,7 +32,10 @@ interface MessageInputProps {
   currentUserId: string;
   replyTo: ChatMessage | null;
   onClearReply: () => void;
+  editingMessage?: ChatMessage | null;
+  onCancelEdit?: () => void;
   onMessageSent?: (msg: ChatMessage) => void;
+  onMessageEdited?: (msg: ChatMessage) => void;
   sendTyping?: (isTyping: boolean) => void;
   disabled?: boolean;
   adminOnly?: boolean;
@@ -58,7 +62,10 @@ export function MessageInput({
   currentUserId,
   replyTo,
   onClearReply,
+  editingMessage = null,
+  onCancelEdit,
   onMessageSent,
+  onMessageEdited,
   sendTyping: sendTypingProp,
   disabled = false,
   adminOnly = false,
@@ -98,6 +105,17 @@ export function MessageInput({
   useEffect(() => {
     adjustHeight();
   }, [text, adjustHeight]);
+
+  // -------------------------------------------------------------------------
+  // Editing an existing message — prefill the box with its current content
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (editingMessage) {
+      setText(editingMessage.content ?? "");
+      textareaRef.current?.focus();
+    }
+  }, [editingMessage]);
 
   // -------------------------------------------------------------------------
   // Close emoji picker on outside click
@@ -140,11 +158,41 @@ export function MessageInput({
   // Send text message
   // -------------------------------------------------------------------------
 
+  async function saveEdit() {
+    const content = text.trim();
+    if (!content || !editingMessage || isSending) return;
+
+    setIsSending(true);
+    try {
+      const res = await fetch(`/api/chat/messages/${editingMessage.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message ?? "Failed to edit message");
+      }
+      const respData = await res.json().catch(() => ({}));
+      if (respData?.data?.message && onMessageEdited) {
+        onMessageEdited(respData.data.message as ChatMessage);
+      }
+      setText("");
+      onCancelEdit?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to edit message");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   async function sendMessage(
     overrideContent?: string,
     type: string = "text",
     metadata?: Record<string, unknown>
   ) {
+    if (editingMessage) { await saveEdit(); return; }
+
     const content = overrideContent ?? text.trim();
     if (!content && type === "text") return;
     if (isSending) return;
@@ -432,8 +480,41 @@ export function MessageInput({
           flexShrink: 0,
         }}
       >
+        {/* Editing bar */}
+        {editingMessage && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "var(--surface-bg)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 8,
+              padding: "6px 10px",
+              marginBottom: 8,
+            }}
+          >
+            <Pencil size={14} style={{ color: "var(--navy)", flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--navy)", fontFamily: "var(--font-display)" }}>
+                Editing message
+              </div>
+            </div>
+            <button
+              onClick={() => { setText(""); onCancelEdit?.(); }}
+              style={{
+                background: "none", border: "none", cursor: "pointer", padding: 4,
+                color: "var(--text-muted)", display: "flex", alignItems: "center", borderRadius: 4,
+              }}
+              aria-label="Cancel edit"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {/* Reply preview bar */}
-        {replyTo && (
+        {!editingMessage && replyTo && (
           <div
             style={{
               display: "flex",
@@ -692,6 +773,8 @@ export function MessageInput({
                   ? "Uploading…"
                   : disabled
                   ? "You cannot send messages here"
+                  : editingMessage
+                  ? "Edit message…"
                   : "Type a message…"
               }
               style={{

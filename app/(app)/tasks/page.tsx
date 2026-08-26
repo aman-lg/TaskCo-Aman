@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAllTasks } from "@/lib/queries/tasks";
 import { getProjects } from "@/lib/queries/projects";
 import { ExportTasksButton, type TaskExportRow } from "@/components/tasks/export-tasks-button";
+import { NewTaskButton } from "@/components/tasks/new-task-button";
 
 const STATUS_LABELS: Record<string, string> = {
   todo: "To Do",
@@ -76,7 +77,10 @@ export default async function TasksPage() {
             {tasks.length} task{tasks.length !== 1 ? "s" : ""} across {projects.length} project{projects.length !== 1 ? "s" : ""}
           </p>
         </div>
-        {tasks.length > 0 && <ExportTasksButton rows={exportRows} />}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <NewTaskButton projects={projects.map((p) => ({ id: p.id, title: p.title }))} />
+          {tasks.length > 0 && <ExportTasksButton rows={exportRows} />}
+        </div>
       </div>
 
       {tasks.length === 0 ? (

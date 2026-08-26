@@ -124,22 +124,37 @@ export const DELETE = withAuth(async (req: NextRequest, ctx) => {
     return ok({ deleted: "me" });
   }
 
-  // Delete for everyone — must be sender (within 24h) or group admin
+  // Delete for everyone — must be sender (within 24h), or a GROUP admin/owner
+  // moderating someone else's message. The owner/admin override must never
+  // apply to direct/self conversations: whoever started a DM is recorded as
+  // its "owner" (every conversation gets one, group or not), which would
+  // otherwise let a DM's creator delete the other participant's messages for
+  // everyone — there's no "group" there for that role to moderate.
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const isSender = msg.sender_id === user.id;
   const withinWindow = new Date(msg.created_at) > twentyFourHoursAgo;
 
   if (!isSender || !withinWindow) {
-    // Check if admin
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: member } = await (supabase as any)
-      .from("conversation_members")
-      .select("role")
-      .eq("conversation_id", msg.conversation_id)
-      .eq("user_id", user.id)
+    const { data: conversation } = await (supabase as any)
+      .from("conversations")
+      .select("type")
+      .eq("id", msg.conversation_id)
       .single();
 
-    if (!member || !["owner", "admin"].includes(member.role)) {
+    let isGroupModerator = false;
+    if (conversation?.type === "group") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: member } = await (supabase as any)
+        .from("conversation_members")
+        .select("role")
+        .eq("conversation_id", msg.conversation_id)
+        .eq("user_id", user.id)
+        .single();
+      isGroupModerator = !!member && ["owner", "admin"].includes(member.role);
+    }
+
+    if (!isGroupModerator) {
       return ApiError.forbidden("You cannot delete this message for everyone.");
     }
   }

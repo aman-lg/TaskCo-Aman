@@ -30,7 +30,11 @@ export function ChatWindow({
 
   const memberCount = conversation.members?.length ?? 2;
   const myMember    = conversation.members?.find(m => m.user_id === currentUserId);
-  const isAdmin     = myMember?.role === "owner" || myMember?.role === "admin";
+  // Every conversation gets an "owner" (whoever created it), including direct
+  // messages — that role only means something to moderate in a group, so it
+  // must never grant admin powers (like deleting the other person's messages
+  // for everyone) in a DM.
+  const isAdmin     = conversation.type === "group" && (myMember?.role === "owner" || myMember?.role === "admin");
 
   // Esc closes the open conversation, back to the chat list.
   useEffect(() => {

@@ -27,6 +27,18 @@ export const createTaskSchema = z.object({
     .nullable(),
 });
 
+// Creates one independent task per assignee (same project/name/description/etc,
+// each with its own row and its own single assignee) rather than one shared
+// task with multiple assignees.
+export const bulkCreateTaskSchema = z.object({
+  project_id: z.string().uuid("Must be a valid project ID"),
+  name: z.string().min(1, "Task name is required").max(200, "Max 200 characters"),
+  description: z.string().max(2000, "Max 2000 characters").optional().nullable(),
+  deadline: datetimeField,
+  urgency: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  assignee_ids: z.array(z.string().uuid()).min(1, "Select at least one person").max(200),
+});
+
 // project_id is not changeable after creation; no defaults applied (empty body → 400)
 export const updateTaskSchema = z.object({
   name: z.string().min(1, "Task name is required").max(200, "Max 200 characters").optional(),
@@ -55,6 +67,7 @@ export const updateChecklistItemSchema = z.object({
 });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type BulkCreateTaskInput = z.infer<typeof bulkCreateTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type AssignTaskInput = z.infer<typeof assignTaskSchema>;
 export type CreateChecklistItemInput = z.infer<typeof createChecklistItemSchema>;

@@ -796,9 +796,12 @@ input[type="datetime-local"].float-label-input:focus ~ .float-label {
 
 /* ─────────────────────────────────────────────────────────
    Org chart — classic pure-CSS connector-line tree.
-   Each level is a flex row of <li>; ::before/::after draw the
-   horizontal branch to a sibling, ::before on the child <ul> draws
-   the vertical drop from the parent.
+   Each <li> reserves its own top gap; li::before/::after together draw a
+   horizontal half-bar to the next sibling AND (via ::after's border-left)
+   the vertical stub down into that li's own box — the standard combined
+   trick, without it there's a visible gap between the shared horizontal
+   bar and each child box. ul::before (nested uls only) draws the single
+   stem from a parent's box down into its children's row.
 ───────────────────────────────────────────────────────── */
 
 .org-chart-tree, .org-chart-tree ul {
@@ -809,77 +812,95 @@ input[type="datetime-local"].float-label-input:focus ~ .float-label {
   justify-content: center;
 }
 
-.org-chart-tree ul {
-  padding-top: 28px;
-  position: relative;
+/* The root row sits in a horizontally-scrolling container (narrow viewports,
+   wide charts). A centered flex row that overflows its container starts
+   scrolled to the middle, not the start, so a wide chart on a phone opens
+   showing a cropped slice with both edges cut off and no hint more exists
+   either side. Left-align just the root row so scrollLeft naturally starts
+   at 0 — nested rows stay centered under their parent, which is what makes
+   the tree read correctly and never independently overflows on its own. */
+.org-chart-tree {
+  justify-content: flex-start;
 }
 
 .org-chart-tree li {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 12px;
+  padding: 28px 12px 0 12px;
   position: relative;
-}
-
-.org-chart-tree ul li {
-  padding-top: 0;
-}
-
-.org-chart-tree ul::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 0;
-  height: 28px;
-  border-left: 1px solid var(--line);
-}
-
-.org-chart-tree ul li::before {
-  content: "";
-  position: absolute;
-  top: -28px;
-  left: 0;
-  right: 50%;
-  height: 28px;
-  border-top: 1px solid var(--line);
-}
-
-.org-chart-tree ul li::after {
-  content: "";
-  position: absolute;
-  top: -28px;
-  left: 50%;
-  right: 0;
-  height: 28px;
-  border-top: 1px solid var(--line);
-}
-
-.org-chart-tree ul li:first-child::before {
-  border-top: none;
-}
-
-.org-chart-tree ul li:last-child::after {
-  border-top: none;
-}
-
-.org-chart-tree ul li::before,
-.org-chart-tree ul li::after {
-  content: "";
-}
-
-.org-chart-tree ul li:only-child {
-  padding-top: 0;
-}
-
-.org-chart-tree ul li:only-child::before,
-.org-chart-tree ul li:only-child::after {
-  display: none;
 }
 
 .org-chart-tree > li {
   padding-top: 0;
+}
+
+.org-chart-tree > li::before,
+.org-chart-tree > li::after {
+  display: none;
+}
+
+.org-chart-tree li::before,
+.org-chart-tree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 28px;
+  border-top: 1.5px solid color-mix(in srgb, var(--line) 35%, var(--text-muted) 65%);
+}
+
+.org-chart-tree li::before {
+  right: 50%;
+}
+
+.org-chart-tree li::after {
+  left: 50%;
+  border-left: 1.5px solid color-mix(in srgb, var(--line) 35%, var(--text-muted) 65%);
+}
+
+/* An only child has no sibling to reach across to, but it's still one level
+   below its parent's box and needs the plain vertical drop down to it —
+   hiding both pseudo-elements entirely (as a naive-first-cut would) leaves
+   it with no connector at all. Keep ::after's vertical border, drop its
+   horizontal reach, and remove ::before completely (it only ever
+   contributes a horizontal half-bar). */
+.org-chart-tree li:only-child::before {
+  display: none;
+}
+
+.org-chart-tree li:only-child::after {
+  left: 50%;
+  width: 0;
+  border-top: none;
+}
+
+.org-chart-tree li:first-child::before {
+  border-top: none;
+}
+
+.org-chart-tree li:last-child::after {
+  border-top: none;
+}
+
+.org-chart-tree li:last-child::before {
+  border-top: 1.5px solid color-mix(in srgb, var(--line) 35%, var(--text-muted) 65%);
+  border-right: 1.5px solid color-mix(in srgb, var(--line) 35%, var(--text-muted) 65%);
+  border-radius: 0 6px 0 0;
+}
+
+.org-chart-tree li:first-child::after {
+  border-radius: 6px 0 0 0;
+}
+
+.org-chart-tree ul ul::before {
+  content: "";
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  width: 0;
+  height: 28px;
+  border-left: 1.5px solid color-mix(in srgb, var(--line) 35%, var(--text-muted) 65%);
 }
 
 .org-node-box {

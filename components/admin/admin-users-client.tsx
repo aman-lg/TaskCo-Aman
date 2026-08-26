@@ -26,7 +26,7 @@ interface TaskRow {
   deadline: string | null;
   created_at: string;
   project_id: string;
-  projects: { name: string } | null;
+  projects: { title: string } | null;
 }
 
 interface ProjectRow {
@@ -281,7 +281,7 @@ function UserDetailPanel({ detail }: { detail: UserDetail }) {
               <div key={task.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg border" style={{ borderColor: "var(--line)", background: "var(--panel-bg)" }}>
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: `var(${STATUS_TOKEN[task.status] ?? "--status-todo"})` }} />
                 <span className="flex-1 text-[13px] font-medium truncate" style={{ color: "var(--ink)" }}>{task.name}</span>
-                <span className="text-[11px] truncate max-w-[100px]" style={{ color: "var(--text-muted)" }}>{task.projects?.name ?? "—"}</span>
+                <span className="text-[11px] truncate max-w-[100px]" style={{ color: "var(--text-muted)" }}>{task.projects?.title ?? "—"}</span>
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded flex-shrink-0" style={{ background: "var(--line)", color: "var(--text-secondary)" }}>
                   {STATUS_LABEL[task.status] ?? task.status}
                 </span>

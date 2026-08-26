@@ -26,7 +26,7 @@ export const GET = withAdmin(async (_req: NextRequest, { params }) => {
       .single(),
     supabase
       .from("tasks")
-      .select("id, name, status, urgency, deadline, created_at, project_id, projects(name)")
+      .select("id, name, status, urgency, deadline, created_at, project_id, projects(title)")
       .eq("created_by", id)
       .order("created_at", { ascending: false }),
     supabase

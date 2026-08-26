@@ -8,6 +8,7 @@ import { canEditMessage, canDeleteForEveryone } from "@/lib/utils/chat";
 
 interface Props {
   message: ChatMessage;
+  currentUserId: string;
   isOwn: boolean;
   isGroupAdmin?: boolean;
   position: { x: number; y: number };
@@ -19,7 +20,7 @@ interface Props {
 }
 
 export function MessageActionsMenu({
-  message, isOwn, isGroupAdmin = false, position,
+  message, currentUserId, isOwn, isGroupAdmin = false, position,
   onReply, onEdit, onForward, onClose, onRefreshMessages,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
@@ -55,8 +56,8 @@ export function MessageActionsMenu({
     onClose();
   }
 
-  const canEdit = canEditMessage(message, isOwn ? message.sender_id ?? "" : "");
-  const canDelEveryone = canDeleteForEveryone(message, message.sender_id ?? "", isGroupAdmin);
+  const canEdit = canEditMessage(message, currentUserId);
+  const canDelEveryone = canDeleteForEveryone(message, currentUserId, isGroupAdmin);
 
   // Position: keep menu within viewport
   const menuWidth = 176;

@@ -8,6 +8,7 @@ import { ChatHeader } from "./chat-header";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
 import { TypingIndicator } from "./typing-indicator";
+import { ConversationInfoPanel } from "./conversation-info-panel";
 
 interface Props {
   conversation: Conversation;
@@ -25,6 +26,7 @@ export function ChatWindow({
   const [replyTo, setReplyTo]       = useState<ChatMessage | null>(null);
   const [hasMore, setHasMore]       = useState(initialMessages.length === 50);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [infoOpen, setInfoOpen]     = useState(false);
 
   const memberCount = conversation.members?.length ?? 2;
   const myMember    = conversation.members?.find(m => m.user_id === currentUserId);
@@ -149,6 +151,15 @@ export function ChatWindow({
         conversation={conversation}
         currentUserId={currentUserId}
         onlineUserIds={onlineUserIds}
+        onOpenInfo={() => setInfoOpen(true)}
+      />
+
+      <ConversationInfoPanel
+        open={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        conversation={conversation}
+        currentUserId={currentUserId}
+        onLeftGroup={() => { setInfoOpen(false); router.push("/chat"); router.refresh(); }}
       />
 
       {/* Message list */}

@@ -346,6 +346,7 @@ export function MessageBubble({
       {menuPos && (
         <MessageActionsMenu
           message={message}
+          currentUserId={currentUserId}
           isOwn={isOwn}
           isGroupAdmin={isGroupAdmin}
           position={menuPos}

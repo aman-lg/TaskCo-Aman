@@ -15,6 +15,7 @@ interface Props {
   conversation: Conversation;
   currentUserId: string;
   onlineUserIds?: Set<string>;
+  onOpenInfo: () => void;
 }
 
 function initials(name: string | null, email: string | null) {
@@ -22,7 +23,7 @@ function initials(name: string | null, email: string | null) {
   return (email?.[0] ?? "?").toUpperCase();
 }
 
-export function ChatHeader({ conversation, currentUserId, onlineUserIds }: Props) {
+export function ChatHeader({ conversation, currentUserId, onlineUserIds, onOpenInfo }: Props) {
   const router = useRouter();
   const name   = getConversationName(conversation, currentUserId);
   const avatar = getConversationAvatar(conversation, currentUserId);
@@ -71,40 +72,47 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds }: Props
         <ArrowLeft className="w-5 h-5" />
       </button>
 
-      {/* Avatar */}
-      {isSelf ? (
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
-          style={{ background: "var(--navy-l)" }}
-        >
-          📝
-        </div>
-      ) : (
-        <Avatar className="w-9 h-9 flex-shrink-0">
-          <AvatarImage src={avatar ?? undefined} />
-          <AvatarFallback
-            className="text-[12px] font-semibold"
-            style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+      {/* Avatar + name + status — click opens the info/media panel */}
+      <button
+        type="button"
+        onClick={() => !isSelf && onOpenInfo()}
+        disabled={isSelf}
+        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+        style={{ cursor: isSelf ? "default" : "pointer" }}
+      >
+        {isSelf ? (
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
+            style={{ background: "var(--navy-l)" }}
           >
-            {initials(name, otherUser?.email ?? null)}
-          </AvatarFallback>
-        </Avatar>
-      )}
+            📝
+          </div>
+        ) : (
+          <Avatar className="w-9 h-9 flex-shrink-0">
+            <AvatarImage src={avatar ?? undefined} />
+            <AvatarFallback
+              className="text-[12px] font-semibold"
+              style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+            >
+              {initials(name, otherUser?.email ?? null)}
+            </AvatarFallback>
+          </Avatar>
+        )}
 
-      {/* Name + status */}
-      <div className="flex-1 min-w-0">
-        <p className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>
-          {isSelf ? "My Notes" : name}
-        </p>
-        <div className="flex items-center gap-1.5">
-          {isDM && isOnline && (
-            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--clr-green)" }} />
-          )}
-          <p className="text-[11px] truncate" style={{ color: isOnline ? "var(--clr-green)" : "var(--text-muted)" }}>
-            {statusText}
+        <div className="flex-1 min-w-0">
+          <p className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>
+            {isSelf ? "My Notes" : name}
           </p>
+          <div className="flex items-center gap-1.5">
+            {isDM && isOnline && (
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--clr-green)" }} />
+            )}
+            <p className="text-[11px] truncate" style={{ color: isOnline ? "var(--clr-green)" : "var(--text-muted)" }}>
+              {statusText}
+            </p>
+          </div>
         </div>
-      </div>
+      </button>
 
       {/* Action buttons */}
       {!isSelf && (
@@ -137,6 +145,7 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds }: Props
           {isGroup && (
             <button
               type="button"
+              onClick={onOpenInfo}
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
               style={{ color: "var(--text-muted)" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--panel-bg)"; }}
@@ -157,12 +166,12 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds }: Props
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               {isDM && (
-                <DropdownMenuItem onClick={() => toast.info("Profile view coming soon!")}>
+                <DropdownMenuItem onClick={onOpenInfo}>
                   View profile
                 </DropdownMenuItem>
               )}
               {isGroup && (
-                <DropdownMenuItem onClick={() => toast.info("Group info coming soon!")}>
+                <DropdownMenuItem onClick={onOpenInfo}>
                   Group info
                 </DropdownMenuItem>
               )}

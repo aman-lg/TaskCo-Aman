@@ -108,11 +108,14 @@ export const DELETE = withAuth(async (req: NextRequest, ctx) => {
   if (!msg) return ApiError.notFound("Message not found.");
 
   if (parsed.data.scope === "me") {
+    // Goes through a SECURITY DEFINER function rather than a direct update —
+    // a plain UPDATE here is rejected by RLS the instant it adds the caller
+    // to deleted_for_me, because msg_select (correctly) then excludes that
+    // row for them, and PostgREST's implicit RETURNING check fails against
+    // the row it just wrote. The function bypasses RLS internally instead of
+    // fighting a policy that's doing exactly what it should.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from("messages")
-      .update({ deleted_for_me: [user.id] })
-      .eq("id", id);
+    const { error } = await (supabase as any).rpc("mark_message_deleted_for_me", { target_message_id: id });
 
     if (error) {
       console.error("[chat/messages DELETE me]", error);

@@ -160,9 +160,11 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
                 <p className="text-[11px] font-bold uppercase tracking-[0.8px]" style={{ color: "var(--text-muted)" }}>
                   Description
                 </p>
-                <p className="text-[14px] leading-relaxed" style={{ color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
-                  {task.description}
-                </p>
+                <div
+                  className="text-[14px] leading-relaxed"
+                  style={{ color: "var(--text-secondary)" }}
+                  dangerouslySetInnerHTML={{ __html: task.description }}
+                />
               </div>
             )}
 

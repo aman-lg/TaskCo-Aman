@@ -438,12 +438,11 @@ function TaskCard({ task, currentUserId, onOpen, onEdit, onDelete, onMove }: Car
 
       {/* Description preview */}
       {task.description && (
-        <p
+        <div
           className="text-[12px] leading-snug line-clamp-2 pl-3"
           style={{ color: "var(--text-secondary)" }}
-        >
-          {task.description}
-        </p>
+          dangerouslySetInnerHTML={{ __html: task.description }}
+        />
       )}
 
       {/* Urgency badge */}

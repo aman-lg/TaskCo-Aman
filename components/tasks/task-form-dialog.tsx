@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, type SubmitHandler } from "react-hook-form";
+import { useForm, Controller, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDown, Loader2, X } from "lucide-react";
 import {
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { createTaskSchema, type CreateTaskInput } from "@/lib/validations/tasks";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
@@ -46,6 +47,7 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
@@ -180,14 +182,17 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
               </div>
 
               {/* Description */}
-              <div className="float-label-wrap">
-                <textarea
-                  {...register("description")}
-                  placeholder=" "
-                  className="float-label-textarea"
-                />
-                <label className="float-label">Description (optional)</label>
-              </div>
+              <Controller
+                name="description"
+                control={control}
+                render={({ field }) => (
+                  <RichTextEditor
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    placeholder="Description (optional)"
+                  />
+                )}
+              />
 
               {/* Status + Urgency */}
               <div className="grid grid-cols-2 gap-3">

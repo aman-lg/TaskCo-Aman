@@ -106,12 +106,11 @@ export default async function ProjectDetailPage({ params }: PageProps) {
             </h1>
 
             {project.description && (
-              <p
+              <div
                 className="mt-2 text-[14px] leading-relaxed"
                 style={{ color: "var(--text-secondary)" }}
-              >
-                {project.description}
-              </p>
+                dangerouslySetInnerHTML={{ __html: project.description }}
+              />
             )}
 
             <div className="flex items-center gap-3 mt-4 flex-wrap">

@@ -76,3 +76,18 @@ export const PATCH = withAdmin(async (req: NextRequest, { user, params }) => {
 
   return ok({ id, is_admin: parsed.data.is_admin });
 });
+
+// DELETE /api/admin/users/[id] — permanently delete the auth user (cascades to profile,
+// owned projects, and everything within those projects)
+export const DELETE = withAdmin(async (_req: NextRequest, { user, params }) => {
+  const id = params?.id;
+  if (!isValidUUID(id)) return ApiError.badRequest("Invalid user id");
+  if (id === user.id) return ApiError.badRequest("You cannot delete your own account");
+
+  const supabase = createAdminClient();
+  const { error } = await supabase.auth.admin.deleteUser(id);
+
+  if (error) { console.error("[admin/users/[id] DELETE]", error); return ApiError.internal(); }
+
+  return ok({ deleted: true });
+});

@@ -27,7 +27,11 @@ export function AppShell({ children, profile }: AppShellProps) {
   const { logout, isLoading } = useLogout();
   const pathname = usePathname();
   const isChat = pathname?.startsWith("/chat") ?? false;
-  const sidebarWidth = collapsed ? 64 : 224;
+  // Must match sidebar.tsx's own W/WC constants exactly — a mismatch here
+  // (was 224 vs the sidebar's actual 240) let the expanded sidebar overlap
+  // the first ~16px of main content, most visible on the chat page where
+  // that content starts immediately with its own conversation list.
+  const sidebarWidth = collapsed ? 64 : 240;
 
   // Auto clock-in once on first app load after login
   useAttendanceAutoStart();

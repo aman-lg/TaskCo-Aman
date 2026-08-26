@@ -150,12 +150,11 @@ export function ProjectCard({ project, currentUserId, onChanged }: Props) {
           </div>
 
           {project.description && (
-            <p
+            <div
               className="text-[13px] leading-snug line-clamp-2"
               style={{ color: "var(--text-secondary)" }}
-            >
-              {project.description}
-            </p>
+              dangerouslySetInnerHTML={{ __html: project.description }}
+            />
           )}
 
           {/* Badges */}

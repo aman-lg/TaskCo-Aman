@@ -3,9 +3,10 @@
 import { useState } from "react";
 import {
   ChevronDown, ChevronRight, Shield, ShieldOff, User, X,
-  Loader2, CheckCircle, Clock, FolderKanban, ListTodo, Mail
+  Loader2, CheckCircle, Clock, FolderKanban, ListTodo, Mail, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface UserProfile {
   id: string;
@@ -359,6 +360,8 @@ export function AdminUsersClient({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function toggleExpand(userId: string) {
     if (expanded === userId) { setExpanded(null); return; }
@@ -403,9 +406,51 @@ export function AdminUsersClient({
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${deleteTarget.id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        toast.error(body?.error?.message ?? "Failed to delete user");
+        return;
+      }
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
+      setDetail(prev => {
+        const next = { ...prev };
+        delete next[deleteTarget.id];
+        return next;
+      });
+      if (expanded === deleteTarget.id) setExpanded(null);
+      toast.success(`${deleteTarget.full_name ?? deleteTarget.email ?? "User"} has been deleted`);
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <>
       {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={`Delete ${deleteTarget?.full_name ?? deleteTarget?.email ?? "this user"}?`}
+        description={
+          `This permanently deletes ${deleteTarget?.full_name ?? deleteTarget?.email ?? "this user"}'s account. ` +
+          "This is not a soft delete — it cannot be undone. All projects they own, along with every task, " +
+          "checklist item, and activity log entry inside those projects, will also be permanently deleted."
+        }
+        confirmLabel="Delete User"
+        destructive
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
 
       <div className="flex items-center justify-between mb-6">
         <p className="text-[14px]" style={{ color: "var(--text-secondary)" }}>
@@ -475,6 +520,16 @@ export function AdminUsersClient({
                       }
                     </button>
                   )}
+                  <button
+                    onClick={() => setDeleteTarget(user)}
+                    disabled={isSelf}
+                    className="p-1.5 rounded-lg transition-opacity hover:opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{ color: "var(--clr-red)" }}
+                    aria-label="Delete user"
+                    title={isSelf ? "You cannot delete your own account" : "Delete user"}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => toggleExpand(user.id)}
                     className="p-1.5 rounded-lg transition-opacity hover:opacity-70"

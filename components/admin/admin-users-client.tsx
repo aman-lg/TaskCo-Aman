@@ -40,9 +40,13 @@ interface ProjectRow {
 
 interface AttendanceRow {
   id: string;
-  clock_in: string;
-  clock_out: string | null;
-  duration_seconds: number | null;
+  check_in_at: string;
+  check_out_at: string | null;
+}
+
+function sessionSeconds(row: AttendanceRow): number {
+  if (!row.check_out_at) return 0;
+  return Math.max(0, (new Date(row.check_out_at).getTime() - new Date(row.check_in_at).getTime()) / 1000);
 }
 
 interface UserDetail {
@@ -191,8 +195,8 @@ function UserDetailPanel({ detail }: { detail: UserDetail }) {
 
   // Attendance: group by date, sum duration
   const attendanceByDay = attendance.reduce<Record<string, number>>((acc, s) => {
-    const day = s.clock_in.slice(0, 10);
-    acc[day] = (acc[day] ?? 0) + (s.duration_seconds ?? 0);
+    const day = s.check_in_at.slice(0, 10);
+    acc[day] = (acc[day] ?? 0) + sessionSeconds(s);
     return acc;
   }, {});
   const totalHours = Object.values(attendanceByDay).reduce((a, b) => a + b, 0);

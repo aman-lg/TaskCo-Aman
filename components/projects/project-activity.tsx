@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CheckSquare, Plus, ArrowRight, Pencil, Trash2, UserPlus, UserMinus } from "lucide-react";
+import { CheckSquare, Plus, ArrowRight, Pencil, Trash2, UserPlus, UserMinus, Paperclip, FileMinus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface ActivityEntry {
   id: string;
@@ -22,6 +23,8 @@ function getActivityIcon(action: string, entityType: string) {
   if (action === "deleted") return <Trash2 className="h-3.5 w-3.5" style={{ color: "var(--clr-red)" }} />;
   if (action === "assigned") return <UserPlus className="h-3.5 w-3.5" style={{ color: "var(--clr-green)" }} />;
   if (action === "unassigned") return <UserMinus className="h-3.5 w-3.5" style={{ color: "var(--clr-red)" }} />;
+  if (action === "added" && entityType === "project_file") return <Paperclip className="h-3.5 w-3.5" style={{ color: "var(--clr-green)" }} />;
+  if (action === "removed" && entityType === "project_file") return <FileMinus className="h-3.5 w-3.5" style={{ color: "var(--clr-red)" }} />;
   return <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--line)" }} />;
 }
 
@@ -53,6 +56,12 @@ function getActivityText(entry: ActivityEntry): string {
       return `${actor} assigned a team member`;
     case "unassigned":
       return `${actor} removed a team member`;
+    case "added":
+      if (entry.entity_type === "project_file") return `${actor} added ${meta.kind === "link" ? "a link" : "a file"} "${meta.name ?? ""}"`;
+      return `${actor} added ${entry.entity_type}`;
+    case "removed":
+      if (entry.entity_type === "project_file") return `${actor} removed "${meta.name ?? ""}"`;
+      return `${actor} removed ${entry.entity_type}`;
     default:
       return `${actor} ${entry.action} ${entry.entity_type}`;
   }
@@ -89,6 +98,28 @@ export function ProjectActivity({ projectId }: Props) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Live updates — this feed used to only ever fetch once on mount, so moving
+  // a task on the kanban board (a different component on the same page) never
+  // showed up here without a manual page reload. Subscribe to new activity_log
+  // rows for this project and refetch when one lands.
+  useEffect(() => {
+    const supabase = createClient();
+    let cancelled = false;
+    const channel = supabase
+      .channel(`project-activity-${projectId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_log", filter: `project_id=eq.${projectId}` },
+        () => { load(); }
+      );
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      if (session) supabase.realtime.setAuth(session.access_token);
+      channel.subscribe();
+    });
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [projectId, load]);
+
   if (loading) {
     return (
       <div className="flex flex-col gap-3">
@@ -114,7 +145,7 @@ export function ProjectActivity({ projectId }: Props) {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col overflow-y-auto pr-1" style={{ maxHeight: 420 }}>
       {activities.map((entry, idx) => (
         <div key={entry.id} className="flex gap-3 items-start group">
           <div className="flex flex-col items-center flex-shrink-0" style={{ width: 24 }}>

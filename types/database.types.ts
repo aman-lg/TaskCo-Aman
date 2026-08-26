@@ -42,6 +42,75 @@ export type Database = {
         };
         Relationships: [];
       };
+      org_settings: {
+        Row: {
+          id: boolean;
+          name: string;
+          updated_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          name?: string;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          name?: string;
+          updated_by?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      org_units: {
+        Row: {
+          id: string;
+          parent_id: string | null;
+          name: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          parent_id?: string | null;
+          name: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          parent_id?: string | null;
+          name?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "org_units_parent_id_fkey"; columns: ["parent_id"]; referencedRelation: "org_units"; referencedColumns: ["id"] },
+          { foreignKeyName: "org_units_created_by_fkey"; columns: ["created_by"]; referencedRelation: "profiles"; referencedColumns: ["id"] }
+        ];
+      };
+      org_unit_members: {
+        Row: {
+          id: string;
+          unit_id: string;
+          user_id: string;
+          title: string | null;
+          added_by: string | null;
+          added_at: string;
+        };
+        Insert: {
+          id?: string;
+          unit_id: string;
+          user_id: string;
+          title?: string | null;
+          added_by: string;
+          added_at?: string;
+        };
+        Update: {
+          title?: string | null;
+        };
+        Relationships: [
+          { foreignKeyName: "org_unit_members_unit_id_fkey"; columns: ["unit_id"]; referencedRelation: "org_units"; referencedColumns: ["id"] },
+          { foreignKeyName: "org_unit_members_user_id_fkey"; columns: ["user_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }
+        ];
+      };
       projects: {
         Row: {
           id: string;
@@ -84,6 +153,39 @@ export type Database = {
         };
         Relationships: [{ foreignKeyName: "projects_owner_id_fkey"; columns: ["owner_id"]; referencedRelation: "profiles"; referencedColumns: ["id"] }];
       };
+      project_files: {
+        Row: {
+          id: string;
+          project_id: string;
+          added_by: string | null;
+          kind: "file" | "link";
+          name: string;
+          storage_path: string | null;
+          url: string | null;
+          size: number | null;
+          mime: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          added_by: string;
+          kind: "file" | "link";
+          name: string;
+          storage_path?: string | null;
+          url?: string | null;
+          size?: number | null;
+          mime?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          name?: string;
+        };
+        Relationships: [
+          { foreignKeyName: "project_files_project_id_fkey"; columns: ["project_id"]; referencedRelation: "projects"; referencedColumns: ["id"] },
+          { foreignKeyName: "project_files_added_by_fkey"; columns: ["added_by"]; referencedRelation: "profiles"; referencedColumns: ["id"] }
+        ];
+      };
       tasks: {
         Row: {
           id: string;
@@ -96,7 +198,7 @@ export type Database = {
           urgency: Database["public"]["Enums"]["urgency_level"];
           status: Database["public"]["Enums"]["task_status"];
           color: string | null;
-          created_by: string;
+          created_by: string | null;
           created_at: string;
           updated_at: string | null;
         };
@@ -135,7 +237,7 @@ export type Database = {
         Row: {
           task_id: string;
           user_id: string;
-          assigned_by: string;
+          assigned_by: string | null;
           assigned_at: string;
         };
         Insert: {
@@ -329,7 +431,7 @@ export type Database = {
       activity_log: {
         Row: {
           id: string;
-          actor_id: string;
+          actor_id: string | null;
           action: string;
           entity_type: string;
           entity_id: string;

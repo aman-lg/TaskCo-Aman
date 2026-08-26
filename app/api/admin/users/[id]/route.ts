@@ -36,9 +36,9 @@ export const GET = withAdmin(async (_req: NextRequest, { params }) => {
       .order("created_at", { ascending: false }),
     supabase
       .from("attendance_sessions")
-      .select("id, clock_in, clock_out, duration_seconds")
+      .select("id, check_in_at, check_out_at")
       .eq("user_id", id)
-      .order("clock_in", { ascending: false })
+      .order("check_in_at", { ascending: false })
       .limit(30),
   ]);
 

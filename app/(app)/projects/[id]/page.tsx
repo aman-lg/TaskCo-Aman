@@ -7,6 +7,7 @@ import { getTasksForProject, type TaskWithMeta } from "@/lib/queries/tasks";
 import { KanbanBoard } from "@/components/tasks/kanban-board";
 import { ProjectActivity } from "@/components/projects/project-activity";
 import { ProjectMembersPanel } from "@/components/projects/project-members-panel";
+import { ProjectFilesPanel } from "@/components/projects/project-files-panel";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Active",
@@ -162,16 +163,26 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         currentUserId={user?.id ?? ""}
       />
 
-      {/* Members + Activity in 2-col layout */}
+      {/* Members + Documents + Activity in 2-col layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Members panel (1/3) */}
-        <div className="rounded-xl p-5" style={{ background: "var(--surface-bg)" }}>
-          <ProjectMembersPanel
-            projectId={project.id}
-            ownerId={project.owner_id}
-            currentUserId={user?.id ?? ""}
-            isAdmin={isAdmin}
-          />
+        {/* Members + Documents (1/3) */}
+        <div className="flex flex-col gap-6">
+          <div className="rounded-xl p-5" style={{ background: "var(--surface-bg)" }}>
+            <ProjectMembersPanel
+              projectId={project.id}
+              ownerId={project.owner_id}
+              currentUserId={user?.id ?? ""}
+              isAdmin={isAdmin}
+            />
+          </div>
+
+          <div className="rounded-xl p-5" style={{ background: "var(--surface-bg)" }}>
+            <ProjectFilesPanel
+              projectId={project.id}
+              currentUserId={user?.id ?? ""}
+              canManage={project.owner_id === user?.id || isAdmin}
+            />
+          </div>
         </div>
 
         {/* Activity feed (2/3) */}

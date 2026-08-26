@@ -14,7 +14,7 @@ function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
-  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
@@ -50,8 +50,15 @@ export function AttendanceTimer() {
     }
   }, []);
 
-  // On mount: fetch today's attendance state.
-  // If somehow no session is open (e.g. race with AppShell auto-start), start one.
+  // On mount: just read today's attendance state and display it. This used to
+  // auto clock-in here if no session was open, "in case AppShell's own
+  // auto-start hadn't run yet" — but since this component remounts every time
+  // the user navigates back to the dashboard (a fresh route, not a persistent
+  // layout), that silently re-opened a session every single time, undoing an
+  // explicit Break/End click a moment earlier. Starting a session on app load
+  // is useAttendanceAutoStart()'s job (in app-shell.tsx, guarded to run once
+  // per app session) — this component should only ever start one when the
+  // user explicitly presses Resume.
   useEffect(() => {
     let cancelled = false;
     async function init() {
@@ -62,15 +69,8 @@ export function AttendanceTimer() {
         setLoading(false);
         return;
       }
-      if (!data.openSession) {
-        // Clock-in is now idempotent — safe to call even if AppShell already did it
-        await apiFetch("/api/attendance/clock-in", "POST");
-        const data2 = await apiFetch("/api/attendance/today");
-        if (!cancelled && data2) applyState(data2);
-      } else {
-        if (!cancelled) applyState(data);
-      }
-      if (!cancelled) setLoading(false);
+      applyState(data);
+      setLoading(false);
     }
     init();
     return () => { cancelled = true; };

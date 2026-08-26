@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDown, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronDown, Loader2, X, Upload, Link2, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,15 @@ export function ProjectFormDialog({ open, onClose, project }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!project;
+
+  // Documents staged locally before the project exists yet — uploaded/attached
+  // right after creation succeeds. Only relevant in create mode.
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [stagedLinks, setStagedLinks] = useState<{ name: string; url: string }[]>([]);
+  const [showLinkForm, setShowLinkForm] = useState(false);
+  const [linkName, setLinkName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -88,9 +98,44 @@ export function ProjectFormDialog({ open, onClose, project }: Props) {
       });
     }
     setServerError(null);
+    setStagedFiles([]);
+    setStagedLinks([]);
+    setShowLinkForm(false);
+    setLinkName("");
+    setLinkUrl("");
   }, [open, project, reset]);
 
   const selectedColor = watch("color");
+
+  function addStagedLink() {
+    if (!linkName.trim() || !linkUrl.trim()) return;
+    setStagedLinks(prev => [...prev, { name: linkName.trim(), url: linkUrl.trim() }]);
+    setLinkName("");
+    setLinkUrl("");
+    setShowLinkForm(false);
+  }
+
+  async function attachStagedDocuments(projectId: string) {
+    for (const file of stagedFiles) {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/projects/${projectId}/files`, {
+        method: "POST",
+        credentials: "same-origin",
+        body: formData,
+      });
+      if (!res.ok) toast.error(`Failed to attach "${file.name}" — you can retry from the project page`);
+    }
+    for (const link of stagedLinks) {
+      const res = await fetch(`/api/projects/${projectId}/files`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ kind: "link", name: link.name, url: link.url }),
+      });
+      if (!res.ok) toast.error(`Failed to attach link "${link.name}" — you can retry from the project page`);
+    }
+  }
 
   const onSubmit: SubmitHandler<CreateProjectInput> = async (values) => {
     setServerError(null);
@@ -107,6 +152,9 @@ export function ProjectFormDialog({ open, onClose, project }: Props) {
     if (!res.ok) {
       setServerError(json.error?.message ?? "Something went wrong");
       return;
+    }
+    if (!isEdit && (stagedFiles.length > 0 || stagedLinks.length > 0)) {
+      await attachStagedDocuments(json.data.id);
     }
     router.refresh();
     onClose();
@@ -222,6 +270,101 @@ export function ProjectFormDialog({ open, onClose, project }: Props) {
                   ))}
                 </div>
               </div>
+
+              {/* Documents — staged locally, attached right after the project is created */}
+              {!isEdit && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10.5px] font-semibold text-[var(--text-muted)]" style={{ letterSpacing: "0.2px" }}>
+                      Documents (optional)
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowLinkForm(v => !v)}
+                        className="flex items-center gap-1 h-6 px-2 rounded text-[11px] font-semibold"
+                        style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+                      >
+                        <Link2 className="h-3 w-3" /> Add link
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-1 h-6 px-2 rounded text-[11px] font-semibold"
+                        style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+                      >
+                        <Upload className="h-3 w-3" /> Upload
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = "";
+                          if (f) setStagedFiles(prev => [...prev, f]);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {showLinkForm && (
+                    <div className="flex flex-col gap-1.5 p-2 rounded-lg" style={{ background: "var(--surface-bg)", border: "1px solid var(--line-soft)" }}>
+                      <input
+                        type="text"
+                        placeholder="Link name"
+                        value={linkName}
+                        onChange={e => setLinkName(e.target.value)}
+                        className="h-7 px-2 rounded text-[12px] outline-none"
+                        style={{ background: "var(--panel-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                      />
+                      <input
+                        type="url"
+                        placeholder="https://…"
+                        value={linkUrl}
+                        onChange={e => setLinkUrl(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addStagedLink())}
+                        className="h-7 px-2 rounded text-[12px] outline-none"
+                        style={{ background: "var(--panel-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={addStagedLink}
+                          disabled={!linkName.trim() || !linkUrl.trim()}
+                          className="h-6 px-3 rounded text-[11px] font-bold text-white disabled:opacity-40"
+                          style={{ background: "var(--navy)" }}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(stagedFiles.length > 0 || stagedLinks.length > 0) && (
+                    <div className="flex flex-col gap-1">
+                      {stagedFiles.map((f, i) => (
+                        <div key={`file-${i}`} className="flex items-center gap-2 py-1.5 px-2 rounded-lg" style={{ background: "var(--surface-bg)" }}>
+                          <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--navy)" }} />
+                          <span className="flex-1 text-[12px] truncate" style={{ color: "var(--ink)" }}>{f.name}</span>
+                          <button type="button" onClick={() => setStagedFiles(prev => prev.filter((_, idx) => idx !== i))} style={{ color: "var(--text-muted)" }}>
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      {stagedLinks.map((l, i) => (
+                        <div key={`link-${i}`} className="flex items-center gap-2 py-1.5 px-2 rounded-lg" style={{ background: "var(--surface-bg)" }}>
+                          <Link2 className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--navy)" }} />
+                          <span className="flex-1 text-[12px] truncate" style={{ color: "var(--ink)" }}>{l.name}</span>
+                          <button type="button" onClick={() => setStagedLinks(prev => prev.filter((_, idx) => idx !== i))} style={{ color: "var(--text-muted)" }}>
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {serverError && (
                 <p className="text-[13px] font-medium px-3 py-2 rounded-xl text-[var(--clr-red)] bg-[var(--clr-red-bg)]">

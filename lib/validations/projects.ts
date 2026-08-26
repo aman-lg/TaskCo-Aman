@@ -21,7 +21,7 @@ const datetimeField = z.preprocess(
 
 export const createProjectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Max 100 characters"),
-  description: z.string().max(500, "Max 500 characters").optional(),
+  description: z.string().max(5000, "Max 5000 characters").optional(),
   start_date: isoDate.optional().nullable(),
   end_date: isoDate.optional().nullable(),
   deadline: datetimeField,
@@ -36,7 +36,7 @@ export const createProjectSchema = z.object({
 
 export const updateProjectSchema = z.object({
   title: z.string().min(1, "Title is required").max(100, "Max 100 characters").optional(),
-  description: z.string().max(500, "Max 500 characters").optional(),
+  description: z.string().max(5000, "Max 5000 characters").optional(),
   start_date: isoDate.optional().nullable(),
   end_date: isoDate.optional().nullable(),
   deadline: datetimeField,

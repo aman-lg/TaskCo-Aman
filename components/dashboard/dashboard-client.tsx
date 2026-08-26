@@ -17,6 +17,7 @@ import { TaskFormDialog } from "@/components/tasks/task-form-dialog";
 import { AttendanceTimer } from "@/components/dashboard/attendance-timer";
 import { cn } from "@/lib/utils";
 import type { TodayTask } from "@/lib/queries/tasks";
+import type { CalendarEventSummary } from "@/lib/google/calendar";
 
 const QUOTES = [
   "Great things are done by a series of small things brought together.",
@@ -72,6 +73,7 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
   const [refreshing, setRefreshing] = useState(false);
   const [meetingsConnected, setMeetingsConnected] = useState<boolean | null>(null);
   const [pendingBookings, setPendingBookings] = useState(0);
+  const [upcomingEvents, setUpcomingEvents] = useState<CalendarEventSummary[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,10 +84,21 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
           fetch("/api/bookings", { credentials: "same-origin" }),
         ]);
         if (cancelled) return;
-        if (statusRes.ok) setMeetingsConnected((await statusRes.json()).data.connected);
+        let connected = false;
+        if (statusRes.ok) {
+          connected = (await statusRes.json()).data.connected;
+          setMeetingsConnected(connected);
+        }
         if (bookingsRes.ok) {
           const rows: { status: string }[] = (await bookingsRes.json()).data ?? [];
           setPendingBookings(rows.filter((b) => b.status === "pending").length);
+        }
+        if (connected) {
+          const eventsRes = await fetch("/api/meetings/calendar-events", { credentials: "same-origin" });
+          if (!cancelled && eventsRes.ok) {
+            const { data } = await eventsRes.json();
+            setUpcomingEvents(data.events ?? []);
+          }
         }
       } catch {
         // Non-critical widget — leave it in its default state on failure.
@@ -93,6 +106,34 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Meetings queue for the dashboard card — never just show an empty "connect"
+  // card when there IS calendar data, only when the week ahead is genuinely empty.
+  // Priority: today → tomorrow → this weekend → whatever's next in the 7-day window.
+  const meetingsQueue = (() => {
+    if (upcomingEvents.length === 0) return { label: "", events: [] as CalendarEventSummary[] };
+    const sameDay = (iso: string | null, ref: Date) => {
+      if (!iso) return false;
+      const d = new Date(iso);
+      return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth() && d.getDate() === ref.getDate();
+    };
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    const todays = upcomingEvents.filter((e) => sameDay(e.start, today));
+    if (todays.length > 0) return { label: "Today", events: todays };
+
+    const tomorrows = upcomingEvents.filter((e) => sameDay(e.start, tomorrow));
+    if (tomorrows.length > 0) return { label: "Tomorrow", events: tomorrows };
+
+    const weekend = upcomingEvents.filter((e) => {
+      if (!e.start || sameDay(e.start, today) || sameDay(e.start, tomorrow)) return false;
+      const day = new Date(e.start).getDay();
+      return day === 0 || day === 6;
+    });
+    if (weekend.length > 0) return { label: "This Weekend", events: weekend };
+
+    return { label: "Upcoming", events: upcomingEvents };
+  })();
 
   function openAddTask(date: string | null) {
     if (projects.length === 0) {
@@ -460,28 +501,66 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
             </span>
           )}
         </div>
-        <div className="flex flex-col items-center gap-3 py-6 text-center">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "var(--panel-bg)" }}>
-            <Video className="h-6 w-6" style={{ color: "var(--text-muted)" }} />
-          </div>
-          <div>
-            <p className="text-[14px] font-semibold" style={{ color: "var(--ink)" }}>
-              {meetingsConnected ? "Manage booking requests" : "No meetings scheduled"}
+        {meetingsConnected && meetingsQueue.events.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+              {meetingsQueue.label}
             </p>
-            <p className="text-[12px] mt-1 max-w-xs mx-auto" style={{ color: "var(--text-muted)" }}>
-              {meetingsConnected
-                ? "Confirm requests to generate a Google Meet link and notify the requester."
-                : "Connect your Google Calendar to get a booking link people can use to request time with you."}
-            </p>
+            <div className="flex flex-col gap-2">
+              {meetingsQueue.events.slice(0, 4).map((ev) => (
+                <a
+                  key={ev.id}
+                  href={ev.meetLink ?? ev.htmlLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-2.5 rounded-lg transition-colors hover:bg-[var(--panel-bg)]"
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--panel-bg)" }}>
+                    <Video className="h-4 w-4" style={{ color: "var(--navy)" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold truncate" style={{ color: "var(--ink)" }}>{ev.summary}</p>
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      {ev.allDay || !ev.start
+                        ? "All day"
+                        : new Date(ev.start).toLocaleString("en-IN", { weekday: "short", hour: "numeric", minute: "2-digit" })}
+                    </p>
+                  </div>
+                </a>
+              ))}
+            </div>
+            <Link
+              href="/meetings"
+              className="h-8 px-4 rounded-lg text-[12px] font-semibold text-center transition-colors hover:bg-[var(--line-soft)]"
+              style={{ border: "1px solid var(--line)", color: "var(--text-secondary)" }}
+            >
+              View All Meetings
+            </Link>
           </div>
-          <Link
-            href="/meetings"
-            className="h-8 px-4 rounded-lg text-[12px] font-semibold transition-colors hover:bg-[var(--line-soft)]"
-            style={{ border: "1px solid var(--line)", color: "var(--text-secondary)" }}
-          >
-            {meetingsConnected ? "View Meetings" : "Connect Google Calendar"}
-          </Link>
-        </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: "var(--panel-bg)" }}>
+              <Video className="h-6 w-6" style={{ color: "var(--text-muted)" }} />
+            </div>
+            <div>
+              <p className="text-[14px] font-semibold" style={{ color: "var(--ink)" }}>
+                {meetingsConnected ? "No meetings in the next 7 days" : "No meetings scheduled"}
+              </p>
+              <p className="text-[12px] mt-1 max-w-xs mx-auto" style={{ color: "var(--text-muted)" }}>
+                {meetingsConnected
+                  ? "Your calendar is clear for the coming week."
+                  : "Connect your Google Calendar to get a booking link people can use to request time with you."}
+              </p>
+            </div>
+            <Link
+              href="/meetings"
+              className="h-8 px-4 rounded-lg text-[12px] font-semibold transition-colors hover:bg-[var(--line-soft)]"
+              style={{ border: "1px solid var(--line)", color: "var(--text-secondary)" }}
+            >
+              {meetingsConnected ? "View Meetings" : "Connect Google Calendar"}
+            </Link>
+          </div>
+        )}
       </div>
 
       {projects.length > 0 && (

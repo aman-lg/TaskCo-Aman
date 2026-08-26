@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, Clock, ChevronLeft, ChevronRight,
-  User, Video, LogOut, Loader2, Settings, ShieldCheck, MessageSquare, Search,
+  User, Video, LogOut, Loader2, Settings, ShieldCheck, MessageSquare, Search, Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { openGlobalSearch } from "@/components/layout/global-search";
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/chat",       label: "Chat",       icon: MessageSquare },
   { href: "/meetings",   label: "Meetings",   icon: Video },
   { href: "/attendance", label: "Attendance", icon: Clock },
+  { href: "/org-chart",  label: "Org Chart",  icon: Network },
 ];
 
 const W = 240;   // expanded

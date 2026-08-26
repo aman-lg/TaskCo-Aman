@@ -4,6 +4,7 @@ import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUUID } from "@/lib/utils/validate";
+import { attachPolls } from "@/lib/queries/chat";
 
 const editSchema = z.object({ content: z.string().trim().min(1).max(10000) });
 const deleteSchema = z.object({ scope: z.enum(["me", "everyone"]) });
@@ -14,6 +15,7 @@ export const GET = withAuth(async (_req: NextRequest, ctx) => {
   if (!isValidUUID(id)) return ApiError.badRequest("Invalid message ID.");
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("messages")
@@ -22,6 +24,16 @@ export const GET = withAuth(async (_req: NextRequest, ctx) => {
     .single();
 
   if (error || !data) return ApiError.notFound("Message not found.");
+
+  // The realtime INSERT payload only carries the raw messages row — no
+  // sender join, and for polls, no polls/poll_options join either (that
+  // data intentionally lives in its own tables, not message.metadata).
+  // The client re-fetches through this route to get the fully-shaped
+  // message instead of trusting the raw realtime payload.
+  if (data.type === "poll") {
+    await attachPolls(supabase, [data], user?.id);
+  }
+
   return ok({ message: data });
 });
 

@@ -228,14 +228,19 @@ export async function getMessages(
 // Fetches polls/options/votes for any poll-type messages in the given list
 // and attaches them as message.poll, shaped exactly like PollDisplay expects
 // (vote_count per option, user_votes for the caller). Mutates in place.
-async function attachPolls(supabase: Client, messages: ChatMessage[], currentUserId?: string): Promise<void> {
+export async function attachPolls(supabase: Client, messages: ChatMessage[], currentUserId?: string): Promise<void> {
   const pollMessageIds = messages.filter((m) => m.type === "poll").map((m) => m.id);
   if (pollMessageIds.length === 0) return;
 
+  // poll_options is reachable from polls two ways — directly via
+  // poll_options.poll_id, and indirectly through poll_votes (poll_id +
+  // option_id) — so PostgREST can't infer which relationship to embed
+  // without the FK name pinned explicitly; left ambiguous, this silently
+  // fails with PGRST201 and no poll ever renders.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: polls } = await (supabase as any)
     .from("polls")
-    .select("*, options:poll_options(id, text, position)")
+    .select("*, options:poll_options!poll_options_poll_id_fkey(id, text, position)")
     .in("message_id", pollMessageIds);
   if (!polls || polls.length === 0) return;
 

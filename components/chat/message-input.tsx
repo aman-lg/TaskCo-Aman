@@ -20,7 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import PollCreator from "./poll-creator";
-import { formatFileSize } from "@/lib/utils/chat";
 import type { ChatMessage } from "@/types/chat";
 
 // ---------------------------------------------------------------------------
@@ -294,10 +293,9 @@ export function MessageInput({
         msgType,
         {
           url: uploaded.url,
-          name: uploaded.name,
+          filename: uploaded.name,
           size: uploaded.size,
           mime: uploaded.mime,
-          size_label: formatFileSize(uploaded.size),
         }
       );
     } catch (err) {
@@ -388,11 +386,10 @@ export function MessageInput({
             "voice_note",
             {
               url: uploaded.url,
-              name: uploaded.name,
+              filename: uploaded.name,
               size: uploaded.size,
               mime: uploaded.mime,
-              duration_seconds: recordingSeconds,
-              size_label: formatFileSize(uploaded.size),
+              duration: recordingSeconds,
             }
           );
         } catch (err) {
@@ -665,20 +662,28 @@ export function MessageInput({
                   <Paperclip size={20} />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align="start">
+                  {/* This app's DropdownMenuItem wraps @base-ui/react's Menu.Item,
+                      whose action prop is onClick — not onSelect. onSelect is a
+                      real React DOM prop, but it maps to the native text-selection
+                      event, which never fires on a menu item div. All three items
+                      here were silently dead for every real user interaction
+                      (mouse and keyboard) until this was caught by testing the
+                      actual click path end to end instead of just the resulting
+                      API calls. */}
                   <DropdownMenuItem
-                    onSelect={() => fileInputRef.current?.click()}
+                    onClick={() => fileInputRef.current?.click()}
                   >
                     <ImageIcon size={15} style={{ marginRight: 8, color: "var(--navy)" }} />
                     Photo / Video
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onSelect={() => docInputRef.current?.click()}
+                    onClick={() => docInputRef.current?.click()}
                   >
                     <FileText size={15} style={{ marginRight: 8, color: "var(--accent-brand)" }} />
                     Document
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onSelect={() => setShowPollCreator(true)}
+                    onClick={() => setShowPollCreator(true)}
                   >
                     <BarChart2 size={15} style={{ marginRight: 8, color: "var(--clr-green)" }} />
                     Poll

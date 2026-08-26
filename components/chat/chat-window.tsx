@@ -56,6 +56,34 @@ export function ChatWindow({
       if (prev.some(m => m.id === msg.id)) return prev;
       return [...prev, msg];
     });
+
+    // The realtime INSERT payload is the raw messages row — no sender join,
+    // and for polls specifically, no polls/poll_options join (that data is
+    // intentionally kept out of message.metadata, see messages POST route).
+    // Re-fetch the fully-shaped message and patch it in. The poll/options
+    // rows are inserted in the same request right after the message row, so
+    // they're normally already committed by the time this realtime event
+    // reaches the browser — retry a couple of times to cover the rare case
+    // where this fetch wins the race.
+    if (msg.type === "poll" && !msg.poll) {
+      const fetchFullMessage = async (attempt = 0) => {
+        try {
+          const res = await fetch(`/api/chat/messages/${msg.id}`, { cache: "no-store" });
+          if (!res.ok) return;
+          const json = await res.json().catch(() => null);
+          const full = json?.data?.message as ChatMessage | undefined;
+          if (full?.poll) {
+            setMessages(prev => prev.map(m => (m.id === full.id ? { ...m, ...full } : m)));
+          } else if (attempt < 3) {
+            setTimeout(() => fetchFullMessage(attempt + 1), 400);
+          }
+        } catch {
+          // ignore — worst case the poll shows once the conversation reloads
+        }
+      };
+      void fetchFullMessage();
+    }
+
     // Auto-mark as read
     if (msg.sender_id !== currentUserId) {
       fetch(`/api/chat/messages/${msg.id}/read`, { method: "POST" }).catch(() => {});

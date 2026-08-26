@@ -40,7 +40,18 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.supabase.co",
+              // Voice notes and video attachments are <audio>/<video> tags
+              // pointing at Supabase storage — same missing-directive gap as
+              // frame-src had, media-src falls back to default-src 'self'
+              // without this and silently blocks them from playing.
+              "media-src 'self' blob: https://*.supabase.co",
               "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+              // The in-app document viewer embeds PDFs directly from Supabase
+              // storage and routes Word/Excel through Microsoft's viewer —
+              // both are different origins, and with no frame-src set this
+              // fell back to default-src 'self', silently blocking every
+              // embed ("This content is blocked").
+              "frame-src 'self' https://*.supabase.co https://view.officeapps.live.com",
               "frame-ancestors 'none'",
             ].join("; "),
           },

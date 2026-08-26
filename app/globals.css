@@ -583,9 +583,18 @@ input[type="datetime-local"].float-label-input:focus ~ .float-label {
 }
 
 /* ─────────────────────────────────────────────────────────
-   Rich text editor (Tiptap) — matches float-label-textarea's
-   border / radius / background conventions, split into a
-   toolbar row + editable content row.
+   Rich text editor (CKEditor 5, classic build) — a thin wrapper that just
+   adds the app's usual border/radius around CKEditor's own toolbar +
+   editable area (CKEditor renders its own internal markup; the classes
+   below target ITS class names, not custom ones).
+
+   overflow was previously hidden here to clip CKEditor's toolbar/content
+   to the wrapper's rounded corners, but that also clipped every dropdown
+   panel CKEditor opens (e.g. the heading/paragraph picker) to the wrapper's
+   own bounds — with a short editable area, an opened dropdown had nowhere
+   to render but back over the box itself. Rounded corners are applied
+   directly to CKEditor's own toolbar/editable elements instead, so the
+   wrapper no longer needs to clip anything.
 ───────────────────────────────────────────────────────── */
 
 .rte-wrap {
@@ -595,7 +604,6 @@ input[type="datetime-local"].float-label-input:focus ~ .float-label {
   border: 1.5px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface-bg);
-  overflow: hidden;
   transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
 }
 .rte-wrap:hover { border-color: var(--text-muted); }
@@ -604,64 +612,24 @@ input[type="datetime-local"].float-label-input:focus ~ .float-label {
   box-shadow: 0 0 0 3px rgba(161, 194, 189, 0.28);
 }
 
-.rte-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 8px;
+.rte-wrap .ck.ck-editor__top .ck-toolbar {
+  border: none;
   border-bottom: 1px solid var(--line-soft);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
   background: var(--panel-bg);
 }
 
-.rte-toolbar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: var(--r-sm);
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background-color 120ms var(--ease-out), color 120ms var(--ease-out);
-}
-.rte-toolbar-btn:hover { background: var(--line-soft); color: var(--ink); }
-.rte-toolbar-btn.is-active { background: var(--accent-bg); color: var(--navy); }
-
-.rte-content-wrap {
-  position: relative;
-  min-height: 90px;
-}
-
-.rte-placeholder {
-  position: absolute;
-  top: 10px;
-  left: 14px;
+.rte-wrap .ck.ck-editor__editable_inline {
+  min-height: 160px;
+  padding: 8px 14px 10px !important;
+  border: none !important;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  box-shadow: none !important;
+  background: var(--surface-bg) !important;
   font-family: var(--font-sans);
   font-size: 14px;
-  font-weight: 500;
-  color: var(--text-muted);
-  pointer-events: none;
-  user-select: none;
-}
-
-.rte-content {
-  min-height: 90px;
-  padding: 8px 14px 10px;
-  font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 500;
   color: var(--ink);
-  outline: none;
 }
-.rte-content p { margin: 0 0 6px; }
-.rte-content p:last-child { margin-bottom: 0; }
-.rte-content ul, .rte-content ol {
-  margin: 0 0 6px;
-  padding-left: 22px;
-}
-.rte-content li p { margin: 0; }
 
 /* ─────────────────────────────────────────────────────────
    Select field with persistent top label (same height as float-label-input)

@@ -31,10 +31,12 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
   }
   if (!row) return ApiError.notFound("File not found");
 
+  // No `download` option — see the equivalent project-files route for why:
+  // it forces Content-Disposition: attachment and prevents inline viewing.
   const admin = createAdminClient();
   const { data: signed, error: signErr } = await admin.storage
     .from(BUCKET)
-    .createSignedUrl(row.storage_path, SIGNED_URL_TTL, { download: row.name });
+    .createSignedUrl(row.storage_path, SIGNED_URL_TTL);
 
   if (signErr || !signed) {
     console.error("[tasks/[id]/files/[fileId] GET signedUrl]", signErr);

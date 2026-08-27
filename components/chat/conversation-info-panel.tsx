@@ -33,6 +33,7 @@ interface Props {
   conversation: Conversation;
   currentUserId: string;
   onLeftGroup: () => void;
+  onlineUserIds?: Set<string>;
 }
 
 function initials(name?: string | null, email?: string | null) {
@@ -40,7 +41,7 @@ function initials(name?: string | null, email?: string | null) {
   return (email?.[0] ?? "?").toUpperCase();
 }
 
-export function ConversationInfoPanel({ open, onClose, conversation, currentUserId, onLeftGroup }: Props) {
+export function ConversationInfoPanel({ open, onClose, conversation, currentUserId, onLeftGroup, onlineUserIds }: Props) {
   const [tab, setTab] = useState<"info" | "media">("info");
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
@@ -60,6 +61,7 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
   const isGroup = conversation.type === "group";
   const otherMember = members.find((m) => m.user_id !== currentUserId);
   const other = conversation.other_user ?? otherMember?.profile ?? null;
+  const isOtherOnline = other ? onlineUserIds?.has(other.id) ?? false : false;
   const myMember = members.find((m) => m.user_id === currentUserId);
   const canManage = myMember?.role === "owner" || myMember?.role === "admin";
 
@@ -181,13 +183,18 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
                 <p className="text-[17px] font-bold" style={{ color: "var(--ink)" }}>
                   {isGroup ? conversation.name ?? "Unnamed Group" : other?.full_name ?? other?.email ?? "Unknown"}
                 </p>
+                {!isGroup && (isOtherOnline || other?.last_seen_at) && (
+                  <p className="text-[13px] mt-0.5 italic" style={{ color: isOtherOnline ? "var(--clr-green)" : "var(--text-muted)" }}>
+                    {isOtherOnline ? "online" : `Last Active ${formatLastSeen(other?.last_seen_at ?? null)}`}
+                  </p>
+                )}
                 {!isGroup && other?.title && (
                   <p className="text-[13px] mt-0.5" style={{ color: "var(--text-secondary)" }}>{other.title}</p>
                 )}
                 <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>
                   {isGroup
                     ? `${members.length} member${members.length !== 1 ? "s" : ""}`
-                    : other?.email ?? formatLastSeen(other?.last_seen_at ?? null)}
+                    : other?.email}
                 </p>
                 {isGroup && conversation.description && (
                   <p className="text-[12px] mt-2 max-w-xs" style={{ color: "var(--text-secondary)" }}>{conversation.description}</p>

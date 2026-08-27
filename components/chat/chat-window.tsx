@@ -245,6 +245,7 @@ export function ChatWindow({
         conversation={conversation}
         currentUserId={currentUserId}
         onLeftGroup={() => { setInfoOpen(false); router.push("/chat"); router.refresh(); }}
+        onlineUserIds={onlineUserIds}
       />
 
       {/* Message list */}

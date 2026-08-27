@@ -38,10 +38,15 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
 
   if (row.kind === "link") return ok({ url: row.url });
 
+  // No `download` option here — that forces a Content-Disposition:
+  // attachment response, which is exactly what made every file (PDFs
+  // especially) download instead of opening in the in-app viewer. Leaving
+  // it unset lets the browser/iframe render the file inline by its own
+  // Content-Type instead.
   const admin = createAdminClient();
   const { data: signed, error: signErr } = await admin.storage
     .from(BUCKET)
-    .createSignedUrl(row.storage_path, SIGNED_URL_TTL, { download: row.name });
+    .createSignedUrl(row.storage_path, SIGNED_URL_TTL);
 
   if (signErr || !signed) {
     console.error("[projects/[id]/files/[fileId] GET signedUrl]", signErr);

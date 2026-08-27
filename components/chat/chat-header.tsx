@@ -37,16 +37,6 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds, typingU
   const isOnline    = otherUser ? onlineUserIds?.has(otherUser.id) : false;
   const isOtherTyping = isDM && otherUser ? (typingUsers ?? []).some((t) => t.user_id === otherUser.id) : false;
 
-  const statusText = isSelf
-    ? "Your private notes"
-    : isDM
-    ? isOtherTyping
-      ? "typing…"
-      : isOnline
-      ? "Online"
-      : formatLastSeen(otherUser?.last_seen_at ?? null)
-    : `${memberCount} member${memberCount !== 1 ? "s" : ""}`;
-
   async function leaveGroup() {
     const res = await fetch(`/api/chat/conversations/${conversation.id}`, { method: "DELETE" });
     if (res.ok) {
@@ -104,22 +94,38 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds, typingU
         )}
 
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>
-            {isSelf ? "My Notes" : name}
+          <p className="flex items-center gap-1.5 min-w-0">
+            <span className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>
+              {isSelf ? "My Notes" : name}
+            </span>
+            {isDM && isOtherTyping && (
+              <span className="text-[11px] italic flex-shrink-0" style={{ color: "var(--text-muted)" }}>typing…</span>
+            )}
+            {isDM && !isOtherTyping && isOnline && (
+              <span className="flex items-center gap-1 flex-shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--clr-green)" }} />
+                <span className="text-[11px] italic" style={{ color: "var(--clr-green)" }}>online</span>
+              </span>
+            )}
+            {isDM && !isOtherTyping && !isOnline && otherUser?.last_seen_at && (
+              <span className="text-[11px] italic truncate" style={{ color: "var(--text-muted)" }}>
+                Last Active {formatLastSeen(otherUser.last_seen_at)}
+              </span>
+            )}
           </p>
           {isDM && otherUser?.title && (
             <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
               {otherUser.title}
             </p>
           )}
-          <div className="flex items-center gap-1.5">
-            {isDM && isOnline && (
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--clr-green)" }} />
-            )}
-            <p className="text-[11px] truncate" style={{ color: isOnline ? "var(--clr-green)" : "var(--text-muted)" }}>
-              {statusText}
+          {isGroup && (
+            <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
+              {memberCount} member{memberCount !== 1 ? "s" : ""}
             </p>
-          </div>
+          )}
+          {isSelf && (
+            <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>Your private notes</p>
+          )}
         </div>
       </button>
 

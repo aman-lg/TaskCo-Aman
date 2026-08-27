@@ -7,7 +7,8 @@ import { X, Loader2, Table2, Paperclip, Search, Plus } from "lucide-react";
 import { useOrgUnits, type OrgUnit } from "@/lib/hooks/use-org-units";
 import { AssignedToPicker, MultiSelect, type AssignedToValue, ASSIGNED_TO_SELECT_STYLE } from "./assigned-to-picker";
 import { TaskFormDialog } from "./task-form-dialog";
-import type { TaskWithMeta } from "@/lib/queries/tasks";
+import { DocumentViewer } from "@/components/ui/document-viewer";
+import type { TaskWithMeta, TaskFileMeta } from "@/lib/queries/tasks";
 
 interface Project {
   id: string;
@@ -27,7 +28,7 @@ interface DraftData {
 
 const EMPTY_DRAFT = (projectId: string): DraftData => ({ projectId, title: "", description: "", deadline: "", urgency: "medium", file: null });
 
-type ColKey = "dept" | "subdept" | "project" | "assignedTo" | "urgency" | "assignedBy" | "title" | "description" | "attachment" | "assignedDate" | "deadline";
+type ColKey = "dept" | "subdept" | "project" | "assignedTo" | "urgency" | "assignedBy" | "id" | "title" | "description" | "attachment" | "assignedDate" | "deadline";
 
 const ALL_COLUMNS: { key: ColKey; label: string; width: string }[] = [
   { key: "dept", label: "Department", width: "140px" },
@@ -36,6 +37,7 @@ const ALL_COLUMNS: { key: ColKey; label: string; width: string }[] = [
   { key: "assignedTo", label: "Assigned To", width: "140px" },
   { key: "urgency", label: "Urgency", width: "110px" },
   { key: "assignedBy", label: "Assigned By", width: "140px" },
+  { key: "id", label: "Task ID", width: "100px" },
   { key: "title", label: "Task Title", width: "minmax(200px, 1.2fr)" },
   { key: "description", label: "Task Description", width: "minmax(200px, 1.4fr)" },
   { key: "attachment", label: "Attachment", width: "150px" },
@@ -96,6 +98,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
   const [draftData, setDraftData] = useState<Map<string, DraftData>>(new Map());
   const [submitting, setSubmitting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [viewerFile, setViewerFile] = useState<{ url: string; name: string; mime: string | null } | null>(null);
 
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.title])), [projects]);
 
@@ -135,7 +138,13 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
     return tasks.filter((t) => {
       if (filterProjectIds.length > 0 && !filterProjectIds.includes(t.project_id)) return false;
       if (filterUrgencies.length > 0 && !filterUrgencies.includes(t.urgency ?? "medium")) return false;
-      if (q && !t.name.toLowerCase().includes(q)) return false;
+      if (q) {
+        const matches =
+          t.id.toLowerCase().includes(q) ||
+          t.name.toLowerCase().includes(q) ||
+          stripHtml(t.description).toLowerCase().includes(q);
+        if (!matches) return false;
+      }
       const assigneeIds = t.task_assignees.map((a) => a.user_id);
       const assignerIds = t.task_assignees.map((a) => a.assigned_by);
       if (filterAssignerIds.length > 0 && !assignerIds.some((id) => filterAssignerIds.includes(id))) return false;
@@ -185,10 +194,10 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
     setFilters((prev) => ({ ...prev, personIds: prev.personIds.filter((id) => id !== personId) }));
   }
 
-  async function openAttachment(taskId: string, fileId: string) {
-    const res = await fetch(`/api/tasks/${taskId}/files/${fileId}`, { credentials: "same-origin" });
+  async function openAttachment(taskId: string, file: TaskFileMeta) {
+    const res = await fetch(`/api/tasks/${taskId}/files/${file.id}`, { credentials: "same-origin" });
     const json = await res.json().catch(() => ({}));
-    if (json?.data?.url) window.open(json.data.url, "_blank", "noopener");
+    if (json?.data?.url) setViewerFile({ url: json.data.url, name: file.name, mime: file.mime });
     else toast.error("Couldn't open attachment");
   }
 
@@ -199,6 +208,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
     assignedTo: filters.personIds.length === 1,
     urgency: filterUrgencies.length === 1,
     assignedBy: filterAssignerIds.length === 1,
+    id: false,
     title: false,
     description: false,
     attachment: false,
@@ -291,32 +301,32 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="h1" style={{ color: "var(--ink)" }}>Tasks</h1>
-          <p className="mt-1 text-[14px]" style={{ color: "var(--text-secondary)" }}>
-            Filter by Department, Sub-Department, Project, People, Urgency or Assigned By. Checking a person shows their task here, or gives you a blank row to create one.
-          </p>
+      <div>
+        <h1 className="h1" style={{ color: "var(--ink)" }}>Tasks</h1>
+        <p className="mt-1 text-[14px]" style={{ color: "var(--text-secondary)" }}>
+          Filter by Department, Sub-Department, Project, People, Urgency or Assigned By. Checking a person shows their task here, or gives you a blank row to create one.
+        </p>
+      </div>
+
+      {/* Search + Create */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--text-muted)" }} />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by Task ID, Title or Description…"
+            className="h-10 w-full pl-9 pr-3 rounded-xl text-[13px] outline-none"
+            style={ASSIGNED_TO_SELECT_STYLE}
+          />
         </div>
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 h-9 px-4 rounded-xl text-[13px] font-bold text-white transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)] flex-shrink-0"
+          className="flex items-center gap-2 h-10 px-4 rounded-xl text-[13px] font-bold text-white transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)] flex-shrink-0"
         >
           <Plus className="h-4 w-4" /> Create Task
         </button>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--text-muted)" }} />
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search task titles…"
-          className="h-10 w-full pl-9 pr-3 rounded-xl text-[13px] outline-none"
-          style={ASSIGNED_TO_SELECT_STYLE}
-        />
       </div>
 
       {/* Filters */}
@@ -423,6 +433,8 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                           );
                         case "assignedBy":
                           return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-muted)" }}>{currentUserName}</span>;
+                        case "id":
+                          return <span key={c.key} className="text-[12px]" style={{ color: "var(--text-fine)" }}>New</span>;
                         case "title":
                           return (
                             <input
@@ -531,6 +543,23 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                         }
                         case "assignedBy":
                           return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-secondary)" }}>{primary?.assigner?.full_name ?? task.creator?.full_name ?? "—"}</span>;
+                        case "id":
+                          return (
+                            <button
+                              key={c.key}
+                              type="button"
+                              title={task.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard?.writeText(task.id).catch(() => {});
+                                toast.success("Task ID copied");
+                              }}
+                              className="text-[11.5px] font-mono truncate text-left hover:underline"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {task.id.slice(0, 8)}
+                            </button>
+                          );
                         case "title":
                           return (
                             <span
@@ -553,7 +582,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                                   <button
                                     key={f.id}
                                     type="button"
-                                    onClick={() => openAttachment(task.id, f.id)}
+                                    onClick={() => openAttachment(task.id, f)}
                                     className="flex items-center gap-1 h-7 px-2 rounded-md text-[11.5px] truncate max-w-[130px]"
                                     style={{ background: "var(--panel-bg)", color: "var(--navy)" }}
                                     title={f.name}
@@ -623,6 +652,15 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
         projectId={projects[0]?.id ?? ""}
         projects={projects}
       />
+
+      {viewerFile && (
+        <DocumentViewer
+          url={viewerFile.url}
+          filename={viewerFile.name}
+          mime={viewerFile.mime}
+          onClose={() => setViewerFile(null)}
+        />
+      )}
     </div>
   );
 }

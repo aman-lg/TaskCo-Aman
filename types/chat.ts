@@ -10,6 +10,8 @@ export interface ChatProfile {
   avatar_url: string | null;
   email: string | null;
   last_seen_at?: string | null;
+  /** Job title from their org_unit_members placement, if any. */
+  title?: string | null;
 }
 
 export interface Conversation {

@@ -44,7 +44,7 @@ export default async function ChatConversationPage({ params }: PageProps) {
   };
 
   const [conversation, initialMessages, conversations] = await Promise.all([
-    getConversationById(supabase, id),
+    getConversationById(supabase, id, user.id),
     getMessages(supabase, id, 50, undefined, user.id),
     getConversations(supabase, user.id),
   ]);

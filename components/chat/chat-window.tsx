@@ -190,6 +190,7 @@ export function ChatWindow({
         conversation={conversation}
         currentUserId={currentUserId}
         onlineUserIds={onlineUserIds}
+        typingUsers={typingUsers}
         onOpenInfo={() => setInfoOpen(true)}
       />
 

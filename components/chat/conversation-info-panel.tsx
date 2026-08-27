@@ -181,6 +181,9 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
                 <p className="text-[17px] font-bold" style={{ color: "var(--ink)" }}>
                   {isGroup ? conversation.name ?? "Unnamed Group" : other?.full_name ?? other?.email ?? "Unknown"}
                 </p>
+                {!isGroup && other?.title && (
+                  <p className="text-[13px] mt-0.5" style={{ color: "var(--text-secondary)" }}>{other.title}</p>
+                )}
                 <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>
                   {isGroup
                     ? `${members.length} member${members.length !== 1 ? "s" : ""}`

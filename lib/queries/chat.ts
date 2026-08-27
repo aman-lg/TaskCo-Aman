@@ -4,6 +4,26 @@ import type { Conversation, ChatMessage, ConversationMember, ChatProfile } from 
 
 type Client = SupabaseClient<Database>;
 
+// A person can technically sit in more than one org unit — this just needs
+// their job title for display, not which unit it came from, so the most
+// recently-added non-null title wins.
+async function getTitlesByUserId(supabase: Client, userIds: string[]): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any)
+    .from("org_unit_members")
+    .select("user_id, title, added_at")
+    .in("user_id", userIds)
+    .not("title", "is", null)
+    .order("added_at", { ascending: false });
+
+  const map = new Map<string, string>();
+  for (const row of (data ?? []) as { user_id: string; title: string | null }[]) {
+    if (!map.has(row.user_id) && row.title) map.set(row.user_id, row.title);
+  }
+  return map;
+}
+
 // ─── getConversations ─────────────────────────────────────────────────────────
 // Returns all conversations for the current user, ordered by pin then last_message_at.
 
@@ -64,6 +84,11 @@ export async function getConversations(supabase: Client, userId: string): Promis
     }
   }
 
+  const titleMap = await getTitlesByUserId(
+    supabase,
+    Array.from(new Set((members ?? []).map((m: { user_id: string }) => m.user_id)))
+  );
+
   // Compute unread counts
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const conversations: Conversation[] = data.map((row: any) => {
@@ -85,8 +110,11 @@ export async function getConversations(supabase: Client, userId: string): Promis
     };
 
     const convMembers = memberMap.get(conv.id) ?? [];
-    const other_user = conv.type === "direct" || conv.type === "self"
-      ? convMembers.find(m => m.user_id !== userId)?.profile ?? null
+    const otherMember = conv.type === "direct" || conv.type === "self"
+      ? convMembers.find(m => m.user_id !== userId)
+      : undefined;
+    const other_user: ChatProfile | null = otherMember?.profile
+      ? { ...otherMember.profile, title: titleMap.get(otherMember.user_id) ?? null }
       : null;
 
     // Count messages after last_read_at from other senders
@@ -105,7 +133,7 @@ export async function getConversations(supabase: Client, userId: string): Promis
       my_member: myMember,
       last_message: lastMsgMap.get(conv.id) ?? null,
       unread_count,
-      other_user: other_user as ChatProfile | null,
+      other_user,
     };
   }).filter(Boolean) as Conversation[];
 
@@ -167,6 +195,7 @@ export async function getTotalUnreadCount(supabase: Client, userId: string): Pro
 export async function getConversationById(
   supabase: Client,
   id: string,
+  currentUserId?: string,
 ): Promise<Conversation | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: conv, error } = await (supabase as any)
@@ -183,9 +212,25 @@ export async function getConversationById(
     .select("*, profile:profiles!user_id(id, full_name, avatar_url, email, last_seen_at)")
     .eq("conversation_id", id);
 
+  const convMembers = (members ?? []) as ConversationMember[];
+
+  // Same other_user shape getConversations() builds for the sidebar list —
+  // needed here too since this is what actually renders on a direct page
+  // load of /chat/[id] (ChatLayout prefers initialConversation over the
+  // sidebar list's copy), not just on client-side navigation between chats.
+  let other_user: ChatProfile | null = null;
+  if (currentUserId && (conv.type === "direct" || conv.type === "self")) {
+    const otherMember = convMembers.find((m) => m.user_id !== currentUserId);
+    if (otherMember?.profile) {
+      const titleMap = await getTitlesByUserId(supabase, [otherMember.user_id]);
+      other_user = { ...otherMember.profile, title: titleMap.get(otherMember.user_id) ?? null };
+    }
+  }
+
   return {
     ...(conv as Conversation),
-    members: (members ?? []) as ConversationMember[],
+    members: convMembers,
+    other_user,
   };
 }
 

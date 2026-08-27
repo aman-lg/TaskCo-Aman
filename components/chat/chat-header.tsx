@@ -8,13 +8,14 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Conversation, ChatProfile } from "@/types/chat";
+import type { Conversation, ChatProfile, TypingUser } from "@/types/chat";
 import { getConversationName, getConversationAvatar, formatLastSeen } from "@/lib/utils/chat";
 
 interface Props {
   conversation: Conversation;
   currentUserId: string;
   onlineUserIds?: Set<string>;
+  typingUsers?: TypingUser[];
   onOpenInfo: () => void;
 }
 
@@ -23,7 +24,7 @@ function initials(name: string | null, email: string | null) {
   return (email?.[0] ?? "?").toUpperCase();
 }
 
-export function ChatHeader({ conversation, currentUserId, onlineUserIds, onOpenInfo }: Props) {
+export function ChatHeader({ conversation, currentUserId, onlineUserIds, typingUsers, onOpenInfo }: Props) {
   const router = useRouter();
   const name   = getConversationName(conversation, currentUserId);
   const avatar = getConversationAvatar(conversation, currentUserId);
@@ -34,11 +35,14 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds, onOpenI
   const memberCount = conversation.members?.length ?? 0;
   const otherUser   = isDM ? conversation.other_user : null;
   const isOnline    = otherUser ? onlineUserIds?.has(otherUser.id) : false;
+  const isOtherTyping = isDM && otherUser ? (typingUsers ?? []).some((t) => t.user_id === otherUser.id) : false;
 
   const statusText = isSelf
     ? "Your private notes"
     : isDM
-    ? isOnline
+    ? isOtherTyping
+      ? "typing…"
+      : isOnline
       ? "Online"
       : formatLastSeen(otherUser?.last_seen_at ?? null)
     : `${memberCount} member${memberCount !== 1 ? "s" : ""}`;
@@ -103,6 +107,11 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds, onOpenI
           <p className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>
             {isSelf ? "My Notes" : name}
           </p>
+          {isDM && otherUser?.title && (
+            <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
+              {otherUser.title}
+            </p>
+          )}
           <div className="flex items-center gap-1.5">
             {isDM && isOnline && (
               <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--clr-green)" }} />

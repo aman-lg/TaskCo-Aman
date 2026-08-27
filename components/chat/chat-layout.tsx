@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import type { Conversation, ChatMessage, ChatProfile } from "@/types/chat";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
@@ -68,7 +67,6 @@ export function ChatLayout({
   initialMessages,
   initialConversation,
 }: ChatLayoutProps) {
-  const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>(conversationsProp);
 
   // Sync if the server re-renders with new props (e.g. navigation)
@@ -76,14 +74,25 @@ export function ChatLayout({
     setConversations(conversationsProp);
   }, [conversationsProp]);
 
-  // Realtime handler: a new message anywhere the user is a member. Bumping
-  // just last_message_at client-side (the previous approach) re-sorted the
-  // list but never touched last_message itself, so the preview text under
-  // each conversation name never actually updated - only a real refetch
-  // gets the correct last_message content, so just refresh every time.
-  const handleRealtimeUpdate = useCallback(() => {
-    router.refresh();
-  }, [router]);
+  // Realtime handler: a new message anywhere the user is a member. This
+  // used to call router.refresh() — which re-renders the whole route
+  // you're currently on — but that raced with an in-flight navigation to
+  // a *different* conversation: send a message in A, click over to B
+  // before the refresh lands, and the two responses could get applied out
+  // of order, leaving A's messages stuck showing alongside B's until a
+  // hard reload (confirmed live: this exact sequence reproduced it).
+  // Fetching the conversation list directly and swapping it in doesn't
+  // touch the router at all, so it can't collide with navigation.
+  const handleRealtimeUpdate = useCallback(async () => {
+    try {
+      const res = await fetch("/api/chat/conversations", { credentials: "same-origin" });
+      if (!res.ok) return;
+      const json = await res.json().catch(() => null);
+      if (Array.isArray(json?.data)) setConversations(json.data);
+    } catch {
+      // best-effort — the periodic/focus resync elsewhere covers the rest
+    }
+  }, []);
 
   useConversationListRealtime(currentUserId, handleRealtimeUpdate);
 

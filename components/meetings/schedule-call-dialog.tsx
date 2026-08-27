@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, X, ChevronDown } from "lucide-react";
+import { Loader2, Plus, X, ChevronDown, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useOrgUnits } from "@/lib/hooks/use-org-units";
+
+// Google Calendar invites cap at 9 additional participants (10 attendees
+// total including the requester) — see directBookingSchema. A whole
+// department can easily exceed that, so adding one clips to whatever's
+// left and says so, rather than silently dropping people off the end.
+const MAX_PARTICIPANTS = 9;
 
 interface Props {
   open: boolean;
@@ -19,6 +26,7 @@ function todayIST(): string {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ScheduleCallDialog({ open, onClose, defaultDate, onScheduled }: Props) {
+  const { units } = useOrgUnits();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [participants, setParticipants] = useState<string[]>([]);
@@ -27,6 +35,8 @@ export function ScheduleCallDialog({ open, onClose, defaultDate, onScheduled }: 
   const [duration, setDuration] = useState(30);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [inviteDeptId, setInviteDeptId] = useState("");
+  const [inviteSubDeptId, setInviteSubDeptId] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -37,7 +47,35 @@ export function ScheduleCallDialog({ open, onClose, defaultDate, onScheduled }: 
     setTime("10:00");
     setDuration(30);
     setNote("");
+    setInviteDeptId("");
+    setInviteSubDeptId("");
   }, [open, defaultDate]);
+
+  const rootDepartments = units.filter((u) => !u.parent_id);
+  const subDepartments = units.filter((u) => u.parent_id === inviteDeptId);
+
+  function inviteWholeUnit() {
+    const unit = units.find((u) => u.id === (inviteSubDeptId || inviteDeptId));
+    if (!unit) return;
+    const emails = Array.from(new Set(
+      unit.members.map((m) => m.profile.email).filter((e): e is string => !!e && e !== email.trim())
+    ));
+    if (emails.length === 0) {
+      toast.error("No one with an email address is in that unit yet.");
+      return;
+    }
+
+    setParticipants((prev) => {
+      const merged = Array.from(new Set([...prev.filter(Boolean), ...emails]));
+      const clipped = merged.slice(0, MAX_PARTICIPANTS);
+      if (merged.length > MAX_PARTICIPANTS) {
+        toast.error(`Added ${clipped.length} of ${merged.length} people — Google Calendar invites cap at ${MAX_PARTICIPANTS} additional participants.`);
+      } else {
+        toast.success(`Added ${emails.length} ${emails.length === 1 ? "person" : "people"} from ${unit.name}.`);
+      }
+      return clipped;
+    });
+  }
 
   function addParticipant() {
     setParticipants((prev) => [...prev, ""]);
@@ -145,6 +183,41 @@ export function ScheduleCallDialog({ open, onClose, defaultDate, onScheduled }: 
           <div className="float-label-wrap">
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder=" " className="float-label-input" />
             <label className="float-label">Participant email *</label>
+          </div>
+
+          {/* Invite a whole Department/Sub-Department at once */}
+          <div className="flex flex-col gap-2 p-3 rounded-lg" style={{ background: "var(--panel-bg)", border: "1px solid var(--line-soft)" }}>
+            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Invite a whole team</p>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={inviteDeptId}
+                onChange={(e) => { setInviteDeptId(e.target.value); setInviteSubDeptId(""); }}
+                className="h-9 px-2.5 rounded-lg text-[13px] outline-none"
+                style={{ background: "var(--surface-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
+              >
+                <option value="">Department…</option>
+                {rootDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+              <select
+                value={inviteSubDeptId}
+                onChange={(e) => setInviteSubDeptId(e.target.value)}
+                disabled={!inviteDeptId || subDepartments.length === 0}
+                className="h-9 px-2.5 rounded-lg text-[13px] outline-none disabled:opacity-50"
+                style={{ background: "var(--surface-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
+              >
+                <option value="">{subDepartments.length === 0 ? "Whole dept" : "Whole department"}</option>
+                {subDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={inviteWholeUnit}
+              disabled={!inviteDeptId}
+              className="self-start flex items-center gap-1.5 text-[12px] font-semibold transition-opacity hover:opacity-70 disabled:opacity-50"
+              style={{ color: "var(--navy)" }}
+            >
+              <Users className="h-3.5 w-3.5" /> Add everyone in this unit
+            </button>
           </div>
 
           {participants.length > 0 && (

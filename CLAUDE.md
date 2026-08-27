@@ -22,6 +22,7 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 - Team tables (projects, tasks, activity): authenticated can SELECT; writes are owner/creator/assignee only.
 - Personal tables (attendance_sessions, calendar_events, notifications): owner-only for all operations.
 - `SUPABASE_SERVICE_ROLE_KEY` is server-only. Never prefix with `NEXT_PUBLIC_`.
+- File attachments (`project_files`, `task_files`): private storage buckets, visibility mirrors the parent row's own SELECT policy (project/task member, creator, or admin). Every read/write goes through the app's API routes — no direct client storage access.
 
 ## Attendance vs. task timers — never conflate
 - `attendance_sessions` = working hours clock. One open session per user. Source of truth for hours worked.
@@ -46,7 +47,7 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client. Never import `lib/supabase/admin` in `"use client"` files.
 - Never ship a table without RLS enabled.
 - Never commit `.env*` (`.env.example` is the only exception).
-- Never build anything in Out of Scope (v1): roles/permissions, manager attendance views, file uploads, recurrence UI, multi-tenant, multi-checklist per task, mobile app, comments/mentions, realtime.
+- Never build anything in Out of Scope (v1): roles/permissions, manager attendance views, recurrence UI, multi-tenant, multi-checklist per task, mobile app, comments/mentions, realtime.
 - Never use raw hex in components — only `var(--token-name)`.
 - Never sum task timer entries for "hours worked".
 

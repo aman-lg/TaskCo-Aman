@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, X, Loader2, ChevronDown, Table2 } from "lucide-react";
+import { ArrowLeft, Plus, X, Loader2, ChevronDown, Table2, Paperclip } from "lucide-react";
 import { useOrgUnits } from "@/lib/hooks/use-org-units";
 import { AssignedToPicker, type AssignedToValue, ASSIGNED_TO_SELECT_CLASS, ASSIGNED_TO_SELECT_STYLE } from "./assigned-to-picker";
 
@@ -22,10 +22,11 @@ interface Row {
   title: string;
   description: string;
   deadline: string;
+  file: File | null;
 }
 
 function newRow(deptId: string | null, subDeptId: string | null, projectId: string, personId: string): Row {
-  return { key: crypto.randomUUID(), deptId, subDeptId, projectId, personId, title: "", description: "", deadline: "" };
+  return { key: crypto.randomUUID(), deptId, subDeptId, projectId, personId, title: "", description: "", deadline: "", file: null };
 }
 
 const cellInputClass = "h-9 w-full px-2.5 rounded-lg text-[12.5px] outline-none";
@@ -107,6 +108,21 @@ export function BulkAssignGrid({ projects }: Props) {
           const assignJson = await assignRes.json().catch(() => ({}));
           failures.push(`"${row.title}": task created but assigning failed (${assignJson?.error?.message ?? "unknown error"})`);
         }
+
+        if (row.file) {
+          const fileForm = new FormData();
+          fileForm.append("file", row.file);
+          const fileRes = await fetch(`/api/tasks/${taskJson.data.id}/files`, {
+            method: "POST",
+            credentials: "same-origin",
+            body: fileForm,
+          });
+          if (!fileRes.ok) {
+            const fileJson = await fileRes.json().catch(() => ({}));
+            failures.push(`"${row.title}": task created but attachment failed (${fileJson?.error?.message ?? "unknown error"})`);
+          }
+        }
+
         createdTotal += 1;
       }
 
@@ -186,7 +202,7 @@ export function BulkAssignGrid({ projects }: Props) {
                   {/* Header */}
                   <div
                     className="grid gap-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider"
-                    style={{ gridTemplateColumns: "140px 140px 140px 140px 1.4fr 1.4fr 170px 32px", color: "var(--text-muted)", borderBottom: "1px solid var(--line-soft)" }}
+                    style={{ gridTemplateColumns: "140px 140px 140px 140px 1.4fr 1.4fr 170px 130px 32px", color: "var(--text-muted)", borderBottom: "1px solid var(--line-soft)" }}
                   >
                     <span>Department</span>
                     <span>Sub-Department</span>
@@ -195,6 +211,7 @@ export function BulkAssignGrid({ projects }: Props) {
                     <span>Task Title</span>
                     <span>Description</span>
                     <span>Deadline</span>
+                    <span>Attachment</span>
                     <span />
                   </div>
 
@@ -206,7 +223,7 @@ export function BulkAssignGrid({ projects }: Props) {
                         key={row.key}
                         className="grid gap-2 px-4 py-2.5 items-center"
                         style={{
-                          gridTemplateColumns: "140px 140px 140px 140px 1.4fr 1.4fr 170px 32px",
+                          gridTemplateColumns: "140px 140px 140px 140px 1.4fr 1.4fr 170px 130px 32px",
                           borderTop: idx > 0 ? "1px solid var(--line-soft)" : undefined,
                         }}
                       >
@@ -276,6 +293,33 @@ export function BulkAssignGrid({ projects }: Props) {
                           className={cellInputClass}
                           style={ASSIGNED_TO_SELECT_STYLE}
                         />
+
+                        <div className="flex items-center gap-1">
+                          <label
+                            className={`${ASSIGNED_TO_SELECT_CLASS} flex items-center gap-1.5 cursor-pointer`}
+                            style={ASSIGNED_TO_SELECT_STYLE}
+                          >
+                            <input
+                              type="file"
+                              className="hidden"
+                              onChange={(e) => updateRow(row.key, { file: e.target.files?.[0] ?? null })}
+                            />
+                            <Paperclip className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                            <span className="truncate" style={{ color: row.file ? "var(--ink)" : "var(--text-muted)" }}>
+                              {row.file ? row.file.name : "Attach…"}
+                            </span>
+                          </label>
+                          {row.file && (
+                            <button
+                              type="button"
+                              onClick={() => updateRow(row.key, { file: null })}
+                              style={{ color: "var(--text-muted)" }}
+                              aria-label="Remove attachment"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
 
                         <button type="button" onClick={() => removeRow(row.key)} style={{ color: "var(--text-muted)" }} aria-label="Remove row">
                           <X className="h-4 w-4" />

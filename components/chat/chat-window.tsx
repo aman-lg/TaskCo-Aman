@@ -136,7 +136,15 @@ export function ChatWindow({
     onMessageDeleted: handleMessageDeleted,
     onReactionChange: handleReactionChange,
     onReadUpdate: handleReadUpdate,
-    onTyping: setTypingUsers,
+    // The realtime payload only carries a user_id (typing_status has no
+    // profile join to attach) — resolve the display name from the
+    // conversation's own member list, which we already have.
+    onTyping: useCallback((users: TypingUser[]) => {
+      setTypingUsers(users.map((u) => ({
+        ...u,
+        name: conversation.members?.find((m) => m.user_id === u.user_id)?.profile?.full_name ?? u.name,
+      })));
+    }, [conversation.members]),
   });
 
   // ── Realtime resync — postgres_changes is at-most-once delivery; a
@@ -289,7 +297,7 @@ export function ChatWindow({
       />
 
       {/* Typing indicator */}
-      {!isSelf && <TypingIndicator typingUsers={typingUsers} />}
+      {!isSelf && <TypingIndicator typingUsers={typingUsers} isGroup={conversation.type === "group"} />}
 
       {/* Message input */}
       <MessageInput

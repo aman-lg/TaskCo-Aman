@@ -4,13 +4,20 @@ import type { TypingUser } from "@/types/chat";
 
 interface Props {
   typingUsers: TypingUser[];
+  isGroup: boolean;
 }
 
-export function TypingIndicator({ typingUsers }: Props) {
+export function TypingIndicator({ typingUsers, isGroup }: Props) {
   if (typingUsers.length === 0) return null;
 
+  // In a 1:1 chat there's only ever one person it could be — the header
+  // already names them right next to "typing…", so this bar just says
+  // "typing…" too instead of repeating a name. Groups need the name since
+  // it's not obvious who.
   let label: string;
-  if (typingUsers.length === 1) {
+  if (!isGroup) {
+    label = "typing…";
+  } else if (typingUsers.length === 1) {
     label = `${typingUsers[0].name ?? "Someone"} is typing`;
   } else if (typingUsers.length === 2) {
     label = `${typingUsers[0].name ?? "Someone"} and ${typingUsers[1].name ?? "someone"} are typing`;

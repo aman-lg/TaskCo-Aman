@@ -8,40 +8,20 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
-
-interface Profile {
-  id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  email: string | null;
-}
-
-interface Unit {
-  id: string;
-  parent_id: string | null;
-  name: string;
-  members: { user_id: string; profile: Profile }[];
-}
+import { useOrgUnits } from "@/lib/hooks/use-org-units";
+import { AssignedToPicker, type AssignedToValue } from "./assigned-to-picker";
 
 interface Project {
   id: string;
   title: string;
 }
 
-interface Group {
+interface Group extends AssignedToValue {
   key: string;
-  deptId: string | null;
-  subDeptId: string | null;
-  personIds: string[];
 }
 
 function newGroup(): Group {
   return { key: crypto.randomUUID(), deptId: null, subDeptId: null, personIds: [] };
-}
-
-function initials(name?: string | null, email?: string | null) {
-  if (name) return name.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2);
-  return (email?.[0] ?? "?").toUpperCase();
 }
 
 interface Props {
@@ -52,8 +32,7 @@ interface Props {
 
 export function BulkTaskDialog({ open, onClose, projects }: Props) {
   const router = useRouter();
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [loadingUnits, setLoadingUnits] = useState(false);
+  const { units, loading: loadingUnits } = useOrgUnits();
   const [groups, setGroups] = useState<Group[]>([newGroup()]);
 
   const [projectId, setProjectId] = useState("");
@@ -71,40 +50,18 @@ export function BulkTaskDialog({ open, onClose, projects }: Props) {
     setUrgency("medium");
     setDeadline("");
     setGroups([newGroup()]);
-    if (units.length === 0) {
-      setLoadingUnits(true);
-      fetch("/api/org/units", { credentials: "same-origin" })
-        .then((r) => r.json())
-        .then((j) => setUnits(j.data ?? []))
-        .finally(() => setLoadingUnits(false));
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const rootDepartments = useMemo(() => units.filter((u) => !u.parent_id), [units]);
-  const subDepartmentsOf = (deptId: string | null) => units.filter((u) => u.parent_id === deptId);
-  const unitById = (id: string | null) => units.find((u) => u.id === id) ?? null;
-
-  function candidatesFor(group: Group): { user_id: string; profile: Profile }[] {
-    const unit = unitById(group.subDeptId ?? group.deptId);
-    return unit?.members ?? [];
-  }
 
   const allSelectedIds = useMemo(
     () => Array.from(new Set(groups.flatMap((g) => g.personIds))),
     [groups]
   );
 
-  function updateGroup(key: string, patch: Partial<Group>) {
+  function updateGroup(key: string, patch: AssignedToValue) {
     setGroups((prev) => prev.map((g) => (g.key === key ? { ...g, ...patch } : g)));
-  }
-
-  function togglePerson(groupKey: string, userId: string) {
-    setGroups((prev) => prev.map((g) => {
-      if (g.key !== groupKey) return g;
-      const has = g.personIds.includes(userId);
-      return { ...g, personIds: has ? g.personIds.filter((id) => id !== userId) : [...g.personIds, userId] };
-    }));
   }
 
   async function handleSubmit() {
@@ -146,7 +103,7 @@ export function BulkTaskDialog({ open, onClose, projects }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-[560px] p-0 gap-0 overflow-hidden">
+      <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-[560px] p-0 gap-0 overflow-hidden" showCloseButton={false}>
         <DialogHeader className="flex flex-row items-center justify-between gap-3 px-6 py-4 border-b border-[var(--line)]">
           <DialogTitle className="h3 text-[var(--ink)]">Assign Task to Multiple People</DialogTitle>
           <button type="button" onClick={onClose} className="p-1.5 rounded-xl text-[var(--text-muted)] hover:bg-[var(--line-soft)]" aria-label="Close">
@@ -209,67 +166,20 @@ export function BulkTaskDialog({ open, onClose, projects }: Props) {
                 No departments set up yet — add them on the Org Chart page first.
               </p>
             ) : (
-              groups.map((group, idx) => {
-                const subDepts = subDepartmentsOf(group.deptId);
-                const candidates = candidatesFor(group);
-                return (
-                  <div key={group.key} className="rounded-xl p-3 flex flex-col gap-2.5" style={{ background: "var(--panel-bg)", border: "1px solid var(--line-soft)" }}>
-                    <div className="flex items-center justify-between">
-                      <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Group {idx + 1}</p>
-                      {groups.length > 1 && (
-                        <button type="button" onClick={() => setGroups((prev) => prev.filter((g) => g.key !== group.key))} style={{ color: "var(--text-muted)" }}>
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={group.deptId ?? ""}
-                        onChange={(e) => updateGroup(group.key, { deptId: e.target.value || null, subDeptId: null, personIds: [] })}
-                        className="h-9 px-2.5 rounded-lg text-[13px] outline-none"
-                        style={{ background: "var(--surface-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
-                      >
-                        <option value="">Department…</option>
-                        {rootDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                      <select
-                        value={group.subDeptId ?? ""}
-                        onChange={(e) => updateGroup(group.key, { subDeptId: e.target.value || null, personIds: [] })}
-                        disabled={!group.deptId || subDepts.length === 0}
-                        className="h-9 px-2.5 rounded-lg text-[13px] outline-none disabled:opacity-50"
-                        style={{ background: "var(--surface-bg)", border: "1px solid var(--line)", color: "var(--ink)" }}
-                      >
-                        <option value="">
-                          {subDepts.length === 0 ? "No sub-departments" : "Sub-department…"}
-                        </option>
-                        {subDepts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                    </div>
-
-                    {group.deptId && (
-                      candidates.length === 0 ? (
-                        <p className="text-[12px] text-center py-2" style={{ color: "var(--text-fine)" }}>No one is directly in this department yet.</p>
-                      ) : (
-                        <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                          {candidates.map(({ user_id, profile }) => {
-                            const checked = group.personIds.includes(user_id);
-                            return (
-                              <label key={user_id} className="flex items-center gap-2 py-1 px-1.5 rounded-lg hover:bg-[var(--line-soft)] cursor-pointer">
-                                <input type="checkbox" checked={checked} onChange={() => togglePerson(group.key, user_id)} />
-                                <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-bold" style={{ background: "var(--navy-l)", color: "var(--navy)" }}>
-                                  {initials(profile.full_name, profile.email)}
-                                </div>
-                                <span className="text-[12.5px]" style={{ color: "var(--ink)" }}>{profile.full_name ?? profile.email}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )
+              groups.map((group, idx) => (
+                <div key={group.key} className="rounded-xl p-3 flex flex-col gap-2.5" style={{ background: "var(--panel-bg)", border: "1px solid var(--line-soft)" }}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Group {idx + 1}</p>
+                    {groups.length > 1 && (
+                      <button type="button" onClick={() => setGroups((prev) => prev.filter((g) => g.key !== group.key))} style={{ color: "var(--text-muted)" }}>
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     )}
                   </div>
-                );
-              })
+
+                  <AssignedToPicker units={units} value={group} onChange={(v) => updateGroup(group.key, v)} />
+                </div>
+              ))
             )}
 
             <button

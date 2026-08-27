@@ -62,7 +62,7 @@ export function KanbanBoard({ tasks: serverTasks, projectId, currentUserId }: Pr
   const [tasks, setTasks] = useState<TaskWithChecklist[]>(serverTasks);
   const [addingIn, setAddingIn] = useState<TaskStatus | null>(null);
   const [detailTask, setDetailTask] = useState<TaskWithChecklist | null>(null);
-  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [editTask, setEditTask] = useState<TaskWithChecklist | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -220,7 +220,7 @@ interface ColumnProps {
   currentUserId: string;
   onAddClick: () => void;
   onOpen: (task: TaskWithChecklist) => void;
-  onEdit: (task: Task) => void;
+  onEdit: (task: TaskWithChecklist) => void;
   onDelete: (task: Task) => void;
   onMove: (task: Task, status: TaskStatus) => void;
 }

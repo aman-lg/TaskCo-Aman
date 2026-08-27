@@ -9,6 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TaskFormDialog } from "./task-form-dialog";
 import { TaskChecklist } from "./task-checklist";
 import type { Task } from "@/types";
+import type { AssigneeProfile } from "@/lib/queries/tasks";
 
 type ChecklistItemMin = { id: string; is_done: boolean; content: string | null; position: number | null };
 
@@ -31,7 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 interface Props {
-  task: (Task & { task_checklist_items: ChecklistItemMin[] }) | null;
+  task: (Task & { task_checklist_items: ChecklistItemMin[]; task_assignees?: AssigneeProfile[] }) | null;
   open: boolean;
   onClose: () => void;
   currentUserId: string;

@@ -15,6 +15,9 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { createTaskSchema, type CreateTaskInput } from "@/lib/validations/tasks";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
+import type { AssigneeProfile } from "@/lib/queries/tasks";
+import { useOrgUnits } from "@/lib/hooks/use-org-units";
+import { AssignedToPicker, type AssignedToValue } from "./assigned-to-picker";
 
 const URGENCY_OPTIONS = [
   { value: "low",    label: "Low" },
@@ -33,7 +36,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   projectId: string;
-  task?: Task;
+  task?: Task & { task_assignees?: AssigneeProfile[] };
   defaultStatus?: "todo" | "in_progress" | "done";
   defaultDeadline?: string;
   /** When provided, renders a visible Project selector instead of a fixed hidden field (used where the target project is ambiguous, e.g. the dashboard). */
@@ -42,8 +45,18 @@ interface Props {
 
 export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus = "todo", defaultDeadline, projects }: Props) {
   const router = useRouter();
+  const { units } = useOrgUnits();
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!task;
+
+  // Existing assignees (edit mode) shown as removable chips, separate from
+  // the department-scoped picker below which is only for adding new people —
+  // current assignees rarely all belong to one department/sub-department, so
+  // trying to force them through that same narrowing picker would silently
+  // hide whoever doesn't match whatever department happens to be selected.
+  const [currentAssignees, setCurrentAssignees] = useState<AssigneeProfile[]>([]);
+  const [removedAssigneeIds, setRemovedAssigneeIds] = useState<string[]>([]);
+  const [addAssignees, setAddAssignees] = useState<AssignedToValue>({ deptId: null, subDeptId: null, personIds: [] });
 
   const {
     register,
@@ -75,6 +88,7 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
         start_date: task.start_date ?? undefined,
         end_date: task.end_date ?? undefined,
       });
+      setCurrentAssignees(task.task_assignees ?? []);
     } else if (open && !task) {
       reset({
         project_id: projectId,
@@ -84,7 +98,10 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
         status: defaultStatus,
         deadline: defaultDeadline ? `${defaultDeadline}T09:00` : undefined,
       });
+      setCurrentAssignees([]);
     }
+    setRemovedAssigneeIds([]);
+    setAddAssignees({ deptId: null, subDeptId: null, personIds: [] });
     setServerError(null);
   }, [open, task, projectId, defaultStatus, defaultDeadline, reset]);
 
@@ -111,6 +128,29 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
       setServerError(json.error?.message ?? "Something went wrong");
       return;
     }
+
+    const taskId: string = isEdit ? task!.id : json.data.id;
+    const currentIds = new Set(currentAssignees.map((a) => a.user_id));
+    const toAdd = addAssignees.personIds.filter((id) => !currentIds.has(id));
+    const toRemove = removedAssigneeIds.filter((id) => currentIds.has(id));
+
+    await Promise.all([
+      ...toAdd.map((user_id) =>
+        fetch(`/api/tasks/${taskId}/assignees`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ user_id }),
+        })
+      ),
+      ...toRemove.map((user_id) =>
+        fetch(`/api/tasks/${taskId}/assignees?user_id=${user_id}`, {
+          method: "DELETE",
+          credentials: "same-origin",
+        })
+      ),
+    ]);
+
     router.refresh();
     onClose();
   };
@@ -224,6 +264,39 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
                   className="float-label-input"
                 />
                 <label className="float-label">Deadline (optional)</label>
+              </div>
+
+              {/* Assigned To */}
+              <div className="flex flex-col gap-2">
+                <p className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  Assigned To
+                </p>
+
+                {currentAssignees.filter((a) => !removedAssigneeIds.includes(a.user_id)).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {currentAssignees
+                      .filter((a) => !removedAssigneeIds.includes(a.user_id))
+                      .map((a) => (
+                        <span
+                          key={a.user_id}
+                          className="flex items-center gap-1.5 h-7 pl-2.5 pr-1.5 rounded-full text-[12px] font-medium"
+                          style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+                        >
+                          {a.assignee?.full_name ?? "Unknown"}
+                          <button
+                            type="button"
+                            onClick={() => setRemovedAssigneeIds((prev) => [...prev, a.user_id])}
+                            className="p-0.5 rounded-full hover:bg-black/10"
+                            aria-label={`Remove ${a.assignee?.full_name ?? "assignee"}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                  </div>
+                )}
+
+                <AssignedToPicker units={units} value={addAssignees} onChange={setAddAssignees} />
               </div>
 
               {serverError && (

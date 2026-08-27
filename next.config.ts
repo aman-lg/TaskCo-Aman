@@ -31,7 +31,13 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // Microphone is needed for both voice-note recording (on our own
+          // origin) and the Daily.co call iframe — a blanket microphone=()
+          // here doesn't just fail to prompt for permission, it prevents
+          // the browser from ever asking at all (and blocks delegating the
+          // permission into the call iframe), which is exactly the "access
+          // denied, no prompt ever appeared" symptom.
+          { key: "Permissions-Policy", value: 'camera=(), microphone=(self "https://taskco.daily.co"), geolocation=()' },
           {
             key: "Content-Security-Policy",
             value: [
@@ -50,8 +56,9 @@ const nextConfig: NextConfig = {
               // storage and routes Word/Excel through Microsoft's viewer —
               // both are different origins, and with no frame-src set this
               // fell back to default-src 'self', silently blocking every
-              // embed ("This content is blocked").
-              "frame-src 'self' https://*.supabase.co https://view.officeapps.live.com",
+              // embed ("This content is blocked"). Daily.co's call room is
+              // the same story — it's an iframe to a different origin too.
+              "frame-src 'self' https://*.supabase.co https://view.officeapps.live.com https://*.daily.co",
               "frame-ancestors 'none'",
             ].join("; "),
           },

@@ -18,6 +18,9 @@ interface Props {
   value: AssignedToValue;
   onChange: (value: AssignedToValue) => void;
   className?: string;
+  /** Applied to each of the 3 fields individually — lets a "contents"-wrapped
+   * group size its fields consistently within a parent flex/grid layout. */
+  fieldClassName?: string;
 }
 
 /**
@@ -26,7 +29,7 @@ interface Props {
  * dialog, the project's own New/Edit Task dialog, and the bulk-assign grid)
  * so the picking behavior — and any future fix to it — only lives once.
  */
-export function AssignedToPicker({ units, value, onChange, className }: Props) {
+export function AssignedToPicker({ units, value, onChange, className, fieldClassName = "" }: Props) {
   const rootDepartments = units.filter((u) => !u.parent_id);
   const subDepartmentsOf = (deptId: string | null) => units.filter((u) => u.parent_id === deptId);
   const unitById = (id: string | null) => units.find((u) => u.id === id) ?? null;
@@ -38,7 +41,7 @@ export function AssignedToPicker({ units, value, onChange, className }: Props) {
       <select
         value={value.deptId ?? ""}
         onChange={(e) => onChange({ deptId: e.target.value || null, subDeptId: null, personIds: [] })}
-        className={ASSIGNED_TO_SELECT_CLASS}
+        className={`${ASSIGNED_TO_SELECT_CLASS} ${fieldClassName}`}
         style={ASSIGNED_TO_SELECT_STYLE}
       >
         <option value="">Department…</option>
@@ -49,7 +52,7 @@ export function AssignedToPicker({ units, value, onChange, className }: Props) {
         value={value.subDeptId ?? ""}
         onChange={(e) => onChange({ ...value, subDeptId: e.target.value || null, personIds: [] })}
         disabled={!value.deptId || subDepts.length === 0}
-        className={ASSIGNED_TO_SELECT_CLASS}
+        className={`${ASSIGNED_TO_SELECT_CLASS} ${fieldClassName}`}
         style={ASSIGNED_TO_SELECT_STYLE}
       >
         <option value="">{subDepts.length === 0 ? "Whole dept" : "Whole department"}</option>
@@ -57,6 +60,7 @@ export function AssignedToPicker({ units, value, onChange, className }: Props) {
       </select>
 
       <PeopleMultiSelect
+        wrapperClassName={fieldClassName}
         candidates={candidates}
         selectedIds={value.personIds}
         onChange={(personIds) => onChange({ ...value, personIds })}
@@ -71,11 +75,13 @@ function PeopleMultiSelect({
   selectedIds,
   onChange,
   disabled,
+  wrapperClassName = "",
 }: {
   candidates: OrgUnit["members"];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
+  wrapperClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -102,7 +108,7 @@ function PeopleMultiSelect({
     `${selectedNames.length} people selected`;
 
   return (
-    <div className="relative" ref={ref}>
+    <div className={`relative ${wrapperClassName}`} ref={ref}>
       <button
         type="button"
         disabled={disabled}

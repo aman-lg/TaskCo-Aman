@@ -152,16 +152,10 @@ export default async function TasksPage() {
                       <Link
                         key={task.id}
                         href={`/projects/${projectId}`}
-                        className="flex items-center gap-4 px-4 py-3 transition-colors duration-100"
+                        className="flex items-center gap-4 px-4 py-3 transition-colors duration-100 hover:bg-[var(--panel-bg)]"
                         style={{
                           borderTop: idx > 0 ? "1px solid var(--line-soft)" : undefined,
                         }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.background = "var(--panel-bg)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.background = "transparent")
-                        }
                       >
                         {/* Status dot */}
                         <span

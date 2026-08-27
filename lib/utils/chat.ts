@@ -157,7 +157,7 @@ export function getLastMessagePreview(
     case "call":       return `${prefix}📞 Voice call`;
     case "sticker":    return `${prefix}😊 Sticker`;
     case "system":     return msg.content ?? "";
-    default:           return `${prefix}${msg.content ?? ""}`;
+    default:           return `${prefix}${stripMentionTokens(msg.content ?? "")}`;
   }
 }
 
@@ -283,4 +283,42 @@ export function isVideoMime(mime: string | undefined): boolean {
 export function isAudioMime(mime: string | undefined): boolean {
   if (!mime) return false;
   return mime.startsWith("audio/");
+}
+
+// ---------------------------------------------------------------------------
+// @mentions — stored inline in message content as @[Full Name](user-id),
+// same idea as a markdown link, so the raw text stays human-readable even
+// wherever it isn't specially rendered (notifications, exports, etc).
+// ---------------------------------------------------------------------------
+
+const MENTION_TOKEN = /@\[([^\]]+)\]\(([0-9a-f-]{36})\)/g;
+
+export function extractMentionIds(content: string): string[] {
+  const ids = new Set<string>();
+  for (const match of content.matchAll(MENTION_TOKEN)) ids.add(match[2]);
+  return Array.from(ids);
+}
+
+export interface MentionSegment {
+  type: "text" | "mention";
+  text: string;
+  userId?: string;
+}
+
+/** Plain-text rendering of message content — mention tokens collapse to "@Name" so it's safe to show anywhere that only renders raw text (notifications, previews). */
+export function stripMentionTokens(content: string): string {
+  return content.replace(MENTION_TOKEN, (_m, name) => `@${name}`);
+}
+
+export function parseMentionSegments(content: string): MentionSegment[] {
+  const segments: MentionSegment[] = [];
+  let lastIndex = 0;
+  for (const match of content.matchAll(MENTION_TOKEN)) {
+    const idx = match.index ?? 0;
+    if (idx > lastIndex) segments.push({ type: "text", text: content.slice(lastIndex, idx) });
+    segments.push({ type: "mention", text: match[1], userId: match[2] });
+    lastIndex = idx + match[0].length;
+  }
+  if (lastIndex < content.length) segments.push({ type: "text", text: content.slice(lastIndex) });
+  return segments;
 }

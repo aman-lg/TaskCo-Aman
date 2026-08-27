@@ -63,6 +63,8 @@ export interface MessageMetadata {
   /** Only for type === "call" */
   room_url?: string;
   room_name?: string;
+  /** user_ids of anyone @mentioned in this message's content */
+  mentions?: string[];
 }
 
 export interface ChatMessage {

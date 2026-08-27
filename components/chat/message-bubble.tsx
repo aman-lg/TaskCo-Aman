@@ -4,7 +4,7 @@ import { useState } from "react";
 import { MoreHorizontal, CornerUpLeft, Pencil, FileText, Phone } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatMessage } from "@/types/chat";
-import { formatMessageTime, getMessageStatus, getMemberColor, formatFileSize } from "@/lib/utils/chat";
+import { formatMessageTime, getMessageStatus, getMemberColor, formatFileSize, parseMentionSegments, stripMentionTokens } from "@/lib/utils/chat";
 import { MessageStatus } from "./message-status";
 import { MessageActionsMenu } from "./message-actions-menu";
 import PollDisplay from "./poll-display";
@@ -141,7 +141,7 @@ export function MessageBubble({
                 {message.reply_to.sender?.full_name ?? "Unknown"}
               </p>
               <p className="truncate opacity-75" style={{ color: isOwn ? "rgba(255,255,255,0.6)" : "var(--text-muted)" }}>
-                {message.reply_to.content ?? "Media"}
+                {message.reply_to.content ? stripMentionTokens(message.reply_to.content) : "Media"}
               </p>
             </div>
           </div>
@@ -172,7 +172,24 @@ export function MessageBubble({
               {/* Text content */}
               {message.type === "text" && message.content && (
                 <p className="text-[13.5px] leading-snug whitespace-pre-wrap break-words">
-                  {message.content}
+                  {parseMentionSegments(message.content).map((seg, i) => {
+                    if (seg.type === "text") return <span key={i}>{seg.text}</span>;
+                    const isMe = seg.userId === currentUserId;
+                    return (
+                      <span
+                        key={i}
+                        className="font-semibold"
+                        style={{
+                          color: isMe ? "var(--accent-brand)" : isOwn ? "rgba(255,255,255,0.95)" : "var(--navy)",
+                          background: isMe ? "var(--accent-bg)" : "transparent",
+                          borderRadius: isMe ? 4 : 0,
+                          padding: isMe ? "0 4px" : 0,
+                        }}
+                      >
+                        @{seg.text}
+                      </span>
+                    );
+                  })}
                 </p>
               )}
 

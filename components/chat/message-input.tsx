@@ -21,10 +21,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import PollCreator from "./poll-creator";
 import type { ChatMessage } from "@/types/chat";
+import { extractMentionIds, stripMentionTokens } from "@/lib/utils/chat";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+interface MentionCandidate {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
+}
 
 interface MessageInputProps {
   conversationId: string;
@@ -39,6 +46,8 @@ interface MessageInputProps {
   disabled?: boolean;
   adminOnly?: boolean;
   isAdmin?: boolean;
+  /** For @mention autocomplete — omit to disable mentions entirely (e.g. self-chat). */
+  members?: MentionCandidate[];
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +78,7 @@ export function MessageInput({
   disabled = false,
   adminOnly = false,
   isAdmin = false,
+  members = [],
 }: MessageInputProps) {
   const sendTyping = sendTypingProp ?? (() => {});
   const [text, setText] = useState("");
@@ -78,6 +88,8 @@ export function MessageInput({
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -143,9 +155,42 @@ export function MessageInput({
     }
   }
 
+  // -------------------------------------------------------------------------
+  // @mentions
+  // -------------------------------------------------------------------------
+
+  const mentionCandidates = mentionQuery === null ? [] : members
+    .filter((m) => m.user_id !== currentUserId)
+    .filter((m) => (m.full_name ?? m.email ?? "").toLowerCase().includes(mentionQuery.toLowerCase()))
+    .slice(0, 6);
+
+  function updateMentionQuery(value: string, caret: number) {
+    const beforeCaret = value.slice(0, caret);
+    const match = beforeCaret.match(/(?:^|\s)@(\w*)$/);
+    setMentionQuery(match ? match[1] : null);
+    setMentionIndex(0);
+  }
+
+  function insertMention(candidate: MentionCandidate) {
+    const el = textareaRef.current;
+    const caret = el?.selectionStart ?? text.length;
+    const beforeCaret = text.slice(0, caret);
+    const afterCaret = text.slice(caret);
+    const replaced = beforeCaret.replace(/(?:^|\s)@\w*$/, (m) => `${m[0] === "@" ? "" : m[0]}@[${candidate.full_name ?? candidate.email ?? "Someone"}](${candidate.user_id}) `);
+    const next = replaced + afterCaret;
+    setText(next);
+    setMentionQuery(null);
+    requestAnimationFrame(() => {
+      el?.focus();
+      const pos = replaced.length;
+      el?.setSelectionRange(pos, pos);
+    });
+  }
+
   function handleTextChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value;
     setText(val);
+    updateMentionQuery(val, e.target.selectionStart ?? val.length);
 
     if (val.length > 0) {
       sendTyping(true);
@@ -169,6 +214,7 @@ export function MessageInput({
     sendTyping(false);
     stopTypingHeartbeat();
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    setMentionQuery(null);
   }
 
   // -------------------------------------------------------------------------
@@ -221,7 +267,10 @@ export function MessageInput({
         content,
       };
       if (replyTo) body.reply_to_id = replyTo.id;
-      if (metadata) body.metadata = metadata;
+      const mentions = type === "text" ? extractMentionIds(content) : [];
+      if (metadata || mentions.length > 0) {
+        body.metadata = mentions.length > 0 ? { ...metadata, mentions } : metadata;
+      }
 
       const res = await fetch(
         `/api/chat/conversations/${conversationId}/messages`,
@@ -256,6 +305,29 @@ export function MessageInput({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionQuery !== null && mentionCandidates.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % mentionCandidates.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + mentionCandidates.length) % mentionCandidates.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        insertMention(mentionCandidates[mentionIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionQuery(null);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void sendMessage();
@@ -573,7 +645,7 @@ export function MessageInput({
                 }}
               >
                 {replyTo.type === "text"
-                  ? replyTo.content
+                  ? stripMentionTokens(replyTo.content ?? "")
                   : `[${replyTo.type}]`}
               </div>
             </div>
@@ -782,48 +854,97 @@ export function MessageInput({
             </div>
 
             {/* Textarea */}
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={handleTextChange}
-              onKeyDown={handleKeyDown}
-              onBlur={handleBlur}
-              onPaste={(e) => void handlePaste(e)}
-              disabled={!canSend}
-              rows={1}
-              placeholder={
-                isUploading
-                  ? "Uploading…"
-                  : disabled
-                  ? "You cannot send messages here"
-                  : editingMessage
-                  ? "Edit message…"
-                  : "Type a message…"
-              }
-              style={{
-                flex: 1,
-                resize: "none",
-                border: "1px solid var(--line)",
-                borderRadius: 20,
-                padding: "8px 14px",
-                fontSize: 14,
-                fontFamily: "inherit",
-                color: "var(--ink)",
-                background: "var(--surface-bg)",
-                outline: "none",
-                lineHeight: "24px",
-                overflowY: "auto",
-                maxHeight: `${24 * 6 + 16}px`,
-                minHeight: 40,
-                transition: "border-color 0.15s",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = "var(--navy)";
-              }}
-              onBlurCapture={(e) => {
-                e.currentTarget.style.borderColor = "var(--line)";
-              }}
-            />
+            <div style={{ position: "relative", flex: 1 }}>
+              {mentionQuery !== null && mentionCandidates.length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "calc(100% + 8px)",
+                    left: 0,
+                    background: "var(--surface-bg)",
+                    border: "1px solid var(--line)",
+                    borderRadius: 10,
+                    padding: 4,
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
+                    zIndex: 50,
+                    minWidth: 200,
+                    maxWidth: 280,
+                  }}
+                >
+                  {mentionCandidates.map((c, i) => (
+                    <button
+                      key={c.user_id}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertMention(c);
+                      }}
+                      onMouseEnter={() => setMentionIndex(i)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        width: "100%",
+                        gap: 8,
+                        padding: "6px 8px",
+                        border: "none",
+                        borderRadius: 6,
+                        background: i === mentionIndex ? "var(--navy-l)" : "none",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontSize: 13,
+                        color: "var(--ink)",
+                        fontFamily: "var(--font-display)",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: "var(--navy)" }}>
+                        {c.full_name ?? c.email ?? "Unknown"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={handleTextChange}
+                onKeyDown={handleKeyDown}
+                onBlur={handleBlur}
+                onPaste={(e) => void handlePaste(e)}
+                disabled={!canSend}
+                rows={1}
+                placeholder={
+                  isUploading
+                    ? "Uploading…"
+                    : disabled
+                    ? "You cannot send messages here"
+                    : editingMessage
+                    ? "Edit message…"
+                    : "Type a message…"
+                }
+                style={{
+                  width: "100%",
+                  resize: "none",
+                  border: "1px solid var(--line)",
+                  borderRadius: 20,
+                  padding: "8px 14px",
+                  fontSize: 14,
+                  fontFamily: "inherit",
+                  color: "var(--ink)",
+                  background: "var(--surface-bg)",
+                  outline: "none",
+                  lineHeight: "24px",
+                  overflowY: "auto",
+                  maxHeight: `${24 * 6 + 16}px`,
+                  minHeight: 40,
+                  transition: "border-color 0.15s",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "var(--navy)";
+                }}
+                onBlurCapture={(e) => {
+                  e.currentTarget.style.borderColor = "var(--line)";
+                }}
+              />
+            </div>
 
             {/* Right: send or mic */}
             <div style={{ paddingBottom: 4, flexShrink: 0 }}>

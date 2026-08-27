@@ -47,7 +47,7 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client. Never import `lib/supabase/admin` in `"use client"` files.
 - Never ship a table without RLS enabled.
 - Never commit `.env*` (`.env.example` is the only exception).
-- Never build anything in Out of Scope (v1): roles/permissions, manager attendance views, recurrence UI, multi-tenant, multi-checklist per task, mobile app, comments/mentions, realtime.
+- Never build anything in Out of Scope (v1): roles/permissions, manager attendance views, recurrence UI, multi-tenant, multi-checklist per task, mobile app, comments, realtime.
 - Never use raw hex in components — only `var(--token-name)`.
 - Never sum task timer entries for "hours worked".
 

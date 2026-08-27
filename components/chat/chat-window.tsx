@@ -313,6 +313,15 @@ export function ChatWindow({
         disabled={false}
         adminOnly={conversation.admin_only_messages && !isAdmin}
         isAdmin={isAdmin}
+        members={
+          conversation.type === "group"
+            ? conversation.members?.map((m) => ({
+                user_id: m.user_id,
+                full_name: m.profile?.full_name ?? null,
+                email: m.profile?.email ?? null,
+              }))
+            : undefined
+        }
       />
 
       <ForwardDialog

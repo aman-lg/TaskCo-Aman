@@ -3,8 +3,10 @@ import { z } from "zod";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidUUID } from "@/lib/utils/validate";
 import { getMessages } from "@/lib/queries/chat";
+import { stripMentionTokens } from "@/lib/utils/chat";
 
 const pollInputSchema = z.object({
   question: z.string().min(1).max(255),
@@ -24,6 +26,10 @@ const metadataSchema = z.object({
   duration: z.number().optional(),
   thumbnail: z.string().optional(),
   waveform: z.array(z.number()).optional(),
+  // user_ids @mentioned in this message's content — only meaningful for
+  // type === "text", validated against actual conversation membership
+  // server-side before any notification is created.
+  mentions: z.array(z.string().uuid()).optional(),
   // Poll definition, only meaningful when type === "poll" — the message
   // itself is never persisted with this; it's consumed to create real
   // polls/poll_options rows instead (see POST handler below).
@@ -117,6 +123,7 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
   if (!parsed.success) return ApiError.badRequest(parsed.error.issues[0].message);
 
   const { type, content, reply_to_id, forwarded_from_id, is_forwarded, metadata, disappears_at } = parsed.data;
+  const mentionIds = metadata?.mentions ?? [];
 
   if (type === "text" && (!content || content.trim() === "")) {
     return ApiError.badRequest("Text messages cannot be empty.");
@@ -243,6 +250,38 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
     .update({ last_read_at: new Date().toISOString() })
     .eq("conversation_id", id)
     .eq("user_id", user.id);
+
+  // @mention notifications — notifications has no client insert policy (see
+  // 004_rls.sql), so this has to go through the admin client. Only notify
+  // ids that are actually members of this conversation, never trust the
+  // client's list as-is.
+  if (type === "text" && mentionIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: allMembers } = await (supabase as any)
+      .from("conversation_members")
+      .select("user_id")
+      .eq("conversation_id", id);
+
+    const memberIds = new Set((allMembers ?? []).map((m: { user_id: string }) => m.user_id));
+    const targets = Array.from(new Set(mentionIds)).filter((uid) => uid !== user.id && memberIds.has(uid));
+
+    if (targets.length > 0) {
+      const senderName = msg.sender?.full_name ?? msg.sender?.email ?? "Someone";
+      const admin = createAdminClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: notifErr } = await (admin as any).from("notifications").insert(
+        targets.map((uid) => ({
+          user_id: uid,
+          type: "mention",
+          title: `${senderName} mentioned you`,
+          body: stripMentionTokens(content ?? "").slice(0, 200),
+          entity_type: "message",
+          entity_id: msg.id,
+        }))
+      );
+      if (notifErr) console.error("[chat/messages POST] mention notification insert failed", notifErr);
+    }
+  }
 
   return ok({ message: msg });
 });

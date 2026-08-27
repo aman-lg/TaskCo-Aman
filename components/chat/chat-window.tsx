@@ -157,11 +157,30 @@ export function ChatWindow({
         const json = await res.json().catch(() => null);
         const fresh: ChatMessage[] = json?.data?.messages ?? [];
         if (fresh.length === 0 || cancelled) return;
+
+        // Not-yet-read messages from the other person: the realtime path
+        // (handleNewMessage) marks these read the instant its own INSERT
+        // event fires, but a message only ever caught here (because that
+        // event was missed) never went through that path — so double
+        // ticks could get stuck gray forever instead of turning blue.
+        for (const m of fresh) {
+          if (m.sender_id === currentUserId) continue;
+          const myRead = (m.reads ?? []).find((r) => r.user_id === currentUserId);
+          if (!myRead?.read_at) {
+            fetch(`/api/chat/messages/${m.id}/read`, { method: "POST" }).catch(() => {});
+          }
+        }
+
         setMessages((prev) => {
+          const freshById = new Map(fresh.map((m) => [m.id, m]));
           const existingIds = new Set(prev.map((m) => m.id));
+          // Refresh anything already in view too (not just append missing) —
+          // this is what catches a message_reads/reaction realtime update
+          // that got dropped the same way a message INSERT can.
+          const refreshed = prev.map((m) => (freshById.has(m.id) ? { ...m, ...freshById.get(m.id) } : m));
           const missing = fresh.filter((m) => !existingIds.has(m.id));
-          if (missing.length === 0) return prev;
-          return [...prev, ...missing].sort(
+          if (missing.length === 0) return refreshed;
+          return [...refreshed, ...missing].sort(
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
         });

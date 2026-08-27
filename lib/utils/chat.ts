@@ -154,6 +154,7 @@ export function getLastMessagePreview(
     case "voice_note": return `${prefix}🎙 Voice note`;
     case "document":   return `${prefix}📄 ${(msg.metadata as { name?: string } | null)?.name ?? "Document"}`;
     case "poll":       return `${prefix}📊 Poll`;
+    case "call":       return `${prefix}📞 Voice call`;
     case "sticker":    return `${prefix}😊 Sticker`;
     case "system":     return msg.content ?? "";
     default:           return `${prefix}${msg.content ?? ""}`;

@@ -34,8 +34,6 @@ export function useChatRealtime({
   onMemberChange,
 }: UseChatRealtimeOptions): { sendTyping: (isTyping: boolean) => void } {
   const typingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const channelRef = useRef<any>(null);
 
   // Stable callback refs so listeners don't need to re-subscribe
   const onNewMessageRef = useRef(onNewMessage);
@@ -59,9 +57,7 @@ export function useChatRealtime({
     const supabase = createClient();
     let cancelled = false;
 
-    const channel = supabase.channel(`chat:${conversationId}`, {
-      config: { presence: { key: currentUserId } },
-    });
+    const channel = supabase.channel(`chat:${conversationId}`);
 
     // ── messages ──────────────────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -117,18 +113,45 @@ export function useChatRealtime({
       if (payload.new) onReadUpdateRef.current(payload.new);
     });
 
-    // ── presence: typing ──────────────────────────────────────────────────
-    channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState<{ typing?: boolean; name?: string }>();
-      const typingList: TypingUser[] = [];
-      for (const [uid, presences] of Object.entries(state)) {
-        if (uid === currentUserId) continue;
-        const latest = (presences as Array<{ typing?: boolean; name?: string }>)[0];
-        if (latest?.typing) {
-          typingList.push({ user_id: uid, name: latest.name ?? null });
-        }
-      }
-      onTypingRef.current(typingList);
+    // ── typing ────────────────────────────────────────────────────────────
+    // A real row + postgres_changes instead of presence — see
+    // 038_typing_status.sql for why presence didn't work out. "Typing"
+    // just means "this user has a row updated in the last few seconds";
+    // there's no explicit stop event, each sighting just (re)starts a local
+    // timer that drops them from the list if nothing refreshes it in time.
+    const typingUsersMap = new Map<string, string | null>();
+    function noteTyping(userId: string, name: string | null) {
+      if (userId === currentUserId) return;
+      typingUsersMap.set(userId, name);
+      onTypingRef.current(Array.from(typingUsersMap, ([user_id, n]) => ({ user_id, name: n })));
+
+      const existing = typingTimersRef.current.get(userId);
+      if (existing) clearTimeout(existing);
+      typingTimersRef.current.set(userId, setTimeout(() => {
+        typingUsersMap.delete(userId);
+        typingTimersRef.current.delete(userId);
+        onTypingRef.current(Array.from(typingUsersMap, ([user_id, n]) => ({ user_id, name: n })));
+      }, 3000));
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    channel.on("postgres_changes" as any, {
+      event: "INSERT",
+      schema: "public",
+      table: "typing_status",
+      filter: `conversation_id=eq.${conversationId}`,
+    }, (payload: { new: { user_id: string } }) => {
+      noteTyping(payload.new.user_id, null);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    channel.on("postgres_changes" as any, {
+      event: "UPDATE",
+      schema: "public",
+      table: "typing_status",
+      filter: `conversation_id=eq.${conversationId}`,
+    }, (payload: { new: { user_id: string } }) => {
+      noteTyping(payload.new.user_id, null);
     });
 
     // Explicitly sync the Realtime socket's auth token before subscribing —
@@ -140,8 +163,6 @@ export function useChatRealtime({
       if (session) supabase.realtime.setAuth(session.access_token);
       channel.subscribe();
     })();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    channelRef.current = channel as any;
 
     return () => {
       cancelled = true;
@@ -153,10 +174,12 @@ export function useChatRealtime({
 
   const sendTyping = useCallback(
     (isTyping: boolean) => {
-      if (!channelRef.current) return;
-      channelRef.current.track({ typing: isTyping });
+      // No explicit "stop" call needed — see 038_typing_status.sql; the
+      // receiving side just lets a stale row time out on its own.
+      if (!isTyping) return;
+      fetch(`/api/chat/conversations/${conversationId}/typing`, { method: "POST" }).catch(() => {});
     },
-    [],
+    [conversationId],
   );
 
   return { sendTyping };
@@ -252,16 +275,33 @@ export function useOnlinePresence(
       });
     });
 
+    // last_seen_at was only ever read (chat-header, info panel, sidebar) and
+    // never written anywhere in the codebase — it was permanently null for
+    // every user, which is why "Last Active" never had anything to show.
+    // Stamp it now, and keep it fresh with a heartbeat while this hook is
+    // mounted (i.e. while the user has the app open), so going offline still
+    // leaves a reasonably recent timestamp behind (worst case, stale by one
+    // heartbeat interval — there's no reliable "goodbye" signal on tab close).
+    function touchLastSeen() {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from("profiles").update({ last_seen_at: new Date().toISOString() }).eq("id", currentUserId).then();
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) supabase.realtime.setAuth(session.access_token);
       channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
           await channel.track({ online: true, name });
+          touchLastSeen();
         }
       });
     });
 
+    const heartbeat = setInterval(touchLastSeen, 60_000);
+
     return () => {
+      clearInterval(heartbeat);
+      touchLastSeen();
       channel.untrack();
       supabase.removeChannel(channel);
     };

@@ -30,7 +30,7 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 
 ## Deployment
 - **Platform**: Vercel. Auto-deploys on every push to `main`.
-- Required env vars on Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+- Required env vars on Vercel: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NEXT_PUBLIC_APP_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `DAILY_API_KEY`.
 
 ## Security patterns
 - **UUID validation**: call `isValidUUID()` from `lib/utils/validate.ts` on every `[id]` path param before querying the DB. Return `ApiError.badRequest()` if invalid.

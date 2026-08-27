@@ -86,6 +86,7 @@ export function MessageInput({
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const typingHeartbeatRef = useRef<NodeJS.Timeout | null>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
 
   // -------------------------------------------------------------------------
@@ -135,21 +136,38 @@ export function MessageInput({
   // Typing broadcast
   // -------------------------------------------------------------------------
 
+  function stopTypingHeartbeat() {
+    if (typingHeartbeatRef.current) {
+      clearInterval(typingHeartbeatRef.current);
+      typingHeartbeatRef.current = null;
+    }
+  }
+
   function handleTextChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value;
     setText(val);
 
     if (val.length > 0) {
       sendTyping(true);
+      // Realtime delivery is best-effort even on a healthy channel (see
+      // the resync fallback on the messages side of this same issue).
+      // Re-sending on a short heartbeat while actively typing gives each
+      // attempt more chances to land, instead of relying on a single
+      // upsert per burst of keystrokes.
+      if (!typingHeartbeatRef.current) {
+        typingHeartbeatRef.current = setInterval(() => sendTyping(true), 1500);
+      }
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-      typingTimerRef.current = setTimeout(() => sendTyping(false), 2000);
+      typingTimerRef.current = setTimeout(() => { sendTyping(false); stopTypingHeartbeat(); }, 2000);
     } else {
       sendTyping(false);
+      stopTypingHeartbeat();
     }
   }
 
   function handleBlur() {
     sendTyping(false);
+    stopTypingHeartbeat();
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
   }
 

@@ -1,7 +1,7 @@
 export type ConversationType = "direct" | "group" | "self";
 export type MessageType =
   | "text" | "image" | "video" | "audio" | "voice_note"
-  | "document" | "sticker" | "gif" | "poll" | "system" | "contact";
+  | "document" | "sticker" | "gif" | "poll" | "system" | "contact" | "call";
 export type MemberRole = "owner" | "admin" | "member";
 
 export interface ChatProfile {
@@ -60,6 +60,9 @@ export interface MessageMetadata {
   duration?: number;
   thumbnail?: string;
   waveform?: number[];
+  /** Only for type === "call" */
+  room_url?: string;
+  room_name?: string;
 }
 
 export interface ChatMessage {

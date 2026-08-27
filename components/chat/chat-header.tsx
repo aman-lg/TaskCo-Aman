@@ -8,8 +8,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useState } from "react";
 import type { Conversation, ChatProfile, TypingUser } from "@/types/chat";
 import { getConversationName, getConversationAvatar, formatLastSeen } from "@/lib/utils/chat";
+import { CallModal } from "./call-modal";
 
 interface Props {
   conversation: Conversation;
@@ -26,6 +28,24 @@ function initials(name: string | null, email: string | null) {
 
 export function ChatHeader({ conversation, currentUserId, onlineUserIds, typingUsers, onOpenInfo }: Props) {
   const router = useRouter();
+  const [activeCallUrl, setActiveCallUrl] = useState<string | null>(null);
+  const [startingCall, setStartingCall] = useState(false);
+
+  async function startCall() {
+    if (startingCall) return;
+    setStartingCall(true);
+    try {
+      const res = await fetch(`/api/chat/conversations/${conversation.id}/calls`, { method: "POST", credentials: "same-origin" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json?.error?.message ?? "Couldn't start the call");
+        return;
+      }
+      setActiveCallUrl(json.data.room_url);
+    } finally {
+      setStartingCall(false);
+    }
+  }
   const name   = getConversationName(conversation, currentUserId);
   const avatar = getConversationAvatar(conversation, currentUserId);
   const isSelf = conversation.type === "self";
@@ -136,11 +156,13 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds, typingU
             <>
               <button
                 type="button"
-                onClick={() => toast.info("Voice calls coming soon!")}
-                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+                onClick={startCall}
+                disabled={startingCall}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
                 style={{ color: "var(--text-muted)" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--panel-bg)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                aria-label="Start voice call"
               >
                 <Phone className="w-4 h-4" />
               </button>
@@ -208,6 +230,10 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds, typingU
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      )}
+
+      {activeCallUrl && (
+        <CallModal roomUrl={activeCallUrl} onClose={() => setActiveCallUrl(null)} />
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, CornerUpLeft, Pencil, FileText } from "lucide-react";
+import { MoreHorizontal, CornerUpLeft, Pencil, FileText, Phone } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatMessage } from "@/types/chat";
 import { formatMessageTime, getMessageStatus, getMemberColor, formatFileSize } from "@/lib/utils/chat";
@@ -10,6 +10,7 @@ import { MessageActionsMenu } from "./message-actions-menu";
 import PollDisplay from "./poll-display";
 import MediaViewer from "./media-viewer";
 import { DocumentViewer } from "@/components/ui/document-viewer";
+import { CallModal } from "./call-modal";
 
 interface Props {
   message: ChatMessage;
@@ -43,6 +44,7 @@ export function MessageBubble({
   const [emojiHover, setEmojiHover] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [docViewerOpen, setDocViewerOpen] = useState(false);
+  const [callModalOpen, setCallModalOpen] = useState(false);
 
   const isDeleted = !!message.deleted_at;
   const isSystem  = message.type === "system";
@@ -225,6 +227,35 @@ export function MessageBubble({
               {/* Audio / voice note */}
               {(message.type === "audio" || message.type === "voice_note") && message.metadata?.url && (
                 <audio src={message.metadata.url} controls className="max-w-[240px]" style={{ height: 36 }} />
+              )}
+
+              {/* Voice call — join the same Daily room whoever started it created */}
+              {message.type === "call" && message.metadata?.room_url && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCallModalOpen(true)}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 min-w-[180px] w-full text-left transition-opacity hover:opacity-85"
+                    style={{ background: isOwn ? "rgba(255,255,255,0.12)" : "var(--panel-bg)" }}
+                  >
+                    <span
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: isOwn ? "rgba(255,255,255,0.15)" : "var(--navy-l)" }}
+                    >
+                      <Phone className="h-4 w-4" style={{ color: isOwn ? "#fff" : "var(--navy)" }} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12.5px] font-semibold">Voice call</p>
+                      <p className="text-[11px] opacity-80">Tap to join</p>
+                    </div>
+                  </button>
+                  {callModalOpen && (
+                    <CallModal
+                      roomUrl={message.metadata.room_url}
+                      onClose={() => setCallModalOpen(false)}
+                    />
+                  )}
+                </>
               )}
 
               {/* Document — opens an embedded in-app preview, never a direct link/download */}

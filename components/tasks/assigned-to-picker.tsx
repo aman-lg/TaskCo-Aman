@@ -25,8 +25,8 @@ interface Props {
 
 /**
  * Department -> Sub-Department -> People (multi-select) picker, shared by
- * every place that assigns tasks to specific people (the bulk "Assign Task"
- * dialog, the project's own New/Edit Task dialog, and the bulk-assign grid)
+ * every place that assigns tasks to specific people (the unified Tasks
+ * page's filter/creation grid and the project's own New/Edit Task dialog)
  * so the picking behavior — and any future fix to it — only lives once.
  */
 export function AssignedToPicker({ units, value, onChange, className, fieldClassName = "" }: Props) {

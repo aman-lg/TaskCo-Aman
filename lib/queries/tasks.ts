@@ -3,15 +3,21 @@ import type { Database } from "@/types";
 
 export type AssigneeProfile = {
   user_id: string;
+  assigned_by: string;
+  assigned_at: string;
   assignee: { id: string; full_name: string | null; avatar_url: string | null } | null;
+  assigner: { id: string; full_name: string | null; avatar_url: string | null } | null;
 };
 
 export type ChecklistCount = { id: string; is_done: boolean; content: string | null; position: number | null };
+
+export type TaskFileMeta = { id: string; name: string; size: number | null; mime: string | null };
 
 export type TaskWithMeta = Database["public"]["Tables"]["tasks"]["Row"] & {
   creator: { id: string; full_name: string | null; avatar_url: string | null } | null;
   task_assignees: AssigneeProfile[];
   task_checklist_items: ChecklistCount[];
+  task_files: TaskFileMeta[];
 };
 
 export type ChecklistItem = Database["public"]["Tables"]["task_checklist_items"]["Row"];
@@ -40,8 +46,9 @@ export async function getAllTasks(supabase: SupabaseClient<Database>): Promise<T
     .select(
       `*,
        creator:profiles!created_by(id, full_name, avatar_url),
-       task_assignees(user_id, assignee:profiles!user_id(id, full_name, avatar_url)),
-       task_checklist_items(id, is_done, content, position)`
+       task_assignees(user_id, assigned_by, assigned_at, assignee:profiles!user_id(id, full_name, avatar_url), assigner:profiles!assigned_by(id, full_name, avatar_url)),
+       task_checklist_items(id, is_done, content, position),
+       task_files(id, name, size, mime)`
     )
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);

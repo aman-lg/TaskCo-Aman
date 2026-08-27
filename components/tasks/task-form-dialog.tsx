@@ -56,7 +56,7 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
   // hide whoever doesn't match whatever department happens to be selected.
   const [currentAssignees, setCurrentAssignees] = useState<AssigneeProfile[]>([]);
   const [removedAssigneeIds, setRemovedAssigneeIds] = useState<string[]>([]);
-  const [addAssignees, setAddAssignees] = useState<AssignedToValue>({ deptId: null, subDeptId: null, personIds: [] });
+  const [addAssignees, setAddAssignees] = useState<AssignedToValue>({ deptIds: [], subDeptIds: [], personIds: [] });
 
   const {
     register,
@@ -101,7 +101,7 @@ export function TaskFormDialog({ open, onClose, projectId, task, defaultStatus =
       setCurrentAssignees([]);
     }
     setRemovedAssigneeIds([]);
-    setAddAssignees({ deptId: null, subDeptId: null, personIds: [] });
+    setAddAssignees({ deptIds: [], subDeptIds: [], personIds: [] });
     setServerError(null);
   }, [open, task, projectId, defaultStatus, defaultDeadline, reset]);
 

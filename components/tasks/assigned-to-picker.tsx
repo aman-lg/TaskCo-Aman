@@ -5,8 +5,8 @@ import { ChevronDown } from "lucide-react";
 import type { OrgUnit } from "@/lib/hooks/use-org-units";
 
 export interface AssignedToValue {
-  deptId: string | null;
-  subDeptId: string | null;
+  deptIds: string[];
+  subDeptIds: string[];
   personIds: string[];
 }
 
@@ -24,63 +24,80 @@ interface Props {
 }
 
 /**
- * Department -> Sub-Department -> People (multi-select) picker, shared by
- * every place that assigns tasks to specific people (the unified Tasks
- * page's filter/creation grid and the project's own New/Edit Task dialog)
- * so the picking behavior — and any future fix to it — only lives once.
+ * Department -> Sub-Department -> People, all multi-select, shared by every
+ * place that assigns tasks to specific people (the unified Tasks page's
+ * filter/creation grid and the project's own New/Edit Task dialog) so the
+ * picking behavior — and any future fix to it — only lives once.
+ *
+ * Sub-Department is never required: picking only a Department is a valid,
+ * common case (e.g. one task meant for everyone directly in that
+ * department, not any particular sub-team).
  */
 export function AssignedToPicker({ units, value, onChange, className, fieldClassName = "" }: Props) {
   const rootDepartments = units.filter((u) => !u.parent_id);
-  const subDepartmentsOf = (deptId: string | null) => units.filter((u) => u.parent_id === deptId);
-  const unitById = (id: string | null) => units.find((u) => u.id === id) ?? null;
-  const candidates = unitById(value.subDeptId ?? value.deptId)?.members ?? [];
-  const subDepts = subDepartmentsOf(value.deptId);
+  const subDepts = units.filter((u) => u.parent_id && value.deptIds.includes(u.parent_id));
+
+  // Candidates = union of members across every selected sub-department, or
+  // (when none are selected) every selected department's own direct
+  // members — same "sub-dept overrides dept" precedence as before, just
+  // aggregated across a set instead of one id.
+  const unitIds = value.subDeptIds.length > 0 ? value.subDeptIds : value.deptIds;
+  const seen = new Set<string>();
+  const candidates: OrgUnit["members"] = [];
+  for (const unitId of unitIds) {
+    const unit = units.find((u) => u.id === unitId);
+    for (const m of unit?.members ?? []) {
+      if (!seen.has(m.user_id)) { seen.add(m.user_id); candidates.push(m); }
+    }
+  }
 
   return (
     <div className={className ?? "grid grid-cols-3 gap-2"}>
-      <select
-        value={value.deptId ?? ""}
-        onChange={(e) => onChange({ deptId: e.target.value || null, subDeptId: null, personIds: [] })}
-        className={`${ASSIGNED_TO_SELECT_CLASS} ${fieldClassName}`}
-        style={ASSIGNED_TO_SELECT_STYLE}
-      >
-        <option value="">Department…</option>
-        {rootDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-      </select>
-
-      <select
-        value={value.subDeptId ?? ""}
-        onChange={(e) => onChange({ ...value, subDeptId: e.target.value || null, personIds: [] })}
-        disabled={!value.deptId || subDepts.length === 0}
-        className={`${ASSIGNED_TO_SELECT_CLASS} ${fieldClassName}`}
-        style={ASSIGNED_TO_SELECT_STYLE}
-      >
-        <option value="">{subDepts.length === 0 ? "Whole dept" : "Whole department"}</option>
-        {subDepts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-      </select>
-
-      <PeopleMultiSelect
+      <MultiSelect
         wrapperClassName={fieldClassName}
-        candidates={candidates}
+        placeholder="Department…"
+        options={rootDepartments.map((d) => ({ id: d.id, label: d.name }))}
+        selectedIds={value.deptIds}
+        onChange={(deptIds) => onChange({ deptIds, subDeptIds: [], personIds: [] })}
+      />
+
+      <MultiSelect
+        wrapperClassName={fieldClassName}
+        placeholder={subDepts.length === 0 ? "Whole dept" : "Whole department"}
+        options={subDepts.map((d) => ({ id: d.id, label: d.name }))}
+        selectedIds={value.subDeptIds}
+        onChange={(subDeptIds) => onChange({ ...value, subDeptIds, personIds: [] })}
+        disabled={value.deptIds.length === 0 || subDepts.length === 0}
+      />
+
+      <MultiSelect
+        wrapperClassName={fieldClassName}
+        placeholder="Select people…"
+        itemNoun="people"
+        options={candidates.map((c) => ({ id: c.user_id, label: c.profile.full_name ?? c.profile.email ?? "?" }))}
         selectedIds={value.personIds}
         onChange={(personIds) => onChange({ ...value, personIds })}
-        disabled={!value.deptId}
+        disabled={value.deptIds.length === 0}
       />
     </div>
   );
 }
 
-function PeopleMultiSelect({
-  candidates,
+export function MultiSelect({
+  options,
   selectedIds,
   onChange,
   disabled,
+  placeholder = "Select…",
+  itemNoun = "selected",
   wrapperClassName = "",
 }: {
-  candidates: OrgUnit["members"];
+  options: { id: string; label: string }[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
+  placeholder?: string;
+  itemNoun?: string;
   wrapperClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -95,17 +112,15 @@ function PeopleMultiSelect({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  function toggle(userId: string) {
-    onChange(selectedIds.includes(userId) ? selectedIds.filter((id) => id !== userId) : [...selectedIds, userId]);
+  function toggle(id: string) {
+    onChange(selectedIds.includes(id) ? selectedIds.filter((v) => v !== id) : [...selectedIds, id]);
   }
 
-  const selectedNames = candidates
-    .filter((c) => selectedIds.includes(c.user_id))
-    .map((c) => c.profile.full_name ?? c.profile.email ?? "?");
+  const selectedLabels = options.filter((o) => selectedIds.includes(o.id)).map((o) => o.label);
   const summary =
-    selectedNames.length === 0 ? "Select people…" :
-    selectedNames.length <= 2 ? selectedNames.join(", ") :
-    `${selectedNames.length} people selected`;
+    selectedLabels.length === 0 ? placeholder :
+    selectedLabels.length <= 2 ? selectedLabels.join(", ") :
+    `${selectedLabels.length} ${itemNoun} selected`;
 
   return (
     <div className={`relative ${wrapperClassName}`} ref={ref}>
@@ -116,7 +131,7 @@ function PeopleMultiSelect({
         className={`${ASSIGNED_TO_SELECT_CLASS} flex items-center justify-between gap-1`}
         style={ASSIGNED_TO_SELECT_STYLE}
       >
-        <span className="truncate" style={{ color: selectedNames.length ? "var(--ink)" : "var(--text-muted)" }}>{summary}</span>
+        <span className="truncate" style={{ color: selectedLabels.length ? "var(--ink)" : "var(--text-muted)" }}>{summary}</span>
         <ChevronDown className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
       </button>
       {open && (
@@ -124,15 +139,15 @@ function PeopleMultiSelect({
           className="absolute z-20 mt-1 w-full min-w-[180px] max-h-52 overflow-y-auto rounded-lg p-1.5 flex flex-col gap-0.5"
           style={{ background: "var(--surface-bg)", border: "1px solid var(--line)", boxShadow: "0 4px 16px rgba(0,0,0,0.12)" }}
         >
-          {candidates.length === 0 ? (
-            <p className="text-[12px] text-center py-2" style={{ color: "var(--text-fine)" }}>No one here yet.</p>
+          {options.length === 0 ? (
+            <p className="text-[12px] text-center py-2" style={{ color: "var(--text-fine)" }}>Nothing here yet.</p>
           ) : (
-            candidates.map(({ user_id, profile }) => {
-              const checked = selectedIds.includes(user_id);
+            options.map(({ id, label }) => {
+              const checked = selectedIds.includes(id);
               return (
-                <label key={user_id} className="flex items-center gap-2 py-1.5 px-1.5 rounded-md hover:bg-[var(--line-soft)] cursor-pointer">
-                  <input type="checkbox" checked={checked} onChange={() => toggle(user_id)} />
-                  <span className="text-[12.5px] truncate" style={{ color: "var(--ink)" }}>{profile.full_name ?? profile.email}</span>
+                <label key={id} className="flex items-center gap-2 py-1.5 px-1.5 rounded-md hover:bg-[var(--line-soft)] cursor-pointer">
+                  <input type="checkbox" checked={checked} onChange={() => toggle(id)} />
+                  <span className="text-[12.5px] truncate" style={{ color: "var(--ink)" }}>{label}</span>
                 </label>
               );
             })

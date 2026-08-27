@@ -3,9 +3,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, X, Loader2, Table2, Paperclip } from "lucide-react";
-import { useOrgUnits } from "@/lib/hooks/use-org-units";
-import { AssignedToPicker, type AssignedToValue, ASSIGNED_TO_SELECT_STYLE } from "./assigned-to-picker";
+import { X, Loader2, Table2, Paperclip, Search, Plus } from "lucide-react";
+import { useOrgUnits, type OrgUnit } from "@/lib/hooks/use-org-units";
+import { AssignedToPicker, MultiSelect, type AssignedToValue, ASSIGNED_TO_SELECT_STYLE } from "./assigned-to-picker";
+import { TaskFormDialog } from "./task-form-dialog";
 import type { TaskWithMeta } from "@/lib/queries/tasks";
 
 interface Project {
@@ -26,20 +27,27 @@ interface DraftData {
 
 const EMPTY_DRAFT = (projectId: string): DraftData => ({ projectId, title: "", description: "", deadline: "", urgency: "medium", file: null });
 
-type ColKey = "dept" | "subdept" | "project" | "title" | "description" | "attachment" | "assignedDate" | "assignedBy" | "assignedTo" | "deadline" | "urgency";
+type ColKey = "dept" | "subdept" | "project" | "assignedTo" | "urgency" | "assignedBy" | "title" | "description" | "attachment" | "assignedDate" | "deadline";
 
 const ALL_COLUMNS: { key: ColKey; label: string; width: string }[] = [
   { key: "dept", label: "Department", width: "140px" },
   { key: "subdept", label: "Sub-Department", width: "140px" },
-  { key: "project", label: "Project Name", width: "150px" },
+  { key: "project", label: "Project", width: "150px" },
+  { key: "assignedTo", label: "Assigned To", width: "140px" },
+  { key: "urgency", label: "Urgency", width: "110px" },
+  { key: "assignedBy", label: "Assigned By", width: "140px" },
   { key: "title", label: "Task Title", width: "minmax(200px, 1.2fr)" },
   { key: "description", label: "Task Description", width: "minmax(200px, 1.4fr)" },
   { key: "attachment", label: "Attachment", width: "150px" },
   { key: "assignedDate", label: "Date of Assignment", width: "140px" },
-  { key: "assignedBy", label: "Assigned By", width: "140px" },
-  { key: "assignedTo", label: "Assigned To", width: "140px" },
   { key: "deadline", label: "Deadline", width: "170px" },
-  { key: "urgency", label: "Urgency", width: "110px" },
+];
+
+const URGENCY_OPTIONS = [
+  { id: "low", label: "Low" },
+  { id: "medium", label: "Medium" },
+  { id: "high", label: "High" },
+  { id: "urgent", label: "Urgent" },
 ];
 
 const cellInputClass = "h-9 w-full px-2.5 rounded-lg text-[12.5px] outline-none";
@@ -58,6 +66,18 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function unionMembers(units: OrgUnit[], unitIds: string[]): OrgUnit["members"] {
+  const seen = new Set<string>();
+  const result: OrgUnit["members"] = [];
+  for (const unitId of unitIds) {
+    const unit = units.find((u) => u.id === unitId);
+    for (const m of unit?.members ?? []) {
+      if (!seen.has(m.user_id)) { seen.add(m.user_id); result.push(m); }
+    }
+  }
+  return result;
+}
+
 interface Props {
   tasks: TaskWithMeta[];
   projects: Project[];
@@ -68,15 +88,25 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
   const router = useRouter();
   const { units, loading: loadingUnits } = useOrgUnits();
 
-  const [filters, setFilters] = useState<AssignedToValue>({ deptId: null, subDeptId: null, personIds: [] });
-  const [filterProject, setFilterProject] = useState<string>("");
+  const [filters, setFilters] = useState<AssignedToValue>({ deptIds: [], subDeptIds: [], personIds: [] });
+  const [filterProjectIds, setFilterProjectIds] = useState<string[]>([]);
+  const [filterUrgencies, setFilterUrgencies] = useState<string[]>([]);
+  const [filterAssignerIds, setFilterAssignerIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [draftData, setDraftData] = useState<Map<string, DraftData>>(new Map());
   const [submitting, setSubmitting] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const rootDepartments = useMemo(() => units.filter((u) => !u.parent_id), [units]);
-  const unitById = (id: string | null) => units.find((u) => u.id === id) ?? null;
-  const candidates = unitById(filters.subDeptId ?? filters.deptId)?.members ?? [];
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.title])), [projects]);
+
+  const assignerOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of tasks) for (const a of t.task_assignees) if (a.assigner) map.set(a.assigner.id, a.assigner.full_name ?? "Unknown");
+    return Array.from(map, ([id, label]) => ({ id, label }));
+  }, [tasks]);
+
+  const unitIds = filters.subDeptIds.length > 0 ? filters.subDeptIds : filters.deptIds;
+  const candidates = useMemo(() => unionMembers(units, unitIds), [units, unitIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A user's "home" placement for display: prefer their sub-department
   // membership (and its parent as department); fall back to a direct
@@ -101,17 +131,22 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
   }, [units]);
 
   const filteredTasks = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return tasks.filter((t) => {
-      if (filterProject && t.project_id !== filterProject) return false;
+      if (filterProjectIds.length > 0 && !filterProjectIds.includes(t.project_id)) return false;
+      if (filterUrgencies.length > 0 && !filterUrgencies.includes(t.urgency ?? "medium")) return false;
+      if (q && !t.name.toLowerCase().includes(q)) return false;
       const assigneeIds = t.task_assignees.map((a) => a.user_id);
+      const assignerIds = t.task_assignees.map((a) => a.assigned_by);
+      if (filterAssignerIds.length > 0 && !assignerIds.some((id) => filterAssignerIds.includes(id))) return false;
       if (filters.personIds.length > 0) return assigneeIds.some((id) => filters.personIds.includes(id));
-      if (filters.deptId) {
+      if (filters.deptIds.length > 0) {
         const candidateIds = new Set(candidates.map((c) => c.user_id));
         return assigneeIds.some((id) => candidateIds.has(id));
       }
       return true;
     });
-  }, [tasks, filterProject, filters.personIds, filters.deptId, candidates]);
+  }, [tasks, filterProjectIds, filterUrgencies, filterAssignerIds, searchQuery, filters.personIds, filters.deptIds, candidates]);
 
   // Checking a person means "show or create their task here" — if they
   // already have a matching task in view, that's enough; otherwise a blank
@@ -121,6 +156,8 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
     return filters.personIds.filter((id) => !assignedIds.has(id));
   }, [filters.personIds, filteredTasks]);
 
+  const defaultDraftProject = filterProjectIds.length === 1 ? filterProjectIds[0] : "";
+
   useEffect(() => {
     setDraftData((prev) => {
       const next = new Map(prev);
@@ -129,7 +166,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
         if (!draftPersonIds.includes(key)) { next.delete(key); changed = true; }
       }
       for (const id of draftPersonIds) {
-        if (!next.has(id)) { next.set(id, EMPTY_DRAFT(filterProject)); changed = true; }
+        if (!next.has(id)) { next.set(id, EMPTY_DRAFT(defaultDraftProject)); changed = true; }
       }
       return changed ? next : prev;
     });
@@ -139,7 +176,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
   function updateDraft(personId: string, patch: Partial<DraftData>) {
     setDraftData((prev) => {
       const next = new Map(prev);
-      next.set(personId, { ...(next.get(personId) ?? EMPTY_DRAFT(filterProject)), ...patch });
+      next.set(personId, { ...(next.get(personId) ?? EMPTY_DRAFT(defaultDraftProject)), ...patch });
       return next;
     });
   }
@@ -156,17 +193,17 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
   }
 
   const hidden: Record<ColKey, boolean> = {
-    dept: !!filters.deptId,
-    subdept: !!filters.subDeptId,
-    project: !!filterProject,
+    dept: filters.deptIds.length === 1,
+    subdept: filters.subDeptIds.length === 1,
+    project: filterProjectIds.length === 1,
+    assignedTo: filters.personIds.length === 1,
+    urgency: filterUrgencies.length === 1,
+    assignedBy: filterAssignerIds.length === 1,
     title: false,
     description: false,
     attachment: false,
     assignedDate: false,
-    assignedBy: false,
-    assignedTo: filters.personIds.length === 1,
     deadline: false,
-    urgency: false,
   };
   const visibleColumns = ALL_COLUMNS.filter((c) => !hidden[c.key]);
   const gridTemplateColumns = `${visibleColumns.map((c) => c.width).join(" ")} 32px`;
@@ -174,7 +211,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
 
   async function handleSaveAll() {
     if (draftPersonIds.length === 0) { toast.error("Check at least one person to create a task for"); return; }
-    const rows = draftPersonIds.map((personId) => ({ personId, ...(draftData.get(personId) ?? EMPTY_DRAFT(filterProject)) }));
+    const rows = draftPersonIds.map((personId) => ({ personId, ...(draftData.get(personId) ?? EMPTY_DRAFT(defaultDraftProject)) }));
     if (rows.some((r) => !r.title.trim())) { toast.error("Every new row needs a Task Title"); return; }
     if (rows.some((r) => !r.projectId)) { toast.error("Every new row needs a Project"); return; }
 
@@ -254,11 +291,32 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="h1" style={{ color: "var(--ink)" }}>Tasks</h1>
-        <p className="mt-1 text-[14px]" style={{ color: "var(--text-secondary)" }}>
-          Filter by Department, Sub-Department, Project or People. Checking a person shows their task here, or gives you a blank row to create one.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="h1" style={{ color: "var(--ink)" }}>Tasks</h1>
+          <p className="mt-1 text-[14px]" style={{ color: "var(--text-secondary)" }}>
+            Filter by Department, Sub-Department, Project, People, Urgency or Assigned By. Checking a person shows their task here, or gives you a blank row to create one.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-2 h-9 px-4 rounded-xl text-[13px] font-bold text-white transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)] flex-shrink-0"
+        >
+          <Plus className="h-4 w-4" /> Create Task
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--text-muted)" }} />
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search task titles…"
+          className="h-10 w-full pl-9 pr-3 rounded-xl text-[13px] outline-none"
+          style={ASSIGNED_TO_SELECT_STYLE}
+        />
       </div>
 
       {/* Filters */}
@@ -278,14 +336,32 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
           />
         )}
 
-        <div className="select-wrap flex-1 min-w-[180px]">
-          <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} className="select-field">
-            <option value="">All Projects</option>
-            {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-          </select>
-          <span className="select-label">Project</span>
-          <ChevronDown className="select-arrow" />
-        </div>
+        <MultiSelect
+          wrapperClassName="flex-1 min-w-[160px]"
+          placeholder="All Projects"
+          itemNoun="projects"
+          options={projects.map((p) => ({ id: p.id, label: p.title }))}
+          selectedIds={filterProjectIds}
+          onChange={setFilterProjectIds}
+        />
+
+        <MultiSelect
+          wrapperClassName="flex-1 min-w-[160px]"
+          placeholder="All Urgencies"
+          itemNoun="urgencies"
+          options={URGENCY_OPTIONS}
+          selectedIds={filterUrgencies}
+          onChange={setFilterUrgencies}
+        />
+
+        <MultiSelect
+          wrapperClassName="flex-1 min-w-[160px]"
+          placeholder="Assigned By: Anyone"
+          itemNoun="people"
+          options={assignerOptions}
+          selectedIds={filterAssignerIds}
+          onChange={setFilterAssignerIds}
+        />
       </div>
 
       {/* Grid */}
@@ -306,7 +382,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
               {draftPersonIds.map((personId, idx) => {
                 const person = candidates.find((c) => c.user_id === personId);
                 const name = person?.profile.full_name ?? person?.profile.email ?? "Unknown";
-                const data = draftData.get(personId) ?? EMPTY_DRAFT(filterProject);
+                const data = draftData.get(personId) ?? EMPTY_DRAFT(defaultDraftProject);
                 return (
                   <div
                     key={`draft-${personId}`}
@@ -328,6 +404,25 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                               {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                             </select>
                           );
+                        case "assignedTo":
+                          return <span key={c.key} className="text-[13px] font-medium truncate" style={{ color: "var(--ink)" }}>{name}</span>;
+                        case "urgency":
+                          return (
+                            <select
+                              key={c.key}
+                              value={data.urgency}
+                              onChange={(e) => updateDraft(personId, { urgency: e.target.value as Urgency })}
+                              className={cellSelectClass}
+                              style={ASSIGNED_TO_SELECT_STYLE}
+                            >
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                              <option value="urgent">Urgent</option>
+                            </select>
+                          );
+                        case "assignedBy":
+                          return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-muted)" }}>{currentUserName}</span>;
                         case "title":
                           return (
                             <input
@@ -369,10 +464,6 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                           );
                         case "assignedDate":
                           return <span key={c.key} className="text-[12px]" style={{ color: "var(--text-muted)" }}>Today</span>;
-                        case "assignedBy":
-                          return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-muted)" }}>{currentUserName}</span>;
-                        case "assignedTo":
-                          return <span key={c.key} className="text-[13px] font-medium truncate" style={{ color: "var(--ink)" }}>{name}</span>;
                         case "deadline":
                           return (
                             <input
@@ -383,21 +474,6 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                               className={cellInputClass}
                               style={ASSIGNED_TO_SELECT_STYLE}
                             />
-                          );
-                        case "urgency":
-                          return (
-                            <select
-                              key={c.key}
-                              value={data.urgency}
-                              onChange={(e) => updateDraft(personId, { urgency: e.target.value as Urgency })}
-                              className={cellSelectClass}
-                              style={ASSIGNED_TO_SELECT_STYLE}
-                            >
-                              <option value="low">Low</option>
-                              <option value="medium">Medium</option>
-                              <option value="high">High</option>
-                              <option value="urgent">Urgent</option>
-                            </select>
                           );
                         default:
                           return <span key={c.key} />;
@@ -435,6 +511,26 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                           return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-secondary)" }}>{placement?.subDeptName ?? "—"}</span>;
                         case "project":
                           return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-secondary)" }}>{projectNameById.get(task.project_id) ?? "—"}</span>;
+                        case "assignedTo":
+                          return (
+                            <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-secondary)" }}>
+                              {primary?.assignee?.full_name ?? "Unassigned"}{extra > 0 ? ` +${extra}` : ""}
+                            </span>
+                          );
+                        case "urgency": {
+                          const u = task.urgency ?? "medium";
+                          return (
+                            <span
+                              key={c.key}
+                              className="inline-flex items-center h-5 px-2 rounded text-[10px] font-bold w-fit"
+                              style={{ background: `var(${URGENCY_BG_TOKEN[u]})`, color: `var(${URGENCY_TOKEN[u]})` }}
+                            >
+                              {u.toUpperCase()}
+                            </span>
+                          );
+                        }
+                        case "assignedBy":
+                          return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-secondary)" }}>{primary?.assigner?.full_name ?? task.creator?.full_name ?? "—"}</span>;
                         case "title":
                           return (
                             <span
@@ -471,31 +567,11 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                           );
                         case "assignedDate":
                           return <span key={c.key} className="text-[12px]" style={{ color: "var(--text-muted)" }}>{formatDate(primary?.assigned_at ?? task.created_at)}</span>;
-                        case "assignedBy":
-                          return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-secondary)" }}>{primary?.assigner?.full_name ?? task.creator?.full_name ?? "—"}</span>;
-                        case "assignedTo":
-                          return (
-                            <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-secondary)" }}>
-                              {primary?.assignee?.full_name ?? "Unassigned"}{extra > 0 ? ` +${extra}` : ""}
-                            </span>
-                          );
                         case "deadline": {
                           const isPastDeadline = task.deadline && new Date(task.deadline) < new Date() && task.status !== "done";
                           return (
                             <span key={c.key} className="text-[12px]" style={{ color: isPastDeadline ? "var(--clr-red)" : "var(--text-muted)" }}>
                               {task.deadline ? formatDate(task.deadline) : "—"}
-                            </span>
-                          );
-                        }
-                        case "urgency": {
-                          const u = task.urgency ?? "medium";
-                          return (
-                            <span
-                              key={c.key}
-                              className="inline-flex items-center h-5 px-2 rounded text-[10px] font-bold w-fit"
-                              style={{ background: `var(${URGENCY_BG_TOKEN[u]})`, color: `var(${URGENCY_TOKEN[u]})` }}
-                            >
-                              {u.toUpperCase()}
                             </span>
                           );
                         }
@@ -540,6 +616,13 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
           </button>
         </div>
       )}
+
+      <TaskFormDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        projectId={projects[0]?.id ?? ""}
+        projects={projects}
+      />
     </div>
   );
 }

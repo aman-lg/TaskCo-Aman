@@ -10,6 +10,7 @@ interface Props {
   conversation: Conversation;
   currentUserId: string;
   isActive: boolean;
+  isOnline?: boolean;
 }
 
 function initials(name: string | null, email: string | null): string {
@@ -17,7 +18,7 @@ function initials(name: string | null, email: string | null): string {
   return (email?.[0] ?? "?").toUpperCase();
 }
 
-export function ConversationItem({ conversation: conv, currentUserId, isActive }: Props) {
+export function ConversationItem({ conversation: conv, currentUserId, isActive, isOnline }: Props) {
   const name = getConversationName(conv, currentUserId);
   const avatar = getConversationAvatar(conv, currentUserId);
   const timeStr = formatConversationTime(conv.last_message_at);
@@ -48,15 +49,23 @@ export function ConversationItem({ conversation: conv, currentUserId, isActive }
             📝
           </div>
         ) : (
-          <Avatar className="w-10 h-10">
-            <AvatarImage src={avatar ?? undefined} />
-            <AvatarFallback
-              className="text-[12px] font-semibold"
-              style={{ background: "var(--navy-l)", color: "var(--navy)" }}
-            >
-              {initials(name, conv.other_user?.email ?? null)}
-            </AvatarFallback>
-          </Avatar>
+          <>
+            <Avatar className="w-10 h-10">
+              <AvatarImage src={avatar ?? undefined} />
+              <AvatarFallback
+                className="text-[12px] font-semibold"
+                style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+              >
+                {initials(name, conv.other_user?.email ?? null)}
+              </AvatarFallback>
+            </Avatar>
+            {conv.type === "direct" && isOnline && (
+              <span
+                className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full"
+                style={{ background: "var(--clr-green)", border: "2px solid var(--surface-bg)" }}
+              />
+            )}
+          </>
         )}
       </div>
 

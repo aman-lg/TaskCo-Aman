@@ -3,48 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import type { Conversation, ChatMessage, ChatProfile } from "@/types/chat";
 import { ConversationSidebar } from "@/components/chat/conversation-sidebar";
 import { ChatWindow } from "@/components/chat/chat-window";
-
-// ---------------------------------------------------------------------------
-// Hook: useConversationListRealtime
-// Subscribes to new messages on the "messages" table and bubbles up
-// last_message_at changes so the conversation list stays fresh.
-// ---------------------------------------------------------------------------
-function useConversationListRealtime(
-  currentUserId: string,
-  onUpdate: (conversationId: string, lastMessageAt: string) => void
-) {
-  useEffect(() => {
-    const supabase = createClient();
-
-    const channel = supabase
-      .channel("conversation-list-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-        },
-        (payload) => {
-          const row = payload.new as {
-            conversation_id: string;
-            created_at: string;
-            sender_id: string;
-          };
-          onUpdate(row.conversation_id, row.created_at);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentUserId, onUpdate]);
-}
+import { useConversationListRealtime, useOnlinePresence } from "@/lib/hooks/use-chat-realtime";
 
 // ---------------------------------------------------------------------------
 // EmptyState — shown on the right when no conversation is active
@@ -114,33 +76,22 @@ export function ChatLayout({
     setConversations(conversationsProp);
   }, [conversationsProp]);
 
-  // Realtime handler: bump last_message_at for the affected conversation
-  const handleRealtimeUpdate = useCallback(
-    (conversationId?: string, lastMessageAt?: string) => {
-      if (!conversationId || !lastMessageAt) {
-        router.refresh();
-        return;
-      }
-      setConversations((prev) => {
-        const idx = prev.findIndex((c) => c.id === conversationId);
-        if (idx === -1) {
-          router.refresh();
-          return prev;
-        }
-        const updated: Conversation[] = [...prev];
-        updated[idx] = { ...updated[idx], last_message_at: lastMessageAt };
-        updated.sort((a, b) => {
-          const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-          const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-          return tb - ta;
-        });
-        return updated;
-      });
-    },
-    [router]
-  );
+  // Realtime handler: a new message anywhere the user is a member. Bumping
+  // just last_message_at client-side (the previous approach) re-sorted the
+  // list but never touched last_message itself, so the preview text under
+  // each conversation name never actually updated - only a real refetch
+  // gets the correct last_message content, so just refresh every time.
+  const handleRealtimeUpdate = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   useConversationListRealtime(currentUserId, handleRealtimeUpdate);
+
+  // Hoisted here (rather than inside ChatWindow) so it's one shared
+  // subscription covering both the sidebar's online dots and the open
+  // conversation's header — previously each ChatWindow mount opened its own,
+  // and the sidebar never saw presence at all since nothing else tracked it.
+  const onlineUserIds = useOnlinePresence(currentUserId, currentUserProfile.full_name);
 
   const activeConversation = activeConversationId
     ? (initialConversation ?? conversations.find((c) => c.id === activeConversationId) ?? null)
@@ -168,6 +119,7 @@ export function ChatLayout({
           currentUserId={currentUserId}
           currentUserProfile={currentUserProfile}
           activeConversationId={activeConversationId}
+          onlineUserIds={onlineUserIds}
         />
       </div>
 
@@ -181,6 +133,7 @@ export function ChatLayout({
           currentUserId={currentUserId}
           currentUserProfile={currentUserProfile}
           initialMessages={initialMessages ?? []}
+          onlineUserIds={onlineUserIds}
         />
       ) : (
         <EmptyState />

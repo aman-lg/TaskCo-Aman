@@ -13,6 +13,7 @@ interface Props {
   currentUserId: string;
   currentUserProfile: ChatProfile;
   activeConversationId?: string;
+  onlineUserIds: Set<string>;
 }
 
 const FILTERS: { key: Filter; label: string }[] = [
@@ -27,6 +28,7 @@ export function ConversationSidebar({
   currentUserId,
   currentUserProfile,
   activeConversationId,
+  onlineUserIds,
 }: Props) {
   const [search, setSearch]           = useState("");
   const [filter, setFilter]           = useState<Filter>("all");
@@ -155,6 +157,7 @@ export function ConversationSidebar({
                     conversation={conv}
                     currentUserId={currentUserId}
                     isActive={conv.id === activeConversationId}
+                    isOnline={!!conv.other_user && onlineUserIds.has(conv.other_user.id)}
                   />
                 </div>
               );

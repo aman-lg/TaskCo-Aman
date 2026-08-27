@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Conversation, ChatMessage, TypingUser, ChatProfile, MessageReaction, MessageRead } from "@/types/chat";
-import { useChatRealtime, useOnlinePresence } from "@/lib/hooks/use-chat-realtime";
+import { useChatRealtime } from "@/lib/hooks/use-chat-realtime";
 import { ChatHeader } from "./chat-header";
 import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
@@ -16,10 +16,11 @@ interface Props {
   currentUserId: string;
   currentUserProfile: ChatProfile;
   initialMessages: ChatMessage[];
+  onlineUserIds: Set<string>;
 }
 
 export function ChatWindow({
-  conversation, currentUserId, currentUserProfile, initialMessages,
+  conversation, currentUserId, currentUserProfile, initialMessages, onlineUserIds,
 }: Props) {
   const router = useRouter();
   const [messages, setMessages]     = useState<ChatMessage[]>(initialMessages);
@@ -47,8 +48,6 @@ export function ChatWindow({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [router]);
-
-  const onlineUserIds = useOnlinePresence(currentUserId, currentUserProfile.full_name);
 
   // ── Realtime callbacks ─────────────────────────────────────────────────────
   const handleNewMessage = useCallback((msg: ChatMessage) => {
@@ -139,6 +138,52 @@ export function ChatWindow({
     onReadUpdate: handleReadUpdate,
     onTyping: setTypingUsers,
   });
+
+  // ── Realtime resync — postgres_changes is at-most-once delivery; a
+  // subscribed channel can still silently miss an INSERT (network hiccup,
+  // brief server-side gap, tab throttled in the background) with no error
+  // surfaced anywhere, which is what "sometimes messages just don't show up
+  // live" actually was. Periodically, and whenever the tab/window regains
+  // focus, re-fetch the latest messages and merge in anything realtime
+  // missed — cheap, idempotent (existing ids are skipped), and self-heals
+  // without the user ever noticing a gap happened. ──────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resync() {
+      try {
+        const res = await fetch(`/api/chat/conversations/${conversation.id}/messages?limit=50`, { credentials: "same-origin" });
+        if (!res.ok || cancelled) return;
+        const json = await res.json().catch(() => null);
+        const fresh: ChatMessage[] = json?.data?.messages ?? [];
+        if (fresh.length === 0 || cancelled) return;
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const missing = fresh.filter((m) => !existingIds.has(m.id));
+          if (missing.length === 0) return prev;
+          return [...prev, ...missing].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+        });
+      } catch {
+        // best-effort — realtime is still the primary delivery path
+      }
+    }
+
+    const interval = setInterval(resync, 6000);
+    function onVisible() {
+      if (document.visibilityState === "visible") resync();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", resync);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", resync);
+    };
+  }, [conversation.id]);
 
   // ── Message sent callback (optimistic) ────────────────────────────────────
   const handleMessageSent = useCallback((msg: ChatMessage) => {

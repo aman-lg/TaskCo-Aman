@@ -292,6 +292,18 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
   // (realtime + the existing resync fallback) — no special client-side
   // trigger needed at all.
   if (conv?.type === "ai" && type === "text") {
+    // TEMP DEBUG — does after() itself even fire on this deployment?
+    after(async () => {
+      const admin = createAdminClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (admin as any).from("messages").insert({
+        conversation_id: id,
+        sender_id: null,
+        type: "text",
+        content: "DEBUG: after() fired",
+        metadata: { is_ai: true },
+      });
+    });
     // TEMP DEBUG — surfaces any after()/generateAiReply failure as a real
     // chat message (via the admin client, so it can't be a cookie/session
     // issue) since I have no other way to see server logs here. Reverting

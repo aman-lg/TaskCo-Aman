@@ -115,7 +115,8 @@ export const POST = withAuth(async (_req: NextRequest, ctx) => {
     }
   } catch (err) {
     console.error("[ai-reply] Gemini call failed", err);
-    return ApiError.internal();
+    // TEMP DEBUG — reverting right after diagnosing the prod 500 (see chat).
+    return ApiError.internal(err instanceof Error ? err.message : String(err));
   }
 
   if (!finalText && !pendingAction) {

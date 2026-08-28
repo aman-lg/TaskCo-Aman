@@ -96,6 +96,9 @@ export function MessageInput({
   const docInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef<string>("");
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const typingHeartbeatRef = useRef<NodeJS.Timeout | null>(null);
@@ -414,8 +417,56 @@ export function MessageInput({
   }
 
   // -------------------------------------------------------------------------
-  // Voice note recording
+  // Voice note recording — transcription is captured live via the browser's
+  // own (free) Web Speech API while recording, never by sending the audio to
+  // any paid API afterward. Falls back to no transcript at all on browsers
+  // without SpeechRecognition support (e.g. Firefox) — the voice note itself
+  // is unaffected either way.
   // -------------------------------------------------------------------------
+
+  function startSpeechRecognition() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionCtor = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+    transcriptRef.current = "";
+    try {
+      const recognition = new SpeechRecognitionCtor();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      recognition.onresult = (event: any) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            const chunk = event.results[i][0].transcript.trim();
+            if (chunk) transcriptRef.current = transcriptRef.current ? `${transcriptRef.current} ${chunk}` : chunk;
+          }
+        }
+      };
+      recognition.onerror = () => {};
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch {
+      recognitionRef.current = null;
+    }
+  }
+
+  function stopSpeechRecognition(): Promise<string> {
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (!recognition) return Promise.resolve("");
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        resolve(transcriptRef.current.trim());
+      };
+      recognition.onend = finish;
+      try { recognition.stop(); } catch { finish(); }
+      // Safety net — recognition.onend isn't guaranteed if the mic died mid-recording.
+      setTimeout(finish, 1500);
+    });
+  }
 
   async function startRecording() {
     try {
@@ -429,6 +480,7 @@ export function MessageInput({
       };
 
       recorder.start();
+      startSpeechRecognition();
       setIsRecording(true);
       setRecordingSeconds(0);
 
@@ -458,6 +510,7 @@ export function MessageInput({
 
         // Stop tracks
         recorder.stream.getTracks().forEach((t) => t.stop());
+        const transcript = await stopSpeechRecognition();
 
         setIsRecording(false);
         setRecordingSeconds(0);
@@ -480,6 +533,7 @@ export function MessageInput({
               size: uploaded.size,
               mime: uploaded.mime,
               duration: recordingSeconds,
+              ...(transcript ? { transcript } : {}),
             }
           );
         } catch (err) {

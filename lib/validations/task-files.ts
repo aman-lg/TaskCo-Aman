@@ -1,13 +1,11 @@
 import { z } from "zod";
 
-export const addProjectLinkSchema = z.object({
+export const addTaskLinkSchema = z.object({
   kind: z.literal("link"),
   name: z.string().min(1, "Name is required").max(200, "Max 200 characters"),
   url: z.string().url("Must be a valid URL"),
-  // Set when the link comes from a known source (e.g. a Google Drive file) —
-  // omitted for a plain external URL.
   mime: z.string().max(200).optional(),
   size: z.number().int().nonnegative().optional(),
 });
 
-export type AddProjectLinkInput = z.infer<typeof addProjectLinkSchema>;
+export type AddTaskLinkInput = z.infer<typeof addTaskLinkSchema>;

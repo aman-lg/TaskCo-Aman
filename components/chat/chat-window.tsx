@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { Conversation, ChatMessage, TypingUser, ChatProfile, MessageReaction, MessageRead } from "@/types/chat";
 import { useChatRealtime } from "@/lib/hooks/use-chat-realtime";
 import { ChatHeader } from "./chat-header";
@@ -31,6 +32,8 @@ export function ChatWindow({
   const [hasMore, setHasMore]       = useState(initialMessages.length === 50);
   const [loadingMore, setLoadingMore] = useState(false);
   const [infoOpen, setInfoOpen]     = useState(false);
+  const [taskoThinking, setTaskoThinking] = useState(false);
+  const [otherLastSeenAt, setOtherLastSeenAt] = useState<string | null>(conversation.other_user?.last_seen_at ?? null);
 
   const memberCount = conversation.members?.length ?? 2;
   const myMember    = conversation.members?.find(m => m.user_id === currentUserId);
@@ -212,13 +215,65 @@ export function ChatWindow({
     };
   }, [conversation.id]);
 
+  // ── Other member's last_seen_at — the `conversation` prop is a snapshot
+  // from whenever this window mounted; last_seen_at inside it never changes
+  // again on its own, so "Last Active" could stay frozen (or never appear)
+  // for as long as the window stayed open even though the DB value kept
+  // updating from the other person's own heartbeat. Poll a dedicated light
+  // endpoint instead of re-fetching the whole conversation. ─────────────────
+  useEffect(() => {
+    if (conversation.type !== "direct" && conversation.type !== "self") return;
+    let cancelled = false;
+
+    async function refreshPresence() {
+      try {
+        const res = await fetch(`/api/chat/conversations/${conversation.id}/presence`, { credentials: "same-origin" });
+        if (!res.ok || cancelled) return;
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+        setOtherLastSeenAt(json?.data?.last_seen_at ?? null);
+      } catch {
+        // best-effort
+      }
+    }
+
+    refreshPresence();
+    const interval = setInterval(refreshPresence, 15000);
+    function onVisible() {
+      if (document.visibilityState === "visible") refreshPresence();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", refreshPresence);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", refreshPresence);
+    };
+  }, [conversation.id, conversation.type]);
+
   // ── Message sent callback (optimistic) ────────────────────────────────────
   const handleMessageSent = useCallback((msg: ChatMessage) => {
     setMessages(prev => {
       if (prev.some(m => m.id === msg.id)) return prev;
       return [...prev, msg];
     });
-  }, []);
+
+    if (conversation.type === "ai" && msg.sender_id === currentUserId) {
+      setTaskoThinking(true);
+      fetch(`/api/chat/conversations/${conversation.id}/ai-reply`, { method: "POST" })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data?.error?.message ?? "Tasko couldn't reply");
+          if (data?.data?.message) {
+            setMessages(prev => prev.some(m => m.id === data.data.message.id) ? prev : [...prev, data.data.message]);
+          }
+        })
+        .catch((err) => toast.error(err instanceof Error ? err.message : "Tasko couldn't reply"))
+        .finally(() => setTaskoThinking(false));
+    }
+  }, [conversation.type, conversation.id, currentUserId]);
 
   const handleMessageEdited = useCallback((msg: ChatMessage) => {
     setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));
@@ -252,6 +307,13 @@ export function ChatWindow({
 
   const isSelf = conversation.type === "self";
 
+  // Everything else about `conversation` is fine as a static snapshot for
+  // the lifetime of this window — only other_user.last_seen_at needs to stay
+  // live (see the polling effect above).
+  const conversationWithLivePresence = conversation.other_user
+    ? { ...conversation, other_user: { ...conversation.other_user, last_seen_at: otherLastSeenAt } }
+    : conversation;
+
   return (
     <div
       className="flex-1 flex flex-col overflow-hidden"
@@ -259,7 +321,7 @@ export function ChatWindow({
     >
       {/* Header */}
       <ChatHeader
-        conversation={conversation}
+        conversation={conversationWithLivePresence}
         currentUserId={currentUserId}
         onlineUserIds={onlineUserIds}
         typingUsers={typingUsers}
@@ -269,7 +331,7 @@ export function ChatWindow({
       <ConversationInfoPanel
         open={infoOpen}
         onClose={() => setInfoOpen(false)}
-        conversation={conversation}
+        conversation={conversationWithLivePresence}
         currentUserId={currentUserId}
         onLeftGroup={() => { setInfoOpen(false); router.push("/chat"); router.refresh(); }}
         onlineUserIds={onlineUserIds}
@@ -296,8 +358,14 @@ export function ChatWindow({
         loadingMore={loadingMore}
       />
 
-      {/* Typing indicator */}
-      {!isSelf && <TypingIndicator typingUsers={typingUsers} isGroup={conversation.type === "group"} />}
+      {/* Typing indicator / Tasko thinking */}
+      {conversation.type === "ai" ? (
+        taskoThinking && (
+          <TypingIndicator typingUsers={[{ user_id: "tasko", name: "Tasko" }]} isGroup={true} />
+        )
+      ) : (
+        !isSelf && <TypingIndicator typingUsers={typingUsers} isGroup={conversation.type === "group"} />
+      )}
 
       {/* Message input */}
       <MessageInput

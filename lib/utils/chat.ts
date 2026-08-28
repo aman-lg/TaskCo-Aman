@@ -97,6 +97,7 @@ export function getConversationName(
   currentUserId: string
 ): string {
   if (conv.type === "self") return "My Notes";
+  if (conv.type === "ai") return "Tasko AI";
   if (conv.type === "group") return conv.name ?? "Unnamed Group";
   // Direct — prefer denormalised other_user, fall back to members array
   if (conv.other_user) {
@@ -115,6 +116,7 @@ export function getConversationAvatar(
   currentUserId: string
 ): string | null {
   if (conv.type === "self") return null;
+  if (conv.type === "ai") return null;
   if (conv.type === "group") return conv.avatar_url ?? null;
   if (conv.other_user) return conv.other_user.avatar_url ?? null;
   const other = conv.members?.find((m) => m.user_id !== currentUserId);

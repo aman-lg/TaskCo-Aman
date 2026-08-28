@@ -240,6 +240,15 @@ export function useConversationListRealtime(
 // ─── useOnlinePresence ────────────────────────────────────────────────────────
 // Tracks the current user as online and returns the set of online user IDs.
 
+// A missed presence "leave" (tab killed, laptop sleep, dropped wifi — there's
+// no clean goodbye in any of those) used to leave a contact marked online
+// forever, permanently hiding "Last Active" for them. STALE_AFTER_MS is a
+// local backstop: an entry not refreshed within this window is dropped even
+// without ever seeing a "leave" for it. Must be bigger than
+// PRESENCE_HEARTBEAT_MS below (with margin for missed beats).
+const STALE_AFTER_MS = 90_000;
+const PRESENCE_HEARTBEAT_MS = 30_000;
+
 export function useOnlinePresence(
   currentUserId: string,
   name: string | null,
@@ -249,6 +258,10 @@ export function useOnlinePresence(
   // reflected presence changes incidentally, whenever something ELSE
   // happened to re-render them. useState makes it actually reactive.
   const [online, setOnline] = useState<Set<string>>(new Set());
+  // Per-key "last time we had positive confirmation this user is present" —
+  // not just a bare Set, so staleness can be judged independently of
+  // whether a "leave" event ever arrives for that key.
+  const lastPingRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -258,21 +271,35 @@ export function useOnlinePresence(
       config: { presence: { key: currentUserId } },
     });
 
+    function recompute() {
+      const now = Date.now();
+      const next = new Set<string>();
+      for (const [key, ts] of lastPingRef.current) {
+        if (now - ts < STALE_AFTER_MS) next.add(key);
+      }
+      setOnline(next);
+    }
+
+    function markPresent(keys: string[]) {
+      const now = Date.now();
+      for (const key of keys) lastPingRef.current.set(key, now);
+      recompute();
+    }
+
     channel.on("presence", { event: "sync" }, () => {
-      const state = channel.presenceState();
-      setOnline(new Set(Object.keys(state)));
+      markPresent(Object.keys(channel.presenceState()));
     });
 
     channel.on("presence", { event: "join" }, ({ key }: { key: string }) => {
-      setOnline((prev) => new Set(prev).add(key));
+      markPresent([key]);
     });
 
     channel.on("presence", { event: "leave" }, ({ key }: { key: string }) => {
-      setOnline((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
+      // Trust an explicit leave immediately — this keeps the common clean-
+      // disconnect case instant. The staleness prune below only matters for
+      // the unclean-disconnect case, where this event never arrives at all.
+      lastPingRef.current.delete(key);
+      recompute();
     });
 
     // last_seen_at was only ever read (chat-header, info panel, sidebar) and
@@ -297,10 +324,21 @@ export function useOnlinePresence(
       });
     });
 
-    const heartbeat = setInterval(touchLastSeen, 60_000);
+    const seenHeartbeat = setInterval(touchLastSeen, 60_000);
+    // Presence "sync" only fires when membership actually changes — with no
+    // churn for a while, our record of "when did we last confirm key X is
+    // present" goes stale even though X never left. Re-tracking ourselves on
+    // an interval forces a fresh sync (carrying the FULL current membership,
+    // not just our own delta) out to every client on the channel, which is
+    // what lets `recompute` tell "quietly still here" apart from "actually
+    // gone but leave never fired".
+    const presenceHeartbeat = setInterval(() => { void channel.track({ online: true, name }); }, PRESENCE_HEARTBEAT_MS);
+    const pruneTimer = setInterval(recompute, 20_000);
 
     return () => {
-      clearInterval(heartbeat);
+      clearInterval(seenHeartbeat);
+      clearInterval(presenceHeartbeat);
+      clearInterval(pruneTimer);
       touchLastSeen();
       channel.untrack();
       supabase.removeChannel(channel);

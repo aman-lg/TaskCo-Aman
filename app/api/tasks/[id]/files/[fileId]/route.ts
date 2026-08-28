@@ -20,7 +20,7 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: row, error } = await (supabase as any)
     .from("task_files")
-    .select("id, storage_path, name")
+    .select("id, kind, url, storage_path, name")
     .eq("id", fileId)
     .eq("task_id", taskId)
     .maybeSingle();
@@ -30,6 +30,8 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
     return ApiError.internal();
   }
   if (!row) return ApiError.notFound("File not found");
+
+  if (row.kind === "link") return ok({ url: row.url });
 
   // No `download` option — see the equivalent project-files route for why:
   // it forces Content-Disposition: attachment and prevents inline viewing.
@@ -60,7 +62,7 @@ export const DELETE = withAuth(async (_req: NextRequest, { params }) => {
     .delete()
     .eq("id", fileId)
     .eq("task_id", taskId)
-    .select("storage_path")
+    .select("kind, storage_path")
     .maybeSingle();
 
   if (error) {
@@ -69,9 +71,11 @@ export const DELETE = withAuth(async (_req: NextRequest, { params }) => {
   }
   if (!deleted) return ApiError.notFound("File not found");
 
-  const admin = createAdminClient();
-  const { error: removeErr } = await admin.storage.from(BUCKET).remove([deleted.storage_path]);
-  if (removeErr) console.error("[tasks/[id]/files/[fileId] DELETE storage]", removeErr);
+  if (deleted.kind === "file" && deleted.storage_path) {
+    const admin = createAdminClient();
+    const { error: removeErr } = await admin.storage.from(BUCKET).remove([deleted.storage_path]);
+    if (removeErr) console.error("[tasks/[id]/files/[fileId] DELETE storage]", removeErr);
+  }
 
   return ok({ deleted: true });
 });

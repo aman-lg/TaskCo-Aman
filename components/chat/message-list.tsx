@@ -9,7 +9,7 @@ import { MessageBubble } from "./message-bubble";
 interface Props {
   messages: ChatMessage[];
   currentUserId: string;
-  conversationType: "direct" | "group" | "self";
+  conversationType: "direct" | "group" | "self" | "ai";
   memberCount: number;
   isGroupAdmin?: boolean;
   onReply: (msg: ChatMessage) => void;

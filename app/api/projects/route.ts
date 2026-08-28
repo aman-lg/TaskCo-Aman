@@ -1,8 +1,9 @@
-﻿import { type NextRequest } from "next/server";
+﻿import { type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { createProjectSchema } from "@/lib/validations/projects";
+import { upsertEmbedding, projectEmbeddingContent } from "@/lib/ai/embed";
 
 /**
  * GET /api/projects
@@ -48,5 +49,8 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
     .single();
 
   if (error) { console.error("[projects POST]", error); return ApiError.internal(); }
+
+  after(() => upsertEmbedding("project", data.id, data.id, projectEmbeddingContent(data.title, data.description)));
+
   return ok(data, 201);
 });

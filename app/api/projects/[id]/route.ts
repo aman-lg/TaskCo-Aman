@@ -1,9 +1,10 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { updateProjectSchema } from "@/lib/validations/projects";
 import { isValidUUID } from "@/lib/utils/validate";
+import { upsertEmbedding, deleteEmbedding, projectEmbeddingContent } from "@/lib/ai/embed";
 
 /**
  * GET /api/projects/:id
@@ -65,6 +66,11 @@ export const PATCH = withAuth(async (req: NextRequest, { params }) => {
     console.error("[projects/[id] PATCH]", error); return ApiError.internal();
   }
   if (!data) return ApiError.forbidden();
+
+  if (parsed.data.title !== undefined || parsed.data.description !== undefined) {
+    after(() => upsertEmbedding("project", data.id, data.id, projectEmbeddingContent(data.title, data.description)));
+  }
+
   return ok(data);
 });
 
@@ -87,5 +93,8 @@ export const DELETE = withAuth(async (_req: NextRequest, { params }) => {
 
   if (error) { console.error("[projects/[id] DELETE]", error); return ApiError.internal(); }
   if (count === 0) return ApiError.forbidden();
+
+  after(() => deleteEmbedding("project", id));
+
   return ok({ deleted: true });
 });

@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TaskFormDialog } from "./task-form-dialog";
 import { TaskChecklist } from "./task-checklist";
+import { TaskFilesPanel } from "./task-files-panel";
 import type { Task } from "@/types";
 import type { AssigneeProfile } from "@/lib/queries/tasks";
 
@@ -208,6 +209,12 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
                 position: i.position ?? 0,
               }))}
             />
+
+            {/* Divider */}
+            <div style={{ borderTop: "1px solid var(--line)" }} />
+
+            {/* Files */}
+            <TaskFilesPanel taskId={task.id} currentUserId={currentUserId} canManage={isCreator} />
           </div>
         </SheetContent>
       </Sheet>

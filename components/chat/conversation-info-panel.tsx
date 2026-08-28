@@ -334,7 +334,7 @@ export function ConversationInfoPanel({ open, onClose, conversation, currentUser
                     </div>
                     <div className="rounded-xl p-3" style={{ background: "var(--panel-bg)" }}>
                       <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>Status</p>
-                      <p className="text-[13px]" style={{ color: "var(--ink)" }}>{formatLastSeen(other?.last_seen_at ?? null)}</p>
+                      <p className="text-[13px]" style={{ color: "var(--ink)" }}>{isOtherOnline ? "Online" : formatLastSeen(other?.last_seen_at ?? null)}</p>
                     </div>
                   </div>
                 )

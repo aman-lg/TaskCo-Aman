@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import {
-  Link2, Upload, Loader2, FileText, Trash2, Eye, ExternalLink,
+  Link2, Upload, Loader2, FileText, Trash2, Eye, ExternalLink, HardDrive,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DocumentViewer } from "@/components/ui/document-viewer";
+import { DriveFilePicker, type DrivePickedFile } from "@/components/shared/drive-file-picker";
 
 const PREVIEWABLE_EXTENSIONS = ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx"];
 
@@ -54,6 +55,7 @@ export function ProjectFilesPanel({ projectId, currentUserId, canManage }: Props
   const [linkUrl, setLinkUrl] = useState("");
   const [addingLink, setAddingLink] = useState(false);
   const [docViewer, setDocViewer] = useState<{ url: string; name: string; mime: string | null } | null>(null);
+  const [showDrivePicker, setShowDrivePicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -115,6 +117,19 @@ export function ProjectFilesPanel({ projectId, currentUserId, canManage }: Props
     } finally {
       setAddingLink(false);
     }
+  }
+
+  async function handleAttachDriveFile(drive: DrivePickedFile) {
+    const res = await fetch(`/api/projects/${projectId}/files`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ kind: "link", name: drive.name, url: drive.url, mime: drive.mime, size: drive.size ?? undefined }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body?.error?.message ?? "Failed to attach file");
+    setFiles(prev => [body.data, ...prev]);
+    toast.success("Attached from Google Drive");
   }
 
   async function handleOpen(file: ProjectFile) {
@@ -195,8 +210,17 @@ export function ProjectFilesPanel({ projectId, currentUserId, canManage }: Props
             Upload
           </button>
           <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+          <button
+            onClick={() => setShowDrivePicker(true)}
+            className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[12px] font-semibold transition-colors"
+            style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+          >
+            <HardDrive className="h-3.5 w-3.5" /> Drive
+          </button>
         </div>
       </div>
+
+      <DriveFilePicker open={showDrivePicker} onClose={() => setShowDrivePicker(false)} onAttach={handleAttachDriveFile} />
 
       {showLinkForm && (
         <div

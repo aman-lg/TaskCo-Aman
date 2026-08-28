@@ -4,6 +4,7 @@ import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getProjects } from "@/lib/queries/projects";
 import { getTaskStats, getTodayTasks } from "@/lib/queries/tasks";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { AiInsightsCard } from "@/components/shared/ai-insights-card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -30,22 +31,25 @@ export default async function DashboardPage() {
   const firstName = (profile as { full_name: string | null } | null)?.full_name?.split(" ")[0] ?? "there";
 
   return (
-    <DashboardClient
-      firstName={firstName}
-      projectStats={{
-        active: projects.filter((p) => p.status === "active").length,
-        total: projects.length,
-      }}
-      taskStats={{
-        total: taskStats.total,
-        completed: taskStats.completed,
-        pending: taskStats.pending,
-        dueToday: taskStats.dueToday,
-        statusBreakdown: taskStats.statusBreakdown,
-      }}
-      deadlineDates={taskStats.deadlineDates}
-      projects={projects.map((p) => ({ id: p.id, title: p.title, color: p.color }))}
-      todayTasks={todayTasks}
-    />
+    <div className="flex flex-col gap-5">
+      <AiInsightsCard scope="dashboard" title="Tasko's take" />
+      <DashboardClient
+        firstName={firstName}
+        projectStats={{
+          active: projects.filter((p) => p.status === "active").length,
+          total: projects.length,
+        }}
+        taskStats={{
+          total: taskStats.total,
+          completed: taskStats.completed,
+          pending: taskStats.pending,
+          dueToday: taskStats.dueToday,
+          statusBreakdown: taskStats.statusBreakdown,
+        }}
+        deadlineDates={taskStats.deadlineDates}
+        projects={projects.map((p) => ({ id: p.id, title: p.title, color: p.color }))}
+        todayTasks={todayTasks}
+      />
+    </div>
   );
 }

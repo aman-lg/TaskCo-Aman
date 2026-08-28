@@ -1,9 +1,10 @@
-﻿import { type NextRequest } from "next/server";
+﻿import { type NextRequest, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { createTaskSchema } from "@/lib/validations/tasks";
 import { isValidUUID } from "@/lib/utils/validate";
+import { upsertEmbedding, taskEmbeddingContent } from "@/lib/ai/embed";
 
 /**
  * GET /api/tasks?project_id=<uuid>
@@ -63,5 +64,11 @@ export const POST = withAuth(async (req: NextRequest, { user }) => {
     .single();
 
   if (error) { console.error("[tasks POST]", error); return ApiError.internal(); }
+
+  // after(): runs once the response has been sent, but keeps the serverless
+  // function alive until it resolves — plain fire-and-forget can get killed
+  // mid-flight the instant the response returns on Vercel.
+  after(() => upsertEmbedding("task", data.id, data.project_id, taskEmbeddingContent(data.name, data.description)));
+
   return ok(data, 201);
 });

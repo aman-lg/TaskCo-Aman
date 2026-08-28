@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient, getAuthUser } from "@/lib/supabase/server";
-import { getConversations, ensureSelfConversation } from "@/lib/queries/chat";
+import { getConversations, ensureSelfConversation, ensureAiConversation } from "@/lib/queries/chat";
 import { ChatLayout } from "@/components/chat/chat-layout";
 import type { Conversation } from "@/types/chat";
 
@@ -30,6 +30,7 @@ export default async function ChatPage() {
   let conversations: Conversation[] = [];
   try {
     await ensureSelfConversation(supabase, user.id);
+    await ensureAiConversation(supabase, user.id);
     conversations = await getConversations(supabase, user.id);
   } catch (err) {
     console.error("[chat/page] DB error — run migration 011_chat.sql:", err);

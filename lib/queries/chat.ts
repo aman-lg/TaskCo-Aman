@@ -137,10 +137,11 @@ export async function getConversations(supabase: Client, userId: string): Promis
     };
   }).filter(Boolean) as Conversation[];
 
-  // Sort: self (Notes) first, then pinned, then by last_message_at
+  // Sort: self (Notes) first, then ai (Tasko), then pinned, then by last_message_at
+  const pinnedTypeRank = (t: Conversation["type"]) => (t === "self" ? 0 : t === "ai" ? 1 : 2);
   return conversations.sort((a, b) => {
-    if (a.type === "self") return -1;
-    if (b.type === "self") return 1;
+    const rankDiff = pinnedTypeRank(a.type) - pinnedTypeRank(b.type);
+    if (rankDiff !== 0) return rankDiff;
     if (a.my_member?.is_pinned && !b.my_member?.is_pinned) return -1;
     if (!a.my_member?.is_pinned && b.my_member?.is_pinned) return 1;
     const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
@@ -368,6 +369,60 @@ export async function ensureSelfConversation(
   }
 
   // Step 3: Add owner member row (upsert in case of partial failure retry)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any)
+    .from("conversation_members")
+    .upsert(
+      { conversation_id: newConv.id, user_id: userId, role: "owner", added_by: userId },
+      { onConflict: "conversation_id,user_id" },
+    );
+
+  return newConv.id as string;
+}
+
+// ─── ensureAiConversation ──────────────────────────────────────────────────────
+// Auto-creates the "Tasko AI" conversation for a user if it doesn't exist —
+// same lazy-create shape as ensureSelfConversation above, sibling singleton
+// conversation type.
+
+export async function ensureAiConversation(
+  supabase: Client,
+  userId: string,
+): Promise<string | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: memberRows } = await (supabase as any)
+    .from("conversation_members")
+    .select("conversation_id")
+    .eq("user_id", userId);
+
+  const ownConvIds: string[] = (memberRows ?? []).map(
+    (r: { conversation_id: string }) => r.conversation_id,
+  );
+
+  if (ownConvIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: aiConv } = await (supabase as any)
+      .from("conversations")
+      .select("id")
+      .eq("type", "ai")
+      .in("id", ownConvIds)
+      .maybeSingle();
+
+    if (aiConv?.id) return aiConv.id as string;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: newConv, error: convErr } = await (supabase as any)
+    .from("conversations")
+    .insert({ type: "ai", name: "Tasko AI", created_by: userId })
+    .select("id")
+    .single();
+
+  if (convErr || !newConv) {
+    console.error("[ensureAiConversation] insert failed:", convErr);
+    return null;
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
     .from("conversation_members")

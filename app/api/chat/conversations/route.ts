@@ -4,7 +4,7 @@ import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUUID } from "@/lib/utils/validate";
-import { getConversations, ensureSelfConversation } from "@/lib/queries/chat";
+import { getConversations, ensureSelfConversation, ensureAiConversation } from "@/lib/queries/chat";
 
 const createSchema = z.object({
   type: z.enum(["direct", "group"]),
@@ -20,8 +20,9 @@ export const GET = withAuth(async (_req, ctx) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return ApiError.unauthorized();
 
-  // Ensure "My Notes" exists
+  // Ensure "My Notes" and "Tasko AI" exist
   await ensureSelfConversation(supabase, user.id);
+  await ensureAiConversation(supabase, user.id);
 
   const conversations = await getConversations(supabase, user.id);
   return ok(conversations);

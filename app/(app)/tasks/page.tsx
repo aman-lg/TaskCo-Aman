@@ -2,6 +2,7 @@ import { createClient, getAuthUser } from "@/lib/supabase/server";
 import { getAllTasks } from "@/lib/queries/tasks";
 import { getProjects } from "@/lib/queries/projects";
 import { TasksGrid } from "@/components/tasks/tasks-grid";
+import { AiInsightsCard } from "@/components/shared/ai-insights-card";
 
 export default async function TasksPage() {
   const supabase = await createClient();
@@ -13,10 +14,13 @@ export default async function TasksPage() {
   ]);
 
   return (
-    <TasksGrid
-      tasks={tasks}
-      projects={projects.map((p) => ({ id: p.id, title: p.title }))}
-      currentUserName={(user?.user_metadata?.full_name as string | null) ?? user?.email ?? "You"}
-    />
+    <div className="flex flex-col gap-4">
+      <AiInsightsCard scope="tasks" title="Tasko's take on your tasks" />
+      <TasksGrid
+        tasks={tasks}
+        projects={projects.map((p) => ({ id: p.id, title: p.title }))}
+        currentUserName={(user?.user_metadata?.full_name as string | null) ?? user?.email ?? "You"}
+      />
+    </div>
   );
 }

@@ -1,7 +1,7 @@
-export type ConversationType = "direct" | "group" | "self";
+export type ConversationType = "direct" | "group" | "self" | "ai";
 export type MessageType =
   | "text" | "image" | "video" | "audio" | "voice_note"
-  | "document" | "sticker" | "gif" | "poll" | "system" | "contact" | "call";
+  | "document" | "sticker" | "gif" | "poll" | "system" | "contact" | "call" | "ai_action";
 export type MemberRole = "owner" | "admin" | "member";
 
 export interface ChatProfile {
@@ -65,6 +65,15 @@ export interface MessageMetadata {
   room_name?: string;
   /** user_ids of anyone @mentioned in this message's content */
   mentions?: string[];
+  /** Set on an assistant reply (sender_id is null for these) */
+  is_ai?: boolean;
+  /** Cached Gemini transcript of an audio/voice_note message */
+  transcript?: string;
+  /** Only for type === "ai_action" — a proposed write awaiting confirmation */
+  action_id?: string;
+  action_type?: string;
+  action_summary?: string;
+  action_status?: "pending" | "confirmed" | "cancelled" | "executed" | "failed";
 }
 
 export interface ChatMessage {

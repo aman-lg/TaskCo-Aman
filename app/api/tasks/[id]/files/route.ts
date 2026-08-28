@@ -4,6 +4,7 @@ import { ok, ApiError } from "@/lib/api/response";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidUUID } from "@/lib/utils/validate";
+import { addTaskLinkSchema } from "@/lib/validations/task-files";
 
 const MAX_SIZE = 25 * 1024 * 1024; // 25MB, matches the bucket's file_size_limit
 const BUCKET = "task-files";
@@ -20,7 +21,7 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
     .from("task_files")
-    .select("id, name, storage_path, size, mime, created_at, added_by, profile:profiles!added_by(full_name)")
+    .select("id, kind, name, url, storage_path, size, mime, created_at, added_by, profile:profiles!added_by(full_name)")
     .eq("task_id", taskId)
     .order("created_at", { ascending: false });
 
@@ -71,6 +72,34 @@ export const POST = withAuth(async (req: NextRequest, { user, params }) => {
   }
   if (!canWrite) return ApiError.forbidden("You don't have access to this task");
 
+  const contentType = req.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const body = await req.json().catch(() => null);
+    const parsed = addTaskLinkSchema.safeParse(body);
+    if (!parsed.success) return ApiError.badRequest(parsed.error.issues[0].message);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("task_files")
+      .insert({
+        task_id: taskId,
+        added_by: user.id,
+        kind: "link",
+        name: parsed.data.name,
+        url: parsed.data.url,
+        mime: parsed.data.mime ?? null,
+        size: parsed.data.size ?? null,
+      })
+      .select("id, kind, name, url, storage_path, size, mime, created_at, added_by")
+      .single();
+
+    if (error) {
+      console.error("[tasks/[id]/files POST link]", error);
+      return ApiError.internal();
+    }
+    return ok(data, 201);
+  }
+
   const formData = await req.formData().catch(() => null);
   if (!formData) return ApiError.badRequest("Multipart form data required");
 
@@ -98,12 +127,13 @@ export const POST = withAuth(async (req: NextRequest, { user, params }) => {
     .insert({
       task_id: taskId,
       added_by: user.id,
+      kind: "file",
       name: file.name,
       storage_path: path,
       size: file.size,
       mime: file.type || null,
     })
-    .select("id, name, storage_path, size, mime, created_at, added_by")
+    .select("id, kind, name, url, storage_path, size, mime, created_at, added_by")
     .single();
 
   if (error) {

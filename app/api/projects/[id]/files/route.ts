@@ -56,6 +56,8 @@ export const POST = withAuth(async (req: NextRequest, { user, params }) => {
         kind: "link",
         name: parsed.data.name,
         url: parsed.data.url,
+        mime: parsed.data.mime ?? null,
+        size: parsed.data.size ?? null,
       })
       .select("id, kind, name, url, storage_path, size, mime, created_at, added_by")
       .single();

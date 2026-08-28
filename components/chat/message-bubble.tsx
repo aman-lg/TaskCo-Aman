@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, CornerUpLeft, Pencil, FileText, Phone } from "lucide-react";
+import { MoreHorizontal, CornerUpLeft, Pencil, FileText, Phone, Sparkles } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatMessage } from "@/types/chat";
 import { formatMessageTime, getMessageStatus, getMemberColor, formatFileSize, parseMentionSegments, stripMentionTokens } from "@/lib/utils/chat";
@@ -11,13 +11,14 @@ import PollDisplay from "./poll-display";
 import MediaViewer from "./media-viewer";
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import { CallModal } from "./call-modal";
+import { AiActionCard } from "./ai-action-card";
 
 interface Props {
   message: ChatMessage;
   currentUserId: string;
   isOwn: boolean;
   showSender: boolean;
-  conversationType: "direct" | "group" | "self";
+  conversationType: "direct" | "group" | "self" | "ai";
   memberCount: number;
   isGroupAdmin?: boolean;
   onReply: (msg: ChatMessage) => void;
@@ -65,8 +66,10 @@ export function MessageBubble({
 
   const status     = isOwn ? getMessageStatus(message, currentUserId, memberCount) : null;
   const timeStr    = formatMessageTime(message.created_at);
-  const senderName = message.sender?.full_name ?? message.sender?.email ?? "Unknown";
-  const senderColor = getMemberColor(message.sender_id ?? "");
+  const isAiMessage = message.sender_id === null && message.metadata?.is_ai === true;
+  const senderName = isAiMessage ? "Tasko AI" : message.sender?.full_name ?? message.sender?.email ?? "Unknown";
+  const senderColor = isAiMessage ? "var(--accent-brand)" : getMemberColor(message.sender_id ?? "");
+  const showAvatarAndName = showSender && !isOwn && (conversationType === "group" || isAiMessage);
 
   // Group reactions by emoji
   const reactionMap = new Map<string, string[]>();
@@ -100,26 +103,37 @@ export function MessageBubble({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setEmojiHover(false); }}
     >
-      {/* Avatar (others only, in group chat) */}
-      {!isOwn && conversationType === "group" && (
+      {/* Avatar (others only, in group chat or from Tasko) */}
+      {!isOwn && (conversationType === "group" || isAiMessage) && (
         <div className="w-7 flex-shrink-0 flex items-end">
           {showSender && (
             <Avatar className="w-7 h-7">
-              <AvatarImage src={message.sender?.avatar_url ?? undefined} />
-              <AvatarFallback
-                className="text-[10px] font-semibold"
-                style={{ background: "var(--navy-l)", color: "var(--navy)" }}
-              >
-                {initials(senderName)}
-              </AvatarFallback>
+              {isAiMessage ? (
+                <AvatarFallback
+                  className="text-[10px] font-semibold"
+                  style={{ background: "var(--accent-bg)", color: "var(--accent-brand)" }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                </AvatarFallback>
+              ) : (
+                <>
+                  <AvatarImage src={message.sender?.avatar_url ?? undefined} />
+                  <AvatarFallback
+                    className="text-[10px] font-semibold"
+                    style={{ background: "var(--navy-l)", color: "var(--navy)" }}
+                  >
+                    {initials(senderName)}
+                  </AvatarFallback>
+                </>
+              )}
             </Avatar>
           )}
         </div>
       )}
 
       <div className={`flex flex-col gap-0.5 max-w-[72%] ${isOwn ? "items-end" : "items-start"}`}>
-        {/* Sender name (group, not own) */}
-        {showSender && !isOwn && conversationType === "group" && (
+        {/* Sender name */}
+        {showAvatarAndName && (
           <span className="text-[11px] font-semibold px-1" style={{ color: senderColor }}>
             {senderName}
           </span>
@@ -241,9 +255,27 @@ export function MessageBubble({
                 </>
               )}
 
-              {/* Audio / voice note */}
+              {/* Audio / voice note — transcript (if any) was captured live by
+                  the sender's browser while recording, at no ongoing cost. */}
               {(message.type === "audio" || message.type === "voice_note") && message.metadata?.url && (
-                <audio src={message.metadata.url} controls className="max-w-[240px]" style={{ height: 36 }} />
+                <div className="max-w-[240px]">
+                  <audio
+                    src={message.metadata.url}
+                    controls
+                    controlsList="nodownload"
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="max-w-[240px]"
+                    style={{ height: 36, width: 240 }}
+                  />
+                  {message.metadata.transcript && (
+                    <p
+                      className="text-[11.5px] italic leading-snug mt-1.5 pt-1.5"
+                      style={{ color: isOwn ? "rgba(255,255,255,0.75)" : "var(--text-secondary)", borderTop: `1px solid ${isOwn ? "rgba(255,255,255,0.15)" : "var(--line-soft)"}` }}
+                    >
+                      &ldquo;{message.metadata.transcript}&rdquo;
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* Voice call — join the same Daily room whoever started it created */}
@@ -301,6 +333,11 @@ export function MessageBubble({
                     />
                   )}
                 </>
+              )}
+
+              {/* Ask Tasko — proposed action awaiting confirmation */}
+              {message.type === "ai_action" && (
+                <AiActionCard message={message} onResolved={onRefreshMessages} />
               )}
 
               {/* Other unhandled types (sticker, gif, contact) */}

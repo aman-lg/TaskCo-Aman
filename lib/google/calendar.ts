@@ -11,8 +11,13 @@ const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
 // the broader calendar (or calendar.readonly) scope — one scope covers both.
 // userinfo.email is also requested so we can show which Google account is
 // connected (getGoogleUserEmail below) — without it that call 403s.
+// drive.readonly lets the same connection browse/attach Drive files
+// (lib/google/drive.ts) — added later, so anyone connected before this was
+// added needs to reconnect once to pick up the wider scope (the existing
+// connect flow already forces prompt=consent, so this is just a repeat of
+// the same flow, not new UI).
 export const GOOGLE_CALENDAR_SCOPE =
-  "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email";
+  "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/drive.readonly";
 
 interface TokenResponse {
   access_token: string;

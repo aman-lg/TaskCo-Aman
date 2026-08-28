@@ -51,7 +51,12 @@ const nextConfig: NextConfig = {
               // frame-src had, media-src falls back to default-src 'self'
               // without this and silently blocks them from playing.
               "media-src 'self' blob: https://*.supabase.co",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+              // Web Speech API (voice-note live transcription) makes its own
+              // browser-internal network call to Google's recognition
+              // service — without this it can silently fail to produce a
+              // transcript with zero visible error, same class of bug as
+              // every other missing-directive gap below.
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google.com wss://www.google.com",
               // The in-app document viewer embeds PDFs directly from Supabase
               // storage and routes Word/Excel through Microsoft's viewer —
               // both are different origins, and with no frame-src set this

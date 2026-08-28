@@ -85,6 +85,7 @@ export function MessageInput({
   const [showEmojis, setShowEmojis] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [liveTranscript, setLiveTranscript] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showPollCreator, setShowPollCreator] = useState(false);
@@ -429,19 +430,26 @@ export function MessageInput({
     const SpeechRecognitionCtor = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
     if (!SpeechRecognitionCtor) return;
     transcriptRef.current = "";
+    setLiveTranscript("");
     try {
       const recognition = new SpeechRecognitionCtor();
       recognition.continuous = true;
-      recognition.interimResults = false;
+      // Interim results only drive the live on-screen preview below — the
+      // saved transcript still only ever accumulates from isFinal results.
+      recognition.interimResults = true;
       recognition.lang = navigator.language || "en-US";
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
+        let interim = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
+          const chunk = event.results[i][0].transcript.trim();
           if (event.results[i].isFinal) {
-            const chunk = event.results[i][0].transcript.trim();
             if (chunk) transcriptRef.current = transcriptRef.current ? `${transcriptRef.current} ${chunk}` : chunk;
+          } else {
+            interim += (interim ? " " : "") + chunk;
           }
         }
+        setLiveTranscript(interim ? `${transcriptRef.current} ${interim}`.trim() : transcriptRef.current);
       };
       recognition.onerror = () => {};
       recognition.start();
@@ -455,7 +463,7 @@ export function MessageInput({
     const recognition = recognitionRef.current;
     recognitionRef.current = null;
     if (!recognition) return Promise.resolve("");
-    return new Promise((resolve) => {
+    return new Promise<string>((resolve) => {
       let done = false;
       const finish = () => {
         if (done) return;
@@ -469,7 +477,7 @@ export function MessageInput({
       // "final" result before firing onend, but that still means a round
       // trip to the recognition service, which can take a few seconds.
       setTimeout(finish, 4000);
-    });
+    }).finally(() => setLiveTranscript(""));
   }
 
   async function startRecording() {
@@ -728,62 +736,73 @@ export function MessageInput({
 
         {/* Recording state */}
         {isRecording ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "8px 4px",
-            }}
-          >
-            <div
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                background: "var(--clr-red)",
-                animation: "pulse 1s ease-in-out infinite",
-                flexShrink: 0,
-              }}
-            />
-            <span
-              style={{
-                color: "var(--clr-red)",
-                fontSize: 14,
-                fontFamily: "var(--font-display)",
-                fontVariantNumeric: "tabular-nums",
-              }}
-            >
-              {formatRecordingTime(recordingSeconds)}
-            </span>
-            <span
-              style={{
-                flex: 1,
-                fontSize: 13,
-                color: "var(--text-muted)",
-              }}
-            >
-              Recording voice note…
-            </span>
-            <button
-              onClick={() => void stopRecording()}
-              style={{
-                background: "var(--clr-red)",
-                border: "none",
-                borderRadius: "50%",
-                width: 36,
-                height: 36,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                flexShrink: 0,
-              }}
-              aria-label="Stop recording"
-            >
-              <Send size={16} />
-            </button>
+          <div style={{ padding: "8px 4px", display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  background: "var(--clr-red)",
+                  animation: "pulse 1s ease-in-out infinite",
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  color: "var(--clr-red)",
+                  fontSize: 14,
+                  fontFamily: "var(--font-display)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {formatRecordingTime(recordingSeconds)}
+              </span>
+              <span
+                style={{
+                  flex: 1,
+                  fontSize: 13,
+                  color: "var(--text-muted)",
+                }}
+              >
+                {liveTranscript ? "Transcribing…" : "Recording voice note…"}
+              </span>
+              <button
+                onClick={() => void stopRecording()}
+                style={{
+                  background: "var(--clr-red)",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: 36,
+                  height: 36,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "white",
+                  flexShrink: 0,
+                }}
+                aria-label="Stop recording"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+            {/* Live transcript preview — proves transcription is actually
+                working in this browser, in real time, as you speak. */}
+            {liveTranscript && (
+              <p
+                style={{
+                  fontSize: 12.5,
+                  color: "var(--text-secondary)",
+                  fontStyle: "italic",
+                  paddingLeft: 22,
+                  paddingRight: 8,
+                  lineHeight: 1.4,
+                }}
+              >
+                &ldquo;{liveTranscript}&rdquo;
+              </p>
+            )}
           </div>
         ) : (
           /* Normal input row */

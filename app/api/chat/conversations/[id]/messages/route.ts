@@ -292,39 +292,32 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
   // (realtime + the existing resync fallback) — no special client-side
   // trigger needed at all.
   if (conv?.type === "ai" && type === "text") {
-    // TEMP DEBUG — does after() itself even fire on this deployment?
+    // TEMP DEBUG — single after() this time (testing whether a SECOND
+    // after() registration in the same request is what's being dropped).
     after(async () => {
       const admin = createAdminClient();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (admin as any).from("messages").insert({
-        conversation_id: id,
-        sender_id: null,
-        type: "text",
-        content: "DEBUG: after() fired",
-        metadata: { is_ai: true },
+        conversation_id: id, sender_id: null, type: "text",
+        content: "DEBUG: single after() started", metadata: { is_ai: true },
       });
-    });
-    // TEMP DEBUG — surfaces any after()/generateAiReply failure as a real
-    // chat message (via the admin client, so it can't be a cookie/session
-    // issue) since I have no other way to see server logs here. Reverting
-    // once diagnosed.
-    after(() =>
-      generateAiReply(supabase, id, user.id)
-        .then((r) => {
-          if (!r.ok) console.error("[chat/messages POST] generateAiReply failed", r.error);
-        })
-        .catch(async (err) => {
-          const admin = createAdminClient();
+      try {
+        const r = await generateAiReply(supabase, id, user.id);
+        if (!r.ok) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (admin as any).from("messages").insert({
-            conversation_id: id,
-            sender_id: null,
-            type: "text",
-            content: `DEBUG: after() threw — ${err instanceof Error ? err.message : String(err)}`,
-            metadata: { is_ai: true },
+            conversation_id: id, sender_id: null, type: "text",
+            content: `DEBUG: generateAiReply not ok — ${r.error}`, metadata: { is_ai: true },
           });
-        })
-    );
+        }
+      } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (admin as any).from("messages").insert({
+          conversation_id: id, sender_id: null, type: "text",
+          content: `DEBUG: threw — ${err instanceof Error ? err.message : String(err)}`, metadata: { is_ai: true },
+        });
+      }
+    });
   }
 
   return ok({ message: msg });

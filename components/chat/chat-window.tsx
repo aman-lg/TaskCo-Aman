@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import type { Conversation, ChatMessage, TypingUser, ChatProfile, MessageReaction, MessageRead } from "@/types/chat";
 import { useChatRealtime } from "@/lib/hooks/use-chat-realtime";
 import { ChatHeader } from "./chat-header";
@@ -18,6 +17,10 @@ interface Props {
   currentUserProfile: ChatProfile;
   initialMessages: ChatMessage[];
   onlineUserIds: Set<string>;
+}
+
+function isAiReply(m: ChatMessage): boolean {
+  return m.sender_id === null && !!m.metadata?.is_ai;
 }
 
 export function ChatWindow({
@@ -58,6 +61,7 @@ export function ChatWindow({
       if (prev.some(m => m.id === msg.id)) return prev;
       return [...prev, msg];
     });
+    if (isAiReply(msg)) setTaskoThinking(false);
 
     // The realtime INSERT payload is the raw messages row — no sender join,
     // and for polls specifically, no polls/poll_options join (that data is
@@ -195,6 +199,10 @@ export function ChatWindow({
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           );
         });
+
+        // Same fallback the resync always was for realtime — if Tasko's
+        // reply insert itself was missed, this is what still surfaces it.
+        if (fresh.some(isAiReply)) setTaskoThinking(false);
       } catch {
         // best-effort — realtime is still the primary delivery path
       }
@@ -254,6 +262,12 @@ export function ChatWindow({
   }, [conversation.id, conversation.type]);
 
   // ── Message sent callback (optimistic) ────────────────────────────────────
+  // Ask Tasko's reply is now triggered server-side (see the messages POST
+  // route) the instant the message is saved — it keeps generating even if
+  // this window/tab closes right after sending, unlike the old client-side
+  // fetch this used to make. The reply arrives back like any other new
+  // message (realtime + resync), so all this does now is show "thinking"
+  // until that happens; isAiReply() below clears it.
   const handleMessageSent = useCallback((msg: ChatMessage) => {
     setMessages(prev => {
       if (prev.some(m => m.id === msg.id)) return prev;
@@ -262,18 +276,11 @@ export function ChatWindow({
 
     if (conversation.type === "ai" && msg.sender_id === currentUserId) {
       setTaskoThinking(true);
-      fetch(`/api/chat/conversations/${conversation.id}/ai-reply`, { method: "POST" })
-        .then(async (res) => {
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data?.error?.message ?? "Tasko couldn't reply");
-          if (data?.data?.message) {
-            setMessages(prev => prev.some(m => m.id === data.data.message.id) ? prev : [...prev, data.data.message]);
-          }
-        })
-        .catch((err) => toast.error(err instanceof Error ? err.message : "Tasko couldn't reply"))
-        .finally(() => setTaskoThinking(false));
+      // Safety net — don't leave "thinking" stuck forever if the reply
+      // silently fails to ever land (e.g. server error swallowed above).
+      setTimeout(() => setTaskoThinking(false), 45000);
     }
-  }, [conversation.type, conversation.id, currentUserId]);
+  }, [conversation.type, currentUserId]);
 
   const handleMessageEdited = useCallback((msg: ChatMessage) => {
     setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...msg } : m));

@@ -38,14 +38,29 @@ export const POST = withAuth(async (_req: NextRequest, ctx) => {
   try {
     switch (action.action_type) {
       case "create_task": {
+        const { assignee_ids, ...taskFields } = payload as { assignee_ids?: string[] } & Record<string, unknown>;
         const { data, error } = await db
           .from("tasks")
-          .insert({ ...payload, created_by: user.id })
+          .insert({ ...taskFields, created_by: user.id })
           .select("id, name, project_id")
           .single();
         if (error) throw error;
-        after(() => upsertEmbedding("task", data.id, data.project_id, taskEmbeddingContent(data.name, payload.description as string | undefined)));
-        result = { task_id: data.id, name: data.name };
+        after(() => upsertEmbedding("task", data.id, data.project_id, taskEmbeddingContent(data.name, taskFields.description as string | undefined)));
+
+        let assignedCount = 0;
+        if (Array.isArray(assignee_ids) && assignee_ids.length > 0) {
+          const rows = assignee_ids.map((uid) => ({ task_id: data.id, user_id: uid, assigned_by: user.id }));
+          // upsert + ignoreDuplicates: a brand-new task shouldn't have any
+          // existing assignees, but this keeps the whole batch from failing
+          // atomically over one bad id the way a plain insert would.
+          const { data: assigned, error: assignErr } = await db
+            .from("task_assignees")
+            .upsert(rows, { onConflict: "task_id,user_id", ignoreDuplicates: true })
+            .select("user_id");
+          if (assignErr) console.error("[ai-actions confirm] assignee insert failed", assignErr);
+          else assignedCount = assigned?.length ?? 0;
+        }
+        result = { task_id: data.id, name: data.name, assigned_count: assignedCount };
         break;
       }
       case "update_task": {
@@ -56,14 +71,14 @@ export const POST = withAuth(async (_req: NextRequest, ctx) => {
         break;
       }
       case "assign_task": {
-        const { task_id, user_id } = payload;
+        const { task_id, user_ids } = payload as { task_id: string; user_ids: string[] };
+        const rows = (user_ids ?? []).map((uid) => ({ task_id, user_id: uid, assigned_by: user.id }));
         const { data, error } = await db
           .from("task_assignees")
-          .insert({ task_id, user_id, assigned_by: user.id })
-          .select("user_id")
-          .single();
+          .upsert(rows, { onConflict: "task_id,user_id", ignoreDuplicates: true })
+          .select("user_id");
         if (error) throw error;
-        result = { task_id, user_id: data.user_id };
+        result = { task_id, assigned: (data ?? []).map((d: { user_id: string }) => d.user_id) };
         break;
       }
       default:

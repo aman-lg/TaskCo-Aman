@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Pencil, Trash2, Calendar, AlertCircle, X } from "lucide-react";
+import { Pencil, Trash2, Calendar, AlertCircle, X, Users } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TaskFormDialog } from "./task-form-dialog";
@@ -11,6 +12,15 @@ import { TaskChecklist } from "./task-checklist";
 import { TaskFilesPanel } from "./task-files-panel";
 import type { Task } from "@/types";
 import type { AssigneeProfile } from "@/lib/queries/tasks";
+
+interface AssigneeWithDept extends AssigneeProfile {
+  department?: { department: string; subDepartment: string | null } | null;
+}
+
+function initials(name: string | null) {
+  if (!name) return "?";
+  return name.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2);
+}
 
 type ChecklistItemMin = { id: string; is_done: boolean; content: string | null; position: number | null };
 
@@ -44,6 +54,18 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [assignees, setAssignees] = useState<AssigneeWithDept[]>(task?.task_assignees ?? []);
+
+  const taskId = task?.id;
+  useEffect(() => {
+    if (!taskId || !open) return;
+    setAssignees(task?.task_assignees ?? []);
+    fetch(`/api/tasks/${taskId}/assignees`, { credentials: "same-origin" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => { if (json?.data) setAssignees(json.data); })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, open]);
 
   if (!task) return null;
 
@@ -154,6 +176,41 @@ export function TaskDetailSheet({ task, open, onClose, currentUserId }: Props) {
                 {(task.urgency ?? "medium").charAt(0).toUpperCase() +
                   (task.urgency ?? "medium").slice(1)}
               </span>
+            </div>
+
+            {/* Assigned To */}
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.8px] flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}>
+                <Users className="h-3 w-3" /> Assigned To
+              </p>
+              {assignees.length === 0 ? (
+                <p className="text-[13px]" style={{ color: "var(--text-fine)" }}>Unassigned</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {assignees.map((a) => (
+                    <div key={a.user_id} className="flex items-center gap-2.5">
+                      <Avatar className="w-7 h-7">
+                        <AvatarImage src={a.assignee?.avatar_url ?? undefined} />
+                        <AvatarFallback className="text-[10px] font-semibold" style={{ background: "var(--navy-l)", color: "var(--navy)" }}>
+                          {initials(a.assignee?.full_name ?? null)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium truncate" style={{ color: "var(--ink)" }}>
+                          {a.assignee?.full_name ?? "Unknown"}
+                        </p>
+                        {a.department && (
+                          <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
+                            {a.department.subDepartment
+                              ? `${a.department.department} / ${a.department.subDepartment}`
+                              : a.department.department}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Description */}

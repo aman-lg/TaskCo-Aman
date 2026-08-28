@@ -1,4 +1,4 @@
-import { type NextRequest } from "next/server";
+import { type NextRequest, after } from "next/server";
 import { z } from "zod";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidUUID } from "@/lib/utils/validate";
 import { getMessages } from "@/lib/queries/chat";
 import { stripMentionTokens } from "@/lib/utils/chat";
+import { generateAiReply } from "@/lib/ai/reply";
 
 const pollInputSchema = z.object({
   question: z.string().min(1).max(255),
@@ -151,7 +152,7 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: conv } = await (supabase as any)
     .from("conversations")
-    .select("admin_only_messages, slow_mode_seconds")
+    .select("type, admin_only_messages, slow_mode_seconds")
     .eq("id", id)
     .single();
 
@@ -281,6 +282,19 @@ export const POST = withAuth(async (req: NextRequest, ctx) => {
       );
       if (notifErr) console.error("[chat/messages POST] mention notification insert failed", notifErr);
     }
+  }
+
+  // Ask Tasko — triggered server-side (via after(), so it keeps running to
+  // completion even if the sender navigates away or closes the tab right
+  // after sending) rather than depending on the client staying on the page
+  // to fire a follow-up request. The reply lands as an ordinary message row,
+  // so it reaches the client the same way any other new message would
+  // (realtime + the existing resync fallback) — no special client-side
+  // trigger needed at all.
+  if (conv?.type === "ai" && type === "text") {
+    after(() => generateAiReply(supabase, id, user.id).then((r) => {
+      if (!r.ok) console.error("[chat/messages POST] generateAiReply failed", r.error);
+    }));
   }
 
   return ok({ message: msg });

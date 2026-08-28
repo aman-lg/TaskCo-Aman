@@ -9,13 +9,15 @@
 // and only if the user clicks Confirm, re-validated against the exact same
 // Zod schemas the human "create task" form uses.
 
+import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types";
 import type { FunctionDeclaration } from "@/lib/ai/gemini";
 import { embedContent } from "@/lib/ai/gemini";
 import { getAllTasks, getTaskStats } from "@/lib/queries/tasks";
 import { getProjects } from "@/lib/queries/projects";
-import { createTaskSchema, updateTaskSchema, assignTaskSchema } from "@/lib/validations/tasks";
+import { createTaskSchema, updateTaskSchema } from "@/lib/validations/tasks";
+import { findOrgUnits, getUsersInUnitTree } from "@/lib/queries/org";
 
 type Client = SupabaseClient<Database>;
 
@@ -79,7 +81,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
   {
     name: "find_person",
-    description: "Look up a person's user id by (partial) name or email. Call this before assign_task if you only have a name.",
+    description: "Look up a person's user id by (partial) name or email. Call this before assigning a task if you only have a name.",
     parameters: {
       type: "OBJECT",
       properties: { query: { type: "STRING", description: "Partial or full name/email." } },
@@ -87,9 +89,35 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
     },
   },
   {
+    name: "find_department",
+    description:
+      "Look up a department/sub-department's id by (partial) name. Call this before create_task/assign_task " +
+      "whenever the user names a department or sub-department instead of (or in addition to) a specific person " +
+      "— e.g. 'assign this to the design team', 'give it to everyone in Engineering'.",
+    parameters: {
+      type: "OBJECT",
+      properties: { query: { type: "STRING", description: "Partial or full department/sub-department name." } },
+      required: ["query"],
+    },
+  },
+  {
+    name: "get_department_members",
+    description:
+      "List everyone in a department/sub-department (and anyone in units nested under it) — call find_department " +
+      "first to get its id, then this to get the actual user ids to pass as assignee_ids/user_ids.",
+    parameters: {
+      type: "OBJECT",
+      properties: { unit_id: { type: "STRING", description: "A department/sub-department's id, from find_department." } },
+      required: ["unit_id"],
+    },
+  },
+  {
     name: "create_task",
     description:
       "Propose creating a new task. Requires project_id — call find_project first if you don't have it. " +
+      "If the user named people and/or a department to assign it to, resolve them first (find_person / " +
+      "find_department + get_department_members) and pass their ids as assignee_ids — never put names, " +
+      "department labels, or 'assigned to X' text into the description field. " +
       "This does not create anything immediately: it shows the user a confirm/cancel card.",
     parameters: {
       type: "OBJECT",
@@ -99,6 +127,11 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
         description: { type: "STRING" },
         deadline: { type: "STRING", description: "ISO 8601 datetime, if mentioned." },
         urgency: { type: "STRING", enum: ["low", "medium", "high", "urgent"] },
+        assignee_ids: {
+          type: "ARRAY",
+          items: { type: "STRING" },
+          description: "User ids to assign this task to, already resolved via find_person/get_department_members.",
+        },
       },
       required: ["project_id", "name"],
     },
@@ -121,14 +154,16 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
   {
     name: "assign_task",
-    description: "Propose assigning a person to a task. Requires both ids — call find_person/search_tasks first if needed. Never executes immediately.",
+    description:
+      "Propose assigning one or more people to an EXISTING task. Resolve names/departments first " +
+      "(find_person, or find_department + get_department_members) — never guess ids. Never executes immediately.",
     parameters: {
       type: "OBJECT",
       properties: {
         task_id: { type: "STRING" },
-        user_id: { type: "STRING" },
+        user_ids: { type: "ARRAY", items: { type: "STRING" }, description: "One or more user ids to assign." },
       },
-      required: ["task_id", "user_id"],
+      required: ["task_id", "user_ids"],
     },
   },
 ];
@@ -138,8 +173,12 @@ Answer questions using the provided tools — never invent task/project data or 
 When the user asks you to create/update/assign something, call the matching tool; it will show them a
 confirm/cancel card and nothing happens until they confirm, so it's fine to propose it directly once you
 have enough information. If you're missing a project/person's id, call find_project/find_person first.
+If the user names a department or sub-department to assign work to, call find_department then
+get_department_members to resolve it to real user ids — never write department/person names into a task's
+description as a substitute for actually assigning it; assignee_ids (create_task) and user_ids (assign_task)
+are exactly for this.
 If a name is ambiguous (multiple matches), ask the user to clarify instead of guessing.
-Keep answers concise and concrete — cite task/project names, not raw ids, in your replies.`;
+Keep answers concise and concrete — cite task/project and people's names, not raw ids, in your replies.`;
 
 // ─── Read tools (execute immediately) ──────────────────────────────────────
 
@@ -233,6 +272,18 @@ export async function executeReadTool(
       return data ?? [];
     }
 
+    case "find_department": {
+      const query = String(args.query ?? "").trim();
+      const units = await findOrgUnits(supabase, query);
+      return units.map((u) => ({ id: u.id, name: u.name, parent: u.parentName }));
+    }
+
+    case "get_department_members": {
+      const unitId = String(args.unit_id ?? "");
+      if (!unitId) return [];
+      return getUsersInUnitTree(supabase, unitId);
+    }
+
     default:
       throw new Error(`Unknown read tool: ${name}`);
   }
@@ -264,12 +315,19 @@ export interface WriteToolValidation {
 export function validateWriteTool(name: string, args: Record<string, unknown>): WriteToolValidation {
   switch (name) {
     case "create_task": {
-      const parsed = createTaskSchema.safeParse(args);
+      const { assignee_ids, ...taskFields } = args;
+      const parsed = createTaskSchema.safeParse(taskFields);
       if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+
+      const assigneesParsed = z.array(z.string().uuid()).max(200).optional().safeParse(assignee_ids);
+      if (!assigneesParsed.success) return { ok: false, error: "Invalid assignee_ids" };
+      const assigneeIds = Array.from(new Set(assigneesParsed.data ?? []));
+
+      const assigneeCount = assigneeIds.length > 0 ? ` and assign it to ${assigneeIds.length} ${assigneeIds.length === 1 ? "person" : "people"}` : "";
       return {
         ok: true,
-        data: parsed.data,
-        summary: `Create task "${parsed.data.name}"${parsed.data.urgency !== "medium" ? ` (${parsed.data.urgency} urgency)` : ""}${parsed.data.deadline ? ` due ${new Date(parsed.data.deadline).toLocaleDateString()}` : ""}`,
+        data: { ...parsed.data, assignee_ids: assigneeIds },
+        summary: `Create task "${parsed.data.name}"${parsed.data.urgency !== "medium" ? ` (${parsed.data.urgency} urgency)` : ""}${parsed.data.deadline ? ` due ${new Date(parsed.data.deadline).toLocaleDateString()}` : ""}${assigneeCount}`,
       };
     }
     case "update_task": {
@@ -285,11 +343,16 @@ export function validateWriteTool(name: string, args: Record<string, unknown>): 
       };
     }
     case "assign_task": {
-      const { task_id, ...rest } = args;
+      const { task_id, user_ids } = args;
       if (typeof task_id !== "string") return { ok: false, error: "task_id is required" };
-      const parsed = assignTaskSchema.safeParse(rest);
-      if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
-      return { ok: true, data: { task_id, ...parsed.data }, summary: `Assign this task to the selected person` };
+      const parsed = z.array(z.string().uuid()).min(1).max(200).safeParse(user_ids);
+      if (!parsed.success) return { ok: false, error: "At least one valid user_id is required" };
+      const userIds = Array.from(new Set(parsed.data));
+      return {
+        ok: true,
+        data: { task_id, user_ids: userIds },
+        summary: `Assign this task to ${userIds.length} ${userIds.length === 1 ? "person" : "people"}`,
+      };
     }
     default:
       return { ok: false, error: `Unknown write tool: ${name}` };

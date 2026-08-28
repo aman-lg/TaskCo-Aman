@@ -4,6 +4,7 @@ import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { assignTaskSchema } from "@/lib/validations/tasks";
 import { isValidUUID } from "@/lib/utils/validate";
+import { getDepartmentsByUserId } from "@/lib/queries/org";
 
 /**
  * GET /api/tasks/:id/assignees
@@ -20,7 +21,12 @@ export const GET = withAuth(async (_req: NextRequest, { params }) => {
     .eq("task_id", taskId);
 
   if (error) { console.error("[tasks/[id]/assignees GET]", error); return ApiError.internal(); }
-  return ok(data ?? []);
+
+  const rows = (data ?? []) as { user_id: string; assigned_at: string; assignee: unknown }[];
+  const departments = await getDepartmentsByUserId(supabase, rows.map((r) => r.user_id));
+  const enriched = rows.map((r) => ({ ...r, department: departments.get(r.user_id) ?? null }));
+
+  return ok(enriched);
 });
 
 /**

@@ -45,7 +45,10 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://*.supabase.co",
+              // Drive file-picker icons (f.iconLink) come from Google's own
+              // icon CDN — same missing-directive gap as everything else
+              // here, silently blocking the icons with no visible error.
+              "img-src 'self' data: blob: https://*.supabase.co https://*.googleusercontent.com",
               // Voice notes and video attachments are <audio>/<video> tags
               // pointing at Supabase storage — same missing-directive gap as
               // frame-src had, media-src falls back to default-src 'self'

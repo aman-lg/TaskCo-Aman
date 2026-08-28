@@ -93,11 +93,16 @@ export const POST = withAuth(async (_req: NextRequest, ctx) => {
 
       const { name, args } = result.functionCall;
 
+      // Must be the exact part the model returned (thoughtSignature and
+      // all) — a hand-rebuilt { functionCall: { name, args } } part 400s on
+      // the next turn ("missing a thought_signature"), confirmed live.
+      const modelTurn = { role: "model" as const, parts: [result.functionCallPart!] };
+
       if (WRITE_TOOL_NAMES.has(name)) {
         const validation = validateWriteTool(name, args);
         if (!validation.ok) {
-          contents.push({ role: "model", parts: [{ functionCall: { name, args } }] });
-          contents.push({ role: "function", parts: [{ functionResponse: { name, response: { error: validation.error } } }] });
+          contents.push(modelTurn);
+          contents.push({ role: "user", parts: [{ functionResponse: { name, response: { error: validation.error } } }] });
           continue;
         }
         pendingAction = { name, data: validation.data!, summary: validation.summary! };
@@ -105,8 +110,8 @@ export const POST = withAuth(async (_req: NextRequest, ctx) => {
       }
 
       const toolResult = await executeReadTool(supabase, user.id, name, args);
-      contents.push({ role: "model", parts: [{ functionCall: { name, args } }] });
-      contents.push({ role: "function", parts: [{ functionResponse: { name, response: { result: toolResult } } }] });
+      contents.push(modelTurn);
+      contents.push({ role: "user", parts: [{ functionResponse: { name, response: { result: toolResult } } }] });
     }
   } catch (err) {
     console.error("[ai-reply] Gemini call failed", err);

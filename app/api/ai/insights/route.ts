@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidUUID } from "@/lib/utils/validate";
 import { getAllTasks, getTaskStats } from "@/lib/queries/tasks";
 import { getProjects } from "@/lib/queries/projects";
@@ -38,9 +39,14 @@ export const GET = withAuth(async (req: NextRequest) => {
 
   const content = await generateInsight(supabase, scope, projectId);
 
+  // ai_insights has no client insert/update policy (server-written only,
+  // see 040_ai_foundation.sql) — the cache write has to go through the
+  // admin client even though the read above is fine on the user's own.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin = createAdminClient() as any;
   const row = existing
-    ? await db.from("ai_insights").update({ content, generated_at: new Date().toISOString() }).eq("id", existing.id).select("content, generated_at").single()
-    : await db.from("ai_insights").insert({ scope, project_id: projectId, content }).select("content, generated_at").single();
+    ? await admin.from("ai_insights").update({ content, generated_at: new Date().toISOString() }).eq("id", existing.id).select("content, generated_at").single()
+    : await admin.from("ai_insights").insert({ scope, project_id: projectId, content }).select("content, generated_at").single();
 
   if (row.error || !row.data) {
     console.error("[ai/insights GET] cache write failed", row.error);

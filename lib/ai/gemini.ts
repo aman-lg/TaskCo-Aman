@@ -25,10 +25,19 @@ export interface GeminiPart {
   inlineData?: { mimeType: string; data: string };
   functionCall?: { name: string; args: Record<string, unknown> };
   functionResponse?: { name: string; response: Record<string, unknown> };
+  // Present on a model-turn part that did internal reasoning (any part, not
+  // just functionCall) — replaying that exact part verbatim on the next
+  // turn is REQUIRED for a functionCall part, or the API 400s with "Function
+  // call is missing a thought_signature" (confirmed live). Simplest correct
+  // handling: never rebuild parts by hand — carry the whole part forward.
+  thoughtSignature?: string;
 }
 
+// Function results go in a "user"-role content entry (a functionResponse
+// part, not text) — this API version 400s on role: "function" ("Role
+// 'function' is not supported"), confirmed live against the current API.
 export interface GeminiContent {
-  role: "user" | "model" | "function";
+  role: "user" | "model";
   parts: GeminiPart[];
 }
 
@@ -52,6 +61,10 @@ interface GenerateContentArgs {
 export interface GenerateContentResult {
   text: string | null;
   functionCall: { name: string; args: Record<string, unknown> } | null;
+  // The exact part the model returned for the function call, thoughtSignature
+  // and all — push this back verbatim on the next turn's model-role content,
+  // never a hand-rebuilt { functionCall } object.
+  functionCallPart: GeminiPart | null;
 }
 
 export async function generateContent({
@@ -85,6 +98,7 @@ export async function generateContent({
   return {
     text: textPart?.text ?? null,
     functionCall: callPart?.functionCall ?? null,
+    functionCallPart: callPart ?? null,
   };
 }
 

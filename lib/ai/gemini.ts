@@ -8,7 +8,12 @@ const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
 // a dated model version (gemini-2.5-flash / text-embedding-004, this code's
 // original choices, were both already retired for new API keys by the time
 // this was tested live).
-export const CHAT_MODEL = "gemini-flash-latest";
+// Flash-LITE, not standard Flash — meaningfully cheaper per token on both
+// input and output, and this app's tool set is small/well-scoped structured
+// lookups rather than open-ended reasoning, which is exactly what the lite
+// tier is good enough for. Bump back to CHAT_MODEL = "gemini-flash-latest"
+// if tool-selection quality ever seems to suffer for a more complex ask.
+export const CHAT_MODEL = "gemini-flash-lite-latest";
 export const EMBEDDING_MODEL = "gemini-embedding-001";
 // gemini-embedding-001 defaults to 3072-dim output; pin it to 768 to match
 // the ai_embeddings.embedding vector(768) column.

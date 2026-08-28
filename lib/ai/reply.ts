@@ -19,7 +19,10 @@ import {
   validateWriteTool,
 } from "@/lib/ai/tools";
 
-const HISTORY_LIMIT = 20;
+// Every message in this window gets re-sent (and re-billed) on every turn,
+// and again on every tool-call iteration within that turn — trimmed down
+// from 20 since most Tasko questions don't need that much back-context.
+const HISTORY_LIMIT = 12;
 const MAX_TOOL_ITERATIONS = 5;
 
 interface HistoryRow {

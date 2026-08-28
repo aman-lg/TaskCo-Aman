@@ -130,7 +130,7 @@ export async function generateAiReply(
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
 
-  if (historyErr) { console.error("[ai-reply]", historyErr); return { ok: false, error: `history: ${historyErr.message ?? JSON.stringify(historyErr)}` }; }
+  if (historyErr) { console.error("[ai-reply]", historyErr); return { ok: false, error: "internal" }; }
 
   const contents = await historyToContents(((historyRows ?? []) as HistoryRow[]).reverse());
   if (contents.length === 0) return { ok: false, error: "Nothing to reply to." };
@@ -175,7 +175,7 @@ export async function generateAiReply(
     }
   } catch (err) {
     console.error("[ai-reply] Gemini call failed", err);
-    return { ok: false, error: `gemini: ${err instanceof Error ? err.message : String(err)}` };
+    return { ok: false, error: "internal" };
   }
 
   if (!finalText && !pendingAction) {

@@ -433,6 +433,7 @@ export function MessageInput({
       const recognition = new SpeechRecognitionCtor();
       recognition.continuous = true;
       recognition.interimResults = false;
+      recognition.lang = navigator.language || "en-US";
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       recognition.onresult = (event: any) => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -463,8 +464,11 @@ export function MessageInput({
       };
       recognition.onend = finish;
       try { recognition.stop(); } catch { finish(); }
-      // Safety net — recognition.onend isn't guaranteed if the mic died mid-recording.
-      setTimeout(finish, 1500);
+      // Safety net — recognition.onend isn't guaranteed if the mic died
+      // mid-recording. Generous window: stop() should flush any pending
+      // "final" result before firing onend, but that still means a round
+      // trip to the recognition service, which can take a few seconds.
+      setTimeout(finish, 4000);
     });
   }
 

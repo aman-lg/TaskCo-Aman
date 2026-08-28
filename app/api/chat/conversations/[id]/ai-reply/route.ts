@@ -4,7 +4,7 @@ import { ok, ApiError } from "@/lib/api/response";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidUUID } from "@/lib/utils/validate";
-import { generateContent, type GeminiContent } from "@/lib/ai/gemini";
+import { generateContent, type GeminiContent, type GeminiPart } from "@/lib/ai/gemini";
 import {
   TOOL_DECLARATIONS,
   SYSTEM_INSTRUCTION,
@@ -20,20 +20,87 @@ interface HistoryRow {
   sender_id: string | null;
   type: string;
   content: string | null;
-  metadata: { is_ai?: boolean; action_summary?: string } | null;
+  metadata: {
+    is_ai?: boolean;
+    action_summary?: string;
+    transcript?: string;
+    url?: string;
+    mime?: string;
+  } | null;
 }
 
-function historyToContents(rows: HistoryRow[]): GeminiContent[] {
+const TYPE_PLACEHOLDER: Record<string, string> = {
+  image: "[sent an image]",
+  video: "[sent a video]",
+  document: "[sent a document]",
+  poll: "[created a poll]",
+  call: "[started a voice call]",
+  sticker: "[sent a sticker]",
+  gif: "[sent a gif]",
+  contact: "[shared a contact]",
+};
+
+// Only the MOST RECENT voice message gets its actual audio bytes fetched and
+// sent to Gemini — otherwise every follow-up turn would re-fetch and re-pay
+// for the same audio again. Older voice messages in history fall back to
+// their transcript (free, browser-captured) or a bare placeholder.
+async function audioPartsFor(row: HistoryRow): Promise<GeminiPart[]> {
+  if (row.metadata?.transcript) {
+    return [{ text: `[voice message] "${row.metadata.transcript}"` }];
+  }
+  if (row.metadata?.url) {
+    try {
+      const res = await fetch(row.metadata.url);
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        return [
+          { inlineData: { mimeType: row.metadata.mime ?? "audio/webm", data: buf.toString("base64") } },
+          { text: "[The user sent you this voice message — listen to it and respond to what they're asking.]" },
+        ];
+      }
+    } catch (err) {
+      console.error("[ai-reply] failed to fetch audio for context", err);
+    }
+  }
+  return [{ text: "[sent a voice message that couldn't be loaded]" }];
+}
+
+async function historyToContents(rows: HistoryRow[]): Promise<GeminiContent[]> {
   const contents: GeminiContent[] = [];
-  for (const row of rows) {
+  const lastIndex = rows.length - 1;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+
     if (row.type === "ai_action") {
       contents.push({ role: "model", parts: [{ text: row.metadata?.action_summary ?? "(proposed an action)" }] });
       continue;
     }
+
     const isAi = row.sender_id === null && row.metadata?.is_ai;
+    if (isAi) {
+      if (!row.content) continue;
+      contents.push({ role: "model", parts: [{ text: row.content }] });
+      continue;
+    }
+
+    if (row.type === "audio" || row.type === "voice_note") {
+      const parts = i === lastIndex
+        ? await audioPartsFor(row)
+        : [{ text: row.metadata?.transcript ? `[voice message] "${row.metadata.transcript}"` : "[sent a voice message]" }];
+      contents.push({ role: "user", parts });
+      continue;
+    }
+
+    if (row.type !== "text") {
+      contents.push({ role: "user", parts: [{ text: TYPE_PLACEHOLDER[row.type] ?? `[sent a ${row.type}]` }] });
+      continue;
+    }
+
     if (!row.content) continue;
-    contents.push({ role: isAi ? "model" : "user", parts: [{ text: row.content }] });
+    contents.push({ role: "user", parts: [{ text: row.content }] });
   }
+
   return contents;
 }
 
@@ -72,7 +139,7 @@ export const POST = withAuth(async (_req: NextRequest, ctx) => {
 
   if (historyErr) { console.error("[ai-reply]", historyErr); return ApiError.internal(); }
 
-  const contents = historyToContents(((historyRows ?? []) as HistoryRow[]).reverse());
+  const contents = await historyToContents(((historyRows ?? []) as HistoryRow[]).reverse());
   if (contents.length === 0) return ApiError.badRequest("Nothing to reply to.");
 
   let finalText: string | null = null;

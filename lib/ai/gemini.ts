@@ -4,8 +4,15 @@
 
 const GEMINI_API = "https://generativelanguage.googleapis.com/v1beta";
 
-export const CHAT_MODEL = "gemini-2.5-flash";
-export const EMBEDDING_MODEL = "text-embedding-004";
+// "-latest" aliases so this doesn't need updating every time Google retires
+// a dated model version (gemini-2.5-flash / text-embedding-004, this code's
+// original choices, were both already retired for new API keys by the time
+// this was tested live).
+export const CHAT_MODEL = "gemini-flash-latest";
+export const EMBEDDING_MODEL = "gemini-embedding-001";
+// gemini-embedding-001 defaults to 3072-dim output; pin it to 768 to match
+// the ai_embeddings.embedding vector(768) column.
+export const EMBEDDING_DIMENSIONS = 768;
 
 function requireApiKey(): string {
   const key = process.env.GEMINI_API_KEY;
@@ -85,7 +92,7 @@ export async function embedContent(text: string, model: string = EMBEDDING_MODEL
   const res = await fetch(`${GEMINI_API}/models/${model}:embedContent?key=${requireApiKey()}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content: { parts: [{ text }] } }),
+    body: JSON.stringify({ content: { parts: [{ text }] }, outputDimensionality: EMBEDDING_DIMENSIONS }),
   });
 
   if (!res.ok) {

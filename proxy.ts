@@ -18,7 +18,11 @@ export async function proxy(request: NextRequest) {
 
   const { user } = await updateSession(request, response);
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  // "/" is the marketing homepage — public like the rest of PUBLIC_PATHS,
+  // but checked with an exact match rather than startsWith(), which would
+  // otherwise treat every path as public (everything starts with "/").
+  const isHomepage = pathname === "/";
+  const isPublic = isHomepage || PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const isAuthCallback = AUTH_CALLBACK_PATHS.some((p) => pathname.startsWith(p));
 
   if (isAuthCallback) return response;

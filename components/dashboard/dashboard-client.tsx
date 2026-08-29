@@ -223,11 +223,11 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
   const card = { background: "var(--surface-bg)" } as React.CSSProperties;
 
   return (
-    <div className="grid grid-cols-4 gap-5">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
 
       {/* ── Welcome banner ── */}
       <div
-        className="col-span-4 rounded-xl px-6 py-5 flex items-start justify-between gap-6"
+        className="col-span-2 md:col-span-4 rounded-xl px-4 py-5 md:px-6 flex flex-col sm:flex-row items-start sm:justify-between gap-4 sm:gap-6"
         style={{ background: "var(--navy)", color: "#fff" }}
       >
         <div className="flex flex-col gap-1 min-w-0">
@@ -491,7 +491,7 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
       </div>
 
       {/* ── Meetings ── */}
-      <div className="col-span-4 rounded-xl p-5 flex flex-col gap-4" style={card}>
+      <div className="col-span-2 md:col-span-4 rounded-xl p-5 flex flex-col gap-4" style={card}>
         <div className="flex items-center justify-between">
           <h2 className="h3" style={{ color: "var(--ink)" }}>Meetings</h2>
           {meetingsConnected && pendingBookings > 0 && (

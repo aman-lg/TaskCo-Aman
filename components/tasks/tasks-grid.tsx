@@ -309,8 +309,8 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
       </div>
 
       {/* Search + Create */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "var(--text-muted)" }} />
           <input
             value={searchQuery}
@@ -323,7 +323,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 h-10 px-4 rounded-xl text-[13px] font-bold text-white transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)] flex-shrink-0"
+          className="flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-bold text-white transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)] flex-shrink-0 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" /> Create Task
         </button>

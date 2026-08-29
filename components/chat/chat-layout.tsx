@@ -112,12 +112,18 @@ export function ChatLayout({
       style={{ minHeight: 0 }}
     >
       {/* ------------------------------------------------------------------ */}
-      {/* Left: conversation list sidebar (320px fixed)                       */}
+      {/* Left: conversation list sidebar (320px fixed on desktop) — on      */}
+      {/* mobile this is either the WHOLE screen (no conversation open) or   */}
+      {/* hidden entirely (a conversation IS open, WhatsApp-style: one pane  */}
+      {/* at a time, never both squeezed side by side).                     */}
       {/* ------------------------------------------------------------------ */}
       <div
-        className="flex-shrink-0 flex flex-col"
+        className={
+          activeConversation
+            ? "hidden md:flex flex-shrink-0 flex-col md:w-[320px]"
+            : "flex flex-shrink-0 flex-col w-full md:w-[320px]"
+        }
         style={{
-          width: 320,
           borderRight: "1px solid var(--line)",
           background: "var(--surface-bg)",
           minHeight: 0,
@@ -133,7 +139,8 @@ export function ChatLayout({
       </div>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Right: chat window or empty state                                   */}
+      {/* Right: chat window or empty state — hidden on mobile until a       */}
+      {/* conversation is actually open, matching the sidebar's mirror rule. */}
       {/* ------------------------------------------------------------------ */}
       {activeConversation ? (
         <ChatWindow
@@ -145,7 +152,9 @@ export function ChatLayout({
           onlineUserIds={onlineUserIds}
         />
       ) : (
-        <EmptyState />
+        <div className="hidden md:flex flex-1">
+          <EmptyState />
+        </div>
       )}
     </div>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -8,6 +7,7 @@ import {
   User, Video, LogOut, Loader2, Settings, ShieldCheck, MessageSquare, Search, Network, ListTodo,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useChatUnread } from "@/lib/hooks/use-chat-unread";
 import { openGlobalSearch } from "@/components/layout/global-search";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -56,39 +56,21 @@ function initials(name?: string | null, email?: string | null) {
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  mobileOpen?: boolean;
-  onMobileClose?: () => void;
   profile?: { name: string | null; email: string | null; avatar: string | null } | null;
   isAdmin?: boolean;
   onSignOut?: () => void;
   isSigningOut?: boolean;
 }
 
+// Desktop only — mobile navigation is MobileBottomNav + MobileTopBar instead
+// of a slide-in drawer version of this same sidebar.
 export function Sidebar({
-  collapsed, onToggle, mobileOpen = false, onMobileClose,
+  collapsed, onToggle,
   profile, isAdmin = false, onSignOut, isSigningOut,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [chatUnread, setChatUnread] = useState(0);
-
-  const loadChatUnread = useCallback(() => {
-    fetch("/api/chat/unread-count", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j) setChatUnread(j.data.count ?? 0); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    loadChatUnread();
-    const id = setInterval(loadChatUnread, 30_000);
-    return () => clearInterval(id);
-  }, [loadChatUnread]);
-
-  // Hide the badge as soon as the user opens Chat, without waiting for the
-  // next poll — they've just read the messages that made it non-zero. Derived
-  // at render time rather than reset via a separate effect+setState.
-  const displayedChatUnread = pathname?.startsWith("/chat") ? 0 : chatUnread;
+  const displayedChatUnread = useChatUnread();
 
   const navItems = [
     ...NAV_ITEMS,
@@ -114,10 +96,7 @@ export function Sidebar({
           boxShadow: "4px 0 32px rgba(0,0,0,0.22)",
           transition: "width 220ms cubic-bezier(.4,0,.2,1)",
         }}
-        className={cn(
-          "fixed top-0 left-0 h-full z-40 flex flex-col overflow-hidden select-none",
-          !mobileOpen && "max-md:-translate-x-full",
-        )}
+        className="hidden md:flex fixed top-0 left-0 h-full z-40 flex-col overflow-hidden select-none"
       >
         {/* ── Logo row ── */}
         <div
@@ -217,7 +196,7 @@ export function Sidebar({
                     <TooltipTrigger
                       className="relative flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-all"
                       style={{ background: active ? C.active : "transparent", color: active ? C.textOn : C.textOff }}
-                      onClick={() => { router.push(href); onMobileClose?.(); }}
+                      onClick={() => router.push(href)}
                       aria-label={label}
                       onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.hover; }}
                       onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
@@ -244,7 +223,7 @@ export function Sidebar({
                 <Link
                   key={href}
                   href={href}
-                  onClick={onMobileClose}
+                  
                   className="relative flex items-center gap-3 h-10 rounded-xl px-3 transition-all"
                   style={{
                     background: active ? C.active : "transparent",

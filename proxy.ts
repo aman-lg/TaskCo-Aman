@@ -10,6 +10,12 @@ import { updateSession } from "@/lib/supabase/middleware";
 // instead of the clean JSON 401 withAuth() returns. /book stays listed here
 // only because it's a real page navigation route rendered by this app.
 const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/book"];
+// Public no matter who's asking, and — unlike PUBLIC_PATHS — never bounces
+// a logged-in visitor away. An auth page redirecting an already-logged-in
+// user to /dashboard makes sense; a status page doing that wouldn't (you
+// might check it specifically because you're logged in and something looks
+// broken).
+const ALWAYS_PUBLIC_PATHS = ["/status"];
 const AUTH_CALLBACK_PATHS = ["/auth/callback", "/auth/confirm"];
 
 export async function proxy(request: NextRequest) {
@@ -22,7 +28,9 @@ export async function proxy(request: NextRequest) {
   // but checked with an exact match rather than startsWith(), which would
   // otherwise treat every path as public (everything starts with "/").
   const isHomepage = pathname === "/";
-  const isPublic = isHomepage || PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isAlwaysPublic = isHomepage || ALWAYS_PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isAuthPagePublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublic = isAlwaysPublic || isAuthPagePublic;
   const isAuthCallback = AUTH_CALLBACK_PATHS.some((p) => pathname.startsWith(p));
 
   if (isAuthCallback) return response;
@@ -34,7 +42,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (user && isPublic) {
+  if (user && isAuthPagePublic) {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     return NextResponse.redirect(dashboardUrl);

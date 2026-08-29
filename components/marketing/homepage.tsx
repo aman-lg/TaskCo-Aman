@@ -767,9 +767,14 @@ function Footer() {
             Task<span style={{ color: "#CE7E37" }}>Co</span>
           </span>
         </div>
-        <p className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>
-          &copy; {new Date().getFullYear()} TaskCo. All rights reserved.
-        </p>
+        <div className="flex items-center gap-5">
+          <Link href="/status" className="text-[12.5px] font-medium hover:underline" style={{ color: "var(--text-muted)" }}>
+            System Status
+          </Link>
+          <p className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>
+            &copy; {new Date().getFullYear()} TaskCo. All rights reserved.
+          </p>
+        </div>
       </div>
     </footer>
   );

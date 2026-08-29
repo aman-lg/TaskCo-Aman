@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getAuthUser } from "@/lib/supabase/server";
 import { Homepage } from "@/components/marketing/homepage";
 
 export const metadata: Metadata = {
@@ -6,6 +7,16 @@ export const metadata: Metadata = {
   description: "Projects, tasks, chat, and Ask Tasko — an AI assistant grounded in your team's real work.",
 };
 
-export default function RootPage() {
-  return <Homepage />;
+export default async function RootPage() {
+  const { data: { user } } = await getAuthUser();
+
+  const currentUser = user
+    ? {
+        name: (user.user_metadata?.full_name as string | null) ?? null,
+        email: user.email ?? null,
+        avatarUrl: (user.user_metadata?.avatar_url as string | null) ?? null,
+      }
+    : null;
+
+  return <Homepage currentUser={currentUser} />;
 }

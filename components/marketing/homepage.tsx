@@ -25,6 +25,17 @@ import {
   X,
 } from "lucide-react";
 
+export interface MarketingCurrentUser {
+  name: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+}
+
+function initials(user: MarketingCurrentUser): string {
+  if (user.name) return user.name.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2);
+  return (user.email?.[0] ?? "?").toUpperCase();
+}
+
 // ---------------------------------------------------------------------------
 // Shared motion variants
 // ---------------------------------------------------------------------------
@@ -76,7 +87,7 @@ const NAV_LINKS = [
   { href: "#about", label: "About" },
 ];
 
-function SiteHeader() {
+function SiteHeader({ currentUser }: { currentUser: MarketingCurrentUser | null }) {
   // Genuinely transparent over the dark hero (blends right in), but as you
   // scroll past it into the light sections below, the pill gains a solid
   // navy backing — a see-through white tint here would otherwise wash out
@@ -119,22 +130,48 @@ function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Link
-            href="/login"
-            className="hidden sm:inline-flex items-center px-4 py-1.5 rounded-full text-[13.5px] font-semibold transition-colors"
-            style={{ color: "white", background: "rgba(255,255,255,0.1)" }}
-          >
-            Log in
-          </Link>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13.5px] font-bold"
-              style={{ background: "#CE7E37", color: "white" }}
-            >
-              Join Now
-            </Link>
-          </motion.div>
+          {currentUser ? (
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-full"
+                style={{ background: "rgba(255,255,255,0.1)" }}
+              >
+                {currentUser.avatarUrl ? (
+                  <img src={currentUser.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                ) : (
+                  <span
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                    style={{ background: "#CE7E37", color: "white" }}
+                  >
+                    {initials(currentUser)}
+                  </span>
+                )}
+                <span className="text-[13.5px] font-semibold text-white hidden sm:inline max-w-[120px] truncate">
+                  {currentUser.name ?? currentUser.email ?? "Dashboard"}
+                </span>
+              </Link>
+            </motion.div>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden sm:inline-flex items-center px-4 py-1.5 rounded-full text-[13.5px] font-semibold transition-colors"
+                style={{ color: "white", background: "rgba(255,255,255,0.1)" }}
+              >
+                Log in
+              </Link>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
+                <Link
+                  href="/register"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13.5px] font-bold"
+                  style={{ background: "#CE7E37", color: "white" }}
+                >
+                  Join Now
+                </Link>
+              </motion.div>
+            </>
+          )}
           <button
             type="button"
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -169,11 +206,11 @@ function SiteHeader() {
               </a>
             ))}
             <Link
-              href="/login"
+              href={currentUser ? "/dashboard" : "/login"}
               className="mt-2 px-3 py-2.5 rounded-lg text-[14px] font-semibold text-center"
               style={{ color: "white", background: "rgba(255,255,255,0.08)" }}
             >
-              Log in
+              {currentUser ? "Go to Dashboard" : "Log in"}
             </Link>
           </motion.div>
         )}
@@ -375,7 +412,7 @@ function AnimatedHeadline() {
   );
 }
 
-function Hero() {
+function Hero({ currentUser }: { currentUser: MarketingCurrentUser | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const mockupY = useTransform(scrollYProgress, [0, 1], [0, 90]);
@@ -428,7 +465,7 @@ function Hero() {
         >
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
             <Link
-              href="/register"
+              href={currentUser ? "/dashboard" : "/register"}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-[14.5px] font-bold relative"
               style={{ background: "#CE7E37", color: "white" }}
             >
@@ -438,7 +475,7 @@ function Hero() {
                 animate={{ boxShadow: ["0 0 0px rgba(206,126,55,0.5)", "0 0 22px rgba(206,126,55,0.5)", "0 0 0px rgba(206,126,55,0.5)"] }}
                 transition={{ duration: 2.2, repeat: Infinity }}
               />
-              <span className="relative">Join Now</span>
+              <span className="relative">{currentUser ? "Go to Dashboard" : "Join Now"}</span>
               <ArrowRight className="w-4 h-4 relative" />
             </Link>
           </motion.div>
@@ -723,7 +760,7 @@ function AiSpotlight() {
 // Final CTA + footer
 // ---------------------------------------------------------------------------
 
-function FinalCta() {
+function FinalCta({ currentUser }: { currentUser: MarketingCurrentUser | null }) {
   return (
     <section id="about" className="relative py-24 sm:py-32 px-6" style={{ background: "var(--page-bg)" }}>
       <motion.div
@@ -736,18 +773,20 @@ function FinalCta() {
       >
         <FloatingGlow color="#CE7E37" size={320} className="-top-20 -right-20 opacity-[0.15]" duration={10} />
         <h2 className="relative text-[28px] sm:text-[38px] font-bold leading-tight text-white" style={{ fontFamily: "var(--font-display)" }}>
-          Ready to get your team organized?
+          {currentUser ? `Welcome back, ${currentUser.name?.split(" ")[0] ?? "there"}.` : "Ready to get your team organized?"}
         </h2>
         <p className="relative mt-4 text-[15px] max-w-md mx-auto" style={{ color: "rgba(255,255,255,0.6)" }}>
-          Set up your workspace in minutes — projects, chat, and Ask Tasko, ready to go.
+          {currentUser
+            ? "Pick up right where you left off."
+            : "Set up your workspace in minutes — projects, chat, and Ask Tasko, ready to go."}
         </p>
         <motion.div className="relative inline-block mt-8" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
           <Link
-            href="/register"
+            href={currentUser ? "/dashboard" : "/register"}
             className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full text-[15px] font-bold"
             style={{ background: "#CE7E37", color: "white", boxShadow: "0 8px 24px rgba(206,126,55,0.35)" }}
           >
-            Join Now <ArrowRight className="w-4 h-4" />
+            {currentUser ? "Go to Dashboard" : "Join Now"} <ArrowRight className="w-4 h-4" />
           </Link>
         </motion.div>
       </motion.div>
@@ -784,14 +823,14 @@ function Footer() {
 // Page
 // ---------------------------------------------------------------------------
 
-export function Homepage() {
+export function Homepage({ currentUser = null }: { currentUser?: MarketingCurrentUser | null }) {
   return (
     <div className="min-h-screen" style={{ background: "var(--page-bg)" }}>
-      <SiteHeader />
-      <Hero />
+      <SiteHeader currentUser={currentUser} />
+      <Hero currentUser={currentUser} />
       <Features />
       <AiSpotlight />
-      <FinalCta />
+      <FinalCta currentUser={currentUser} />
       <Footer />
     </div>
   );

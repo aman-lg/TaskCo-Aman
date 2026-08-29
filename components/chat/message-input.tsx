@@ -51,6 +51,20 @@ interface MessageInputProps {
 }
 
 // ---------------------------------------------------------------------------
+// Voice-note recording format — Safari has no webm support at all, so this
+// has to be feature-detected rather than hardcoded (see startRecording).
+// ---------------------------------------------------------------------------
+
+const AUDIO_MIME_CANDIDATES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/aac"];
+
+function extensionForAudioMime(mime: string): string {
+  if (mime.includes("mp4")) return "m4a";
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("aac")) return "aac";
+  return "webm";
+}
+
+// ---------------------------------------------------------------------------
 // Emoji constants
 // ---------------------------------------------------------------------------
 
@@ -483,7 +497,12 @@ export function MessageInput({
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      // Safari (iOS and macOS) doesn't support audio/webm at all — recording
+      // still "worked" (MediaRecorder silently falls back to its own default,
+      // audio/mp4 there), but hardcoding the resulting Blob/File as
+      // "audio/webm" mislabeled real mp4 data, breaking playback and upload.
+      const mimeType = AUDIO_MIME_CANDIDATES.find((t) => window.MediaRecorder?.isTypeSupported?.(t));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
 
@@ -515,9 +534,10 @@ export function MessageInput({
 
     return new Promise<void>((resolve) => {
       recorder.onstop = async () => {
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const file = new File([blob], `voice-note-${Date.now()}.webm`, {
-          type: "audio/webm",
+        const mimeType = recorder.mimeType || "audio/webm";
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const file = new File([blob], `voice-note-${Date.now()}.${extensionForAudioMime(mimeType)}`, {
+          type: mimeType,
         });
 
         // Stop tracks

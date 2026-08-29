@@ -44,7 +44,7 @@ export function MobileTopBar({ profile, isAdmin = false, onSignOut, isSigningOut
       </Link>
 
       <div className="flex items-center gap-1">
-        <NotificationBell />
+        <NotificationBell variant="light" side="bottom" />
         <DropdownMenu>
           <DropdownMenuTrigger className="ml-1 rounded-full" aria-label="Menu">
             <Avatar className="h-8 w-8">

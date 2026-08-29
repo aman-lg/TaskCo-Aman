@@ -316,6 +316,21 @@
     font-family: var(--font-sans);
   }
 
+  /* iOS Safari auto-zooms the whole page on focusing any input/textarea/select
+     smaller than 16px — a huge chunk of this app's form fields sit in the
+     13-14px range. The zoom itself is disruptive (layout jumps, the page stays
+     zoomed after blur until manually pinched back out) and the geometry shift
+     mid-gesture is the most likely cause of "tapped X but Y got clicked" and
+     the voice-note recording breaking (the hold-to-record button moves out
+     from under the finger while still pressed). !important + scoped to mobile
+     widths only: this has to beat hundreds of existing text-[13px] etc.
+     utility classes without touching desktop typography at all. */
+  @media (max-width: 767px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
+
   :focus-visible {
     outline: 2px solid var(--accent-brand);
     outline-offset: 2px;

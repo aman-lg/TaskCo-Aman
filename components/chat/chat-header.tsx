@@ -69,10 +69,16 @@ export function ChatHeader({ conversation, currentUserId, onlineUserIds, typingU
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
+      className="flex items-center gap-3 px-4 pb-3 flex-shrink-0"
       style={{
         background: "var(--surface-bg)",
         borderBottom: "1px solid var(--line-soft)",
+        // The individual conversation view hides the mobile top bar entirely
+        // (fullscreen chat, see app-shell.tsx) so this header sits flush
+        // against the very top of the screen — without this it renders
+        // right under the iPhone notch/status bar. env() is 0 on anything
+        // without a safe-area inset, so this is a no-op on desktop/Android.
+        paddingTop: "calc(0.75rem + env(safe-area-inset-top))",
       }}
     >
       {/* Back button (mobile) */}

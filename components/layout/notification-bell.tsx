@@ -33,8 +33,23 @@ function linkFor(n: NotificationRow): string | null {
   return null;
 }
 
-export function NotificationBell() {
+interface Props {
+  // "dark": designed for the desktop sidebar's navy background (default,
+  // unchanged). "light": for a light background — the mobile top bar reuses
+  // this same component, and the dark variant's near-white icon was
+  // invisible there (white-on-white).
+  variant?: "dark" | "light";
+  // The desktop sidebar sits on the left, so its popover opens to the right
+  // by default. The mobile top bar is full-width, so opening "right" from a
+  // trigger already near the right edge pushes it off-screen.
+  side?: "right" | "bottom";
+}
+
+export function NotificationBell({ variant = "dark", side = "right" }: Props) {
   const router = useRouter();
+  const idleColor = variant === "dark" ? "rgba(255,255,255,0.48)" : "var(--text-muted)";
+  const hoverColor = variant === "dark" ? "rgba(255,255,255,0.92)" : "var(--ink)";
+  const hoverBg = variant === "dark" ? "rgba(255,255,255,0.06)" : "var(--line-soft)";
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -83,10 +98,10 @@ export function NotificationBell() {
         className="relative flex items-center justify-center transition-colors"
         style={{
           width: 32, height: 32, borderRadius: 8, border: "none", cursor: "pointer",
-          background: "transparent", color: "rgba(255,255,255,0.48)",
+          background: "transparent", color: idleColor,
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(255,255,255,0.92)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,0.48)"; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = hoverBg; e.currentTarget.style.color = hoverColor; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = idleColor; }}
         aria-label="Notifications"
       >
         <Bell style={{ width: 16, height: 16 }} />
@@ -99,7 +114,7 @@ export function NotificationBell() {
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" side="right" className="w-80 max-h-[420px] p-0 gap-0 flex flex-col overflow-hidden">
+      <PopoverContent align={side === "right" ? "start" : "end"} side={side} className="w-80 max-w-[90vw] max-h-[420px] p-0 gap-0 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-3.5 py-2.5 flex-shrink-0" style={{ borderBottom: "1px solid var(--line)" }}>
           <span className="text-[13px] font-bold" style={{ color: "var(--ink)" }}>Notifications</span>
           {unreadCount > 0 && (

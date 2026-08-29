@@ -68,16 +68,17 @@ export default function ProjectsPage() {
         </button>
       </div>
 
-      {/* Status filter tabs */}
+      {/* Status filter tabs — horizontal scroll on narrow screens rather
+          than shrinking/wrapping each label's text mid-word */}
       <div
-        className="flex items-center gap-1 p-1 rounded-xl w-fit"
+        className="flex items-center gap-1 p-1 rounded-xl w-full sm:w-fit overflow-x-auto"
         style={{ background: "var(--panel-bg)", border: "1px solid var(--line-soft)" }}
       >
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
             onClick={() => setStatusFilter(tab.value)}
-            className="h-8 px-3.5 rounded-xl text-[13px] font-semibold transition-[background,color,box-shadow] duration-150"
+            className="h-8 px-3.5 rounded-xl text-[13px] font-semibold transition-[background,color,box-shadow] duration-150 flex-shrink-0 whitespace-nowrap"
             style={
               statusFilter === tab.value
                 ? {

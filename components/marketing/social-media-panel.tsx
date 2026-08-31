@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { RefreshCw, Loader2, Unlink } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { YoutubeConnectCard } from "./youtube-connect-card";
 import { YoutubeVideoTable, type YoutubeVideoRow } from "./youtube-video-table";
 import { YoutubeAiAnalysisCard } from "./youtube-ai-analysis-card";
@@ -30,6 +31,8 @@ export function SocialMediaPanel() {
   const [videos, setVideos] = useState<YoutubeVideoRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const loadStatus = useCallback(async () => {
     const res = await fetch("/api/marketing/youtube/status", { credentials: "same-origin" });
@@ -69,6 +72,22 @@ export function SocialMediaPanel() {
     }
   }
 
+  async function disconnect() {
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/auth/youtube/disconnect", { method: "POST", credentials: "same-origin" });
+      if (!res.ok) { toast.error("Failed to disconnect"); return; }
+      toast.success("YouTube disconnected");
+      setConfirmOpen(false);
+      setVideos([]);
+      await loadStatus();
+    } catch {
+      toast.error("Failed to disconnect — check your connection");
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
   if (loading) {
     return <div className="rounded-xl p-8 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>Loading…</div>;
   }
@@ -90,19 +109,39 @@ export function SocialMediaPanel() {
             <p className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>Last synced {timeAgo(status.lastSyncedAt)}</p>
           </div>
         </div>
-        <button
-          onClick={() => void syncNow()}
-          disabled={syncing}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-60"
-          style={{ background: "var(--navy)" }}
-        >
-          {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          {syncing ? "Syncing…" : "Sync Now"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void syncNow()}
+            disabled={syncing}
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-60"
+            style={{ background: "var(--navy)" }}
+          >
+            {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {syncing ? "Syncing…" : "Sync Now"}
+          </button>
+          <button
+            onClick={() => setConfirmOpen(true)}
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg text-[13px] font-semibold"
+            style={{ color: "var(--clr-red)", border: "1px solid var(--line)" }}
+          >
+            <Unlink className="w-4 h-4" /> Disconnect
+          </button>
+        </div>
       </div>
 
       <YoutubeAiAnalysisCard />
       <YoutubeVideoTable videos={videos} />
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Disconnect ${status.channelTitle}?`}
+        description="This removes the connection (previously-synced video data stays cached but hidden until reconnected). Reconnecting means going through Google's consent screen again."
+        confirmLabel="Disconnect"
+        destructive
+        loading={disconnecting}
+        onConfirm={disconnect}
+      />
     </div>
   );
 }

@@ -19,7 +19,9 @@ export const GET = withAuth(async (req: NextRequest) => {
   const scope = searchParams.get("scope");
   const projectId = searchParams.get("project_id");
   const force = searchParams.get("force") === "1";
-  if (scope !== "tasks" && scope !== "dashboard") return ApiError.badRequest("scope must be 'tasks' or 'dashboard'");
+  if (scope !== "tasks" && scope !== "dashboard" && scope !== "marketing_youtube") {
+    return ApiError.badRequest("scope must be 'tasks', 'dashboard', or 'marketing_youtube'");
+  }
   if (projectId && !isValidUUID(projectId)) return ApiError.badRequest("Invalid project_id");
 
   const supabase = await createClient();
@@ -57,7 +59,9 @@ export const GET = withAuth(async (req: NextRequest) => {
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function generateInsight(supabase: any, scope: "tasks" | "dashboard", projectId: string | null): Promise<string> {
+async function generateInsight(supabase: any, scope: "tasks" | "dashboard" | "marketing_youtube", projectId: string | null): Promise<string> {
+  if (scope === "marketing_youtube") return generateYoutubeInsight(supabase);
+
   const [tasks, stats, projects] = await Promise.all([getAllTasks(supabase), getTaskStats(supabase), getProjects(supabase)]);
   const scoped = projectId ? tasks.filter((t) => t.project_id === projectId) : tasks;
 
@@ -89,6 +93,61 @@ async function generateInsight(supabase: any, scope: "tasks" | "dashboard", proj
     return result.text?.trim() || "Nothing notable to report right now.";
   } catch (err) {
     console.error("[ai/insights] generateInsight failed", err);
+    return "Insights are temporarily unavailable.";
+  }
+}
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function generateYoutubeInsight(supabase: any): Promise<string> {
+  const { data: videos } = await supabase
+    .from("youtube_videos")
+    .select("title, published_at, tags, category_name, views, likes, comments, shares, impressions, impressions_ctr")
+    .order("views", { ascending: false, nullsFirst: false });
+
+  if (!videos || videos.length === 0) {
+    return "No videos synced yet — click Sync Now once YouTube is connected.";
+  }
+
+  // Capped rather than sent in full — a channel with thousands of uploads
+  // would otherwise blow up the prompt for no real gain; sorted by views
+  // first (already done in the query above) so the cap keeps the videos
+  // that actually matter for "what's working", at some cost to full
+  // historical time-of-day coverage for very large channels.
+  type VideoRow = {
+    title: string; published_at: string; tags: string[] | null; category_name: string | null;
+    views: number | null; likes: number | null; comments: number | null; shares: number | null;
+    impressions: number | null; impressions_ctr: number | null;
+  };
+  const capped = (videos as VideoRow[]).slice(0, 200).map((v) => {
+    const published = new Date(v.published_at);
+    return {
+      title: v.title.slice(0, 80),
+      published_day: DAY_NAMES[published.getUTCDay()],
+      published_hour_utc: published.getUTCHours(),
+      category: v.category_name,
+      tags: (v.tags ?? []).slice(0, 5),
+      views: v.views, likes: v.likes, comments: v.comments, shares: v.shares,
+      impressions: v.impressions, impressions_ctr: v.impressions_ctr,
+    };
+  });
+
+  const prompt = `Here is per-video YouTube performance data as JSON (published_hour_utc is the hour of day, 0-23, UTC). Write a structured plain-text analysis with exactly these three labeled sections:
+
+Top themes: which topics/subjects (based on titles/tags/category) are performing best, with 1-2 concrete examples.
+Best format: what type/style of video (based on category/title patterns) is outperforming the rest, if a pattern is visible.
+Best time to post: which day(s) of the week and time of day (UTC) correlate with the strongest views/engagement, based on published_day/published_hour_utc versus views/likes/comments.
+
+If the data is too sparse or inconsistent for a confident claim in any section, say so plainly in that section instead of guessing. No markdown headers/bullets — plain sentences under each label.`;
+
+  try {
+    const result = await generateContent({
+      contents: [{ role: "user", parts: [{ text: `${prompt}\n\n${JSON.stringify(capped)}` }] }],
+    });
+    return result.text?.trim() || "Nothing notable to report right now.";
+  } catch (err) {
+    console.error("[ai/insights] generateYoutubeInsight failed", err);
     return "Insights are temporarily unavailable.";
   }
 }

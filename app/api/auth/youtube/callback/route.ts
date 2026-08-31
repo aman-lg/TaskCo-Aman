@@ -69,6 +69,10 @@ export async function GET(req: NextRequest) {
     return res;
   } catch (err) {
     console.error("[youtube/callback]", err);
-    return redirectTo("/marketing?error=connect_failed");
+    // TEMP DEBUG — reverting right after diagnosing the connect_failed
+    // report (see chat). No Vercel log access from here, same approach used
+    // earlier for the Gemini ai-reply issue.
+    const message = err instanceof Error ? err.message : String(err);
+    return redirectTo(`/marketing?error=${encodeURIComponent(message.slice(0, 300))}`);
   }
 }

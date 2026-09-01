@@ -20,7 +20,14 @@ export async function getMyChannel(accessToken: string): Promise<YoutubeChannel 
   if (!res.ok) throw new Error(`YouTube channels.list failed (${res.status}): ${await res.text()}`);
   const json = await res.json();
   const channel = json.items?.[0];
-  if (!channel) return null;
+  if (!channel) {
+    // TEMP DEBUG — surfaces the raw response instead of a bare null so the
+    // callback's existing error-message passthrough shows exactly what
+    // Google returned (see chat: diagnosing "no_channel_found" when the
+    // user says the account does have a channel — likely mine=true not
+    // resolving to a Brand Account channel the login only *manages*).
+    throw new Error(`channels.list?mine=true returned no items. Raw: ${JSON.stringify(json).slice(0, 500)}`);
+  }
   return {
     channelId: channel.id,
     title: channel.snippet?.title ?? "Untitled channel",

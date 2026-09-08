@@ -62,7 +62,15 @@ export function SocialMediaPanel() {
       const res = await fetch("/api/marketing/youtube/sync", { method: "POST", credentials: "same-origin" });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) { toast.error(json?.error?.message ?? "Sync failed"); return; }
-      toast.success(`Synced ${json.data.synced_count} videos`);
+      if (json.data.synced_count === 0 && json.data.debug_channel_id) {
+        // TEMP DEBUG — see sync/route.ts
+        toast.message(
+          `0 synced. Channel: "${json.data.debug_channel_title}" (${json.data.debug_channel_id}), uploads playlist: ${json.data.debug_uploads_playlist_id}`,
+          { duration: 20000 }
+        );
+      } else {
+        toast.success(`Synced ${json.data.synced_count} videos`);
+      }
       await loadStatus();
       await loadVideos();
     } catch {

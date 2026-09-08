@@ -21,7 +21,17 @@ export const POST = withAdmin(async () => {
 
   const videoIds = await listUploadsVideoIds(accessToken, channel.uploadsPlaylistId);
   if (videoIds.length === 0) {
-    return ok({ synced_count: 0, synced_at: new Date().toISOString() });
+    // TEMP DEBUG — diagnosing a real "0 videos synced" report. Surfacing
+    // which channel/playlist the token actually resolved to (not an error,
+    // just extra fields on a successful response) so this is visible in the
+    // browser without server-log access. Revert once diagnosed (see chat).
+    return ok({
+      synced_count: 0,
+      synced_at: new Date().toISOString(),
+      debug_channel_id: channel.channelId,
+      debug_channel_title: channel.title,
+      debug_uploads_playlist_id: channel.uploadsPlaylistId,
+    });
   }
 
   const [metadata, analytics] = await Promise.all([

@@ -34,7 +34,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
     .select("id, entity_type, entity_id, metadata, created_at")
     .eq("actor_id", requestedUserId)
     .eq("action", "status_changed")
-    .in("entity_type", ["tasks", "projects"])
+    .in("entity_type", ["task", "project"])
     .gte("created_at", startUtc)
     .lt("created_at", endUtc)
     .order("created_at", { ascending: true });
@@ -42,8 +42,8 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
   if (error) { console.error("[worklog/activity-summary]", error); return ApiError.internal(); }
 
   const rows = events ?? [];
-  const taskIds = rows.filter((r: { entity_type: string }) => r.entity_type === "tasks").map((r: { entity_id: string }) => r.entity_id);
-  const projectIds = rows.filter((r: { entity_type: string }) => r.entity_type === "projects").map((r: { entity_id: string }) => r.entity_id);
+  const taskIds = rows.filter((r: { entity_type: string }) => r.entity_type === "task").map((r: { entity_id: string }) => r.entity_id);
+  const projectIds = rows.filter((r: { entity_type: string }) => r.entity_type === "project").map((r: { entity_id: string }) => r.entity_id);
 
   const [{ data: tasks }, { data: projects }] = await Promise.all([
     taskIds.length
@@ -60,7 +60,7 @@ export const GET = withAuth(async (req: NextRequest, { user }) => {
     id: r.id,
     entityType: r.entity_type,
     title:
-      r.entity_type === "tasks"
+      r.entity_type === "task"
         ? taskNames.get(r.entity_id) ?? "(deleted task)"
         : projectTitles.get(r.entity_id) ?? "(deleted project)",
     from: r.metadata?.from ?? null,

@@ -5,7 +5,7 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 
 ## Folder map
 - `app/` — Next.js routes: `(auth)/` auth pages · `(app)/` guarded app pages · `api/` route handlers · `auth/` Supabase callbacks
-- `components/` — `ui/` shadcn primitives · `layout/` sidebar/topbar · feature folders (projects, tasks, calendar, attendance, dashboard, notifications, profile, providers)
+- `components/` — `ui/` shadcn primitives · `layout/` sidebar/topbar · feature folders (projects, tasks, calendar, attendance, worklog, dashboard, notifications, profile, providers)
 - `lib/` — `supabase/` clients · `api/` response helpers + withAuth handler · `validations/` Zod schemas · `queries/` server data fns · `hooks/` client hooks · `utils/` IST dates, time format, cn
 - `types/` — `database.types.ts` (supabase gen output) · `index.ts`
 - `supabase/` — `migrations/` · `functions/` Edge Functions · `seed.sql`
@@ -21,6 +21,10 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 ## Authorization — RLS at the DB
 - Team tables (projects, tasks, activity): authenticated can SELECT; writes are owner/creator/assignee only.
 - Personal tables (attendance_sessions, calendar_events, notifications): owner-only for all operations.
+- `worklog_entries` (daily WFH/office/leave status): owner read/write, **plus admin read** — a narrow,
+  approved exception for presence/leave status specifically. `attendance_sessions` clock-in/out times stay
+  owner-only at the RLS layer (admins view those via the service-role client in `app/api/admin/users/[id]/route.ts`,
+  gated by `withAdmin()` at the API layer, not a DB policy).
 - `SUPABASE_SERVICE_ROLE_KEY` is server-only. Never prefix with `NEXT_PUBLIC_`.
 - File attachments (`project_files`, `task_files`): private storage buckets, visibility mirrors the parent row's own SELECT policy (project/task member, creator, or admin). Every read/write goes through the app's API routes — no direct client storage access.
 
@@ -47,7 +51,7 @@ Next.js 15 (App Router) + TypeScript · Supabase (Postgres + Auth) · `@supabase
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client. Never import `lib/supabase/admin` in `"use client"` files.
 - Never ship a table without RLS enabled.
 - Never commit `.env*` (`.env.example` is the only exception).
-- Never build anything in Out of Scope (v1): roles/permissions, manager attendance views, recurrence UI, multi-tenant, multi-checklist per task, mobile app, comments, realtime.
+- Never build anything in Out of Scope (v1): roles/permissions, manager clock-in/out time views (worklog presence/leave status is in scope — see Authorization above), recurrence UI, multi-tenant, multi-checklist per task, mobile app, comments, realtime.
 - Never use raw hex in components — only `var(--token-name)`.
 - Never sum task timer entries for "hours worked".
 

@@ -2,24 +2,12 @@ import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
-
-function getISTDateString() {
-  return new Date()
-    .toLocaleDateString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-    .split("/")
-    .reverse()
-    .join("-");
-}
+import { todayISTDateString } from "@/lib/utils/dates-ist";
 
 export const POST = withAuth(async (_req: NextRequest, { user }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = (await createClient()) as any;
-  const today = getISTDateString();
+  const today = todayISTDateString();
 
   // Find any open session for this user
   const { data: openSessions } = await db

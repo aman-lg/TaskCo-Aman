@@ -2,26 +2,14 @@ import { type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { withAuth } from "@/lib/api/handler";
 import { ok, ApiError } from "@/lib/api/response";
+import { todayISTDateString } from "@/lib/utils/dates-ist";
 
 type SessionRow = { id: string; check_in_at: string; check_out_at: string | null; ist_date: string };
-
-function getISTDateString() {
-  return new Date()
-    .toLocaleDateString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-    .split("/")
-    .reverse()
-    .join("-");
-}
 
 export const GET = withAuth(async (_req: NextRequest, { user }) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = (await createClient()) as any;
-  const today = getISTDateString();
+  const today = todayISTDateString();
 
   const { data, error } = await db
     .from("attendance_sessions")

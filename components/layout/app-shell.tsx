@@ -9,6 +9,7 @@ import { NavProgress } from "@/components/layout/nav-progress";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { useLogout } from "@/lib/hooks/use-logout";
 import { useAttendanceAutoStart } from "@/lib/hooks/use-attendance-auto-start";
+import { WorklogPromptBanner } from "@/components/worklog/worklog-prompt-banner";
 
 interface AppShellProfile {
   name: string | null;
@@ -79,6 +80,7 @@ export function AppShell({ children, profile }: AppShellProps) {
           ) : (
             <>
               <div className="md:hidden h-14 flex-shrink-0" />
+              <WorklogPromptBanner />
               <div className="px-4 py-6 md:px-10 md:py-8 max-w-[1200px] mx-auto w-full">{children}</div>
               <div className="md:hidden h-[calc(56px+env(safe-area-inset-bottom))] flex-shrink-0" />
             </>

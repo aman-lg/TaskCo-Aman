@@ -15,6 +15,21 @@ export function istDateString(utc: Date | string | number): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Today's IST calendar date string (YYYY-MM-DD) */
+export function todayISTDateString(): string {
+  return istDateString(new Date());
+}
+
+/** UTC ISO bounds [start, end) covering a given IST calendar date (YYYY-MM-DD) */
+export function istDayBoundsUtc(istDate: string): { startUtc: string; endUtc: string } {
+  const [y, m, d] = istDate.split("-").map(Number);
+  const dayStart = Date.UTC(y, m - 1, d) - IST_OFFSET_MS;
+  return {
+    startUtc: new Date(dayStart).toISOString(),
+    endUtc: new Date(dayStart + 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
 /** Format a UTC timestamp for display in IST (e.g. "27 Jun 2026, 10:30 AM IST") */
 export function formatIST(utc: Date | string | number): string {
   return new Date(utc).toLocaleString("en-IN", {

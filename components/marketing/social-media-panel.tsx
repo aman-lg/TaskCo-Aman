@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { YoutubeConnectCard } from "./youtube-connect-card";
 import { YoutubeVideoTable, type YoutubeVideoRow } from "./youtube-video-table";
 import { YoutubeAiAnalysisCard } from "./youtube-ai-analysis-card";
+import { YoutubeChannelPicker } from "./youtube-channel-picker";
 
 interface Status {
   connected: boolean;
@@ -118,6 +119,7 @@ export function SocialMediaPanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <YoutubeChannelPicker onSwitched={() => { void loadStatus(); void loadVideos(); }} />
           <button
             onClick={() => void syncNow()}
             disabled={syncing}

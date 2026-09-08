@@ -12,28 +12,52 @@ export interface YoutubeChannel {
   uploadsPlaylistId: string;
 }
 
-export async function getMyChannel(accessToken: string): Promise<YoutubeChannel | null> {
-  const params = new URLSearchParams({ part: "snippet,contentDetails", mine: "true" });
-  const res = await fetch(`${YOUTUBE_DATA_API}/channels?${params}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) throw new Error(`YouTube channels.list failed (${res.status}): ${await res.text()}`);
-  const json = await res.json();
-  const channel = json.items?.[0];
-  if (!channel) {
-    // TEMP DEBUG — surfaces the raw response instead of a bare null so the
-    // callback's existing error-message passthrough shows exactly what
-    // Google returned (see chat: diagnosing "no_channel_found" when the
-    // user says the account does have a channel — likely mine=true not
-    // resolving to a Brand Account channel the login only *manages*).
-    throw new Error(`channels.list?mine=true returned no items. Raw: ${JSON.stringify(json).slice(0, 500)}`);
-  }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toYoutubeChannel(channel: any): YoutubeChannel {
   return {
     channelId: channel.id,
     title: channel.snippet?.title ?? "Untitled channel",
     thumbnailUrl: channel.snippet?.thumbnails?.default?.url ?? null,
     uploadsPlaylistId: channel.contentDetails?.relatedPlaylists?.uploads,
   };
+}
+
+// Every channel this token's authorization actually resolves to — usually
+// exactly one, but a token can occasionally see more than one (e.g. an
+// account with its own personal channel plus a Brand Account it directly
+// manages). channels.list?mine=true is bound to whatever identity was
+// selected during Google's OAuth consent, so this can't reveal channels the
+// token was never authorized to see in the first place — that's a Google
+// account-permissions question, not something more API calls can work around.
+export async function listMyChannels(accessToken: string): Promise<YoutubeChannel[]> {
+  const params = new URLSearchParams({ part: "snippet,contentDetails", mine: "true" });
+  const res = await fetch(`${YOUTUBE_DATA_API}/channels?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`YouTube channels.list failed (${res.status}): ${await res.text()}`);
+  const json = await res.json();
+  return (json.items ?? []).map(toYoutubeChannel);
+}
+
+export async function getMyChannel(accessToken: string): Promise<YoutubeChannel | null> {
+  const channels = await listMyChannels(accessToken);
+  return channels[0] ?? null;
+}
+
+// Fetches one specific channel's public metadata by ID — used by the
+// channel-picker's "select" step to resolve the chosen candidate's uploads
+// playlist. Channel snippet/contentDetails are public data (no ownership
+// check needed here); the real gate is that per-video Analytics calls later
+// will simply come back empty for a channel this token doesn't actually own.
+export async function getChannelById(accessToken: string, channelId: string): Promise<YoutubeChannel | null> {
+  const params = new URLSearchParams({ part: "snippet,contentDetails", id: channelId });
+  const res = await fetch(`${YOUTUBE_DATA_API}/channels?${params}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`YouTube channels.list?id= failed (${res.status}): ${await res.text()}`);
+  const json = await res.json();
+  const channel = json.items?.[0];
+  return channel ? toYoutubeChannel(channel) : null;
 }
 
 // ─── Video list (paginated) ─────────────────────────────────────────────────

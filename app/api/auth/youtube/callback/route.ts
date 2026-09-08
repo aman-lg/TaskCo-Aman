@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
       channel_id: channel.channelId,
       channel_title: channel.title,
       channel_thumbnail_url: channel.thumbnailUrl,
+      uploads_playlist_id: channel.uploadsPlaylistId,
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       token_expiry: expiry,

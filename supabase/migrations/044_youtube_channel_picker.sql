@@ -1,0 +1,11 @@
+-- ─────────────────────────────────────────────
+-- Diagnosing a "0 videos synced" report: the connect flow blindly took
+-- channels.list?mine=true's first result with no way to see or pick from
+-- other candidates, and the sync route re-derived the channel from scratch
+-- on every run instead of trusting what was actually connected — so even a
+-- correct manual fix wouldn't have stuck. Persisting uploads_playlist_id
+-- lets sync() read the connection as-stored, and a new channel-picker
+-- (app/api/marketing/youtube/channels*) lets an admin explicitly choose
+-- among whatever channels the connected token can actually see.
+-- ─────────────────────────────────────────────
+alter table public.youtube_connections add column if not exists uploads_playlist_id text;

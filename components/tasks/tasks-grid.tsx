@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { X, Loader2, Table2, Paperclip, Search, Plus } from "lucide-react";
 import { useOrgUnits, type OrgUnit } from "@/lib/hooks/use-org-units";
 import { AssignedToPicker, MultiSelect, type AssignedToValue, ASSIGNED_TO_SELECT_STYLE } from "./assigned-to-picker";
-import { TaskFormDialog } from "./task-form-dialog";
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import type { TaskWithMeta, TaskFileMeta } from "@/lib/queries/tasks";
 
@@ -96,8 +95,12 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
   const [filterAssignerIds, setFilterAssignerIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [draftData, setDraftData] = useState<Map<string, DraftData>>(new Map());
+  // Rows added via "Create Task" — unlike the filter-checkbox-triggered
+  // drafts below (keyed by an already-known personId), these start with no
+  // assignee and carry their own picker, so they're a plain array with a
+  // synthetic key rather than a Map keyed by person.
+  const [manualDrafts, setManualDrafts] = useState<Array<{ key: string; personId: string } & DraftData>>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
   const [viewerFile, setViewerFile] = useState<{ url: string; name: string; mime: string | null } | null>(null);
 
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.title])), [projects]);
@@ -110,6 +113,12 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
 
   const unitIds = filters.subDeptIds.length > 0 ? filters.subDeptIds : filters.deptIds;
   const candidates = useMemo(() => unionMembers(units, unitIds), [units, unitIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Every person org-wide — a manually-added row (via "Create Task") isn't
+  // scoped to whatever department filter happens to be active, so its own
+  // assignee picker needs the full list, not just `candidates`.
+  const allPeople = useMemo(() => unionMembers(units, units.map((u) => u.id)), [units]);
+  const peopleById = useMemo(() => new Map(allPeople.map((p) => [p.user_id, p])), [allPeople]);
 
   // A user's "home" placement for display: prefer their sub-department
   // membership (and its parent as department); fall back to a direct
@@ -194,6 +203,23 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
     setFilters((prev) => ({ ...prev, personIds: prev.personIds.filter((id) => id !== personId) }));
   }
 
+  // "Create Task" adds one of these — a blank row right in the grid, same as
+  // the filter-triggered ones, except it carries its own assignee picker
+  // since nobody's been checked above yet. Assignment is optional here (a
+  // task can be created with nobody assigned), unlike the filter-triggered
+  // rows where the assignee is implied by which person was checked.
+  function addManualDraft() {
+    setManualDrafts((prev) => [...prev, { key: crypto.randomUUID(), personId: "", ...EMPTY_DRAFT(defaultDraftProject) }]);
+  }
+
+  function updateManualDraft(key: string, patch: Partial<{ personId: string } & DraftData>) {
+    setManualDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
+  }
+
+  function removeManualDraft(key: string) {
+    setManualDrafts((prev) => prev.filter((d) => d.key !== key));
+  }
+
   async function openAttachment(taskId: string, file: TaskFileMeta) {
     const res = await fetch(`/api/tasks/${taskId}/files/${file.id}`, { credentials: "same-origin" });
     const json = await res.json().catch(() => ({}));
@@ -205,7 +231,9 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
     dept: filters.deptIds.length === 1,
     subdept: filters.subDeptIds.length === 1,
     project: filterProjectIds.length === 1,
-    assignedTo: filters.personIds.length === 1,
+    // Also never hide it while a manual row is pending — that row's own
+    // assignee picker lives in this column and has nowhere else to render.
+    assignedTo: filters.personIds.length === 1 && manualDrafts.length === 0,
     urgency: filterUrgencies.length === 1,
     assignedBy: filterAssignerIds.length === 1,
     id: false,
@@ -220,8 +248,14 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
   const gridMinWidth = visibleColumns.reduce((sum, c) => sum + (c.width.includes("fr") ? 200 : parseInt(c.width, 10)), 32);
 
   async function handleSaveAll() {
-    if (draftPersonIds.length === 0) { toast.error("Check at least one person to create a task for"); return; }
-    const rows = draftPersonIds.map((personId) => ({ personId, ...(draftData.get(personId) ?? EMPTY_DRAFT(defaultDraftProject)) }));
+    // Two sources feed one save: rows implied by checking people above
+    // (always have a personId) and manually-added rows (personId optional —
+    // "" means create the task with nobody assigned yet).
+    const filterRows = draftPersonIds.map((personId) => ({ personId, ...(draftData.get(personId) ?? EMPTY_DRAFT(defaultDraftProject)) }));
+    const manualRows = manualDrafts.map(({ key: _key, ...rest }) => rest);
+    const rows = [...filterRows, ...manualRows];
+
+    if (rows.length === 0) { toast.error("Check a person above or add a row to create a task"); return; }
     if (rows.some((r) => !r.title.trim())) { toast.error("Every new row needs a Task Title"); return; }
     if (rows.some((r) => !r.projectId)) { toast.error("Every new row needs a Project"); return; }
 
@@ -249,15 +283,17 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
           continue;
         }
 
-        const assignRes = await fetch(`/api/tasks/${taskJson.data.id}/assignees`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ user_id: row.personId }),
-        });
-        if (!assignRes.ok) {
-          const assignJson = await assignRes.json().catch(() => ({}));
-          failures.push(`"${row.title}": task created but assigning failed (${assignJson?.error?.message ?? "unknown error"})`);
+        if (row.personId) {
+          const assignRes = await fetch(`/api/tasks/${taskJson.data.id}/assignees`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ user_id: row.personId }),
+          });
+          if (!assignRes.ok) {
+            const assignJson = await assignRes.json().catch(() => ({}));
+            failures.push(`"${row.title}": task created but assigning failed (${assignJson?.error?.message ?? "unknown error"})`);
+          }
         }
 
         if (row.file) {
@@ -281,6 +317,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
       if (createdTotal > 0) {
         toast.success(`Created ${createdTotal} task${createdTotal !== 1 ? "s" : ""}`);
         setFilters((prev) => ({ ...prev, personIds: [] }));
+        setManualDrafts([]);
         router.refresh();
       }
     } finally {
@@ -297,7 +334,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
     );
   }
 
-  const isEmpty = filteredTasks.length === 0 && draftPersonIds.length === 0;
+  const isEmpty = filteredTasks.length === 0 && draftPersonIds.length === 0 && manualDrafts.length === 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -322,7 +359,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
         </div>
         <button
           type="button"
-          onClick={() => setCreateOpen(true)}
+          onClick={addManualDraft}
           className="flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-bold text-white transition-colors duration-150 bg-[var(--navy)] hover:bg-[var(--navy-hover)] flex-shrink-0 w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" /> Create Task
@@ -388,6 +425,127 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                 <span />
               </div>
 
+              {/* Manual draft rows — added via "Create Task", no person checked above */}
+              {manualDrafts.map((data, idx) => {
+                const name = data.personId ? (peopleById.get(data.personId)?.profile.full_name ?? peopleById.get(data.personId)?.profile.email ?? "Unknown") : null;
+                return (
+                  <div
+                    key={`manual-${data.key}`}
+                    className="grid gap-2 px-4 py-2.5 items-center"
+                    style={{ gridTemplateColumns, borderTop: idx > 0 ? "1px solid var(--line-soft)" : undefined, background: "var(--accent-bg)" }}
+                  >
+                    {visibleColumns.map((c) => {
+                      switch (c.key) {
+                        case "project":
+                          return (
+                            <select
+                              key={c.key}
+                              value={data.projectId}
+                              onChange={(e) => updateManualDraft(data.key, { projectId: e.target.value })}
+                              className={cellSelectClass}
+                              style={ASSIGNED_TO_SELECT_STYLE}
+                            >
+                              <option value="">Choose…</option>
+                              {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                            </select>
+                          );
+                        case "assignedTo":
+                          return (
+                            <select
+                              key={c.key}
+                              value={data.personId}
+                              onChange={(e) => updateManualDraft(data.key, { personId: e.target.value })}
+                              className={cellSelectClass}
+                              style={ASSIGNED_TO_SELECT_STYLE}
+                            >
+                              <option value="">Unassigned</option>
+                              {allPeople.map((p) => (
+                                <option key={p.user_id} value={p.user_id}>{p.profile.full_name ?? p.profile.email}</option>
+                              ))}
+                            </select>
+                          );
+                        case "urgency":
+                          return (
+                            <select
+                              key={c.key}
+                              value={data.urgency}
+                              onChange={(e) => updateManualDraft(data.key, { urgency: e.target.value as Urgency })}
+                              className={cellSelectClass}
+                              style={ASSIGNED_TO_SELECT_STYLE}
+                            >
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                              <option value="urgent">Urgent</option>
+                            </select>
+                          );
+                        case "assignedBy":
+                          return <span key={c.key} className="text-[12.5px] truncate" style={{ color: "var(--text-muted)" }}>{currentUserName}</span>;
+                        case "id":
+                          return <span key={c.key} className="text-[12px]" style={{ color: "var(--text-fine)" }}>New</span>;
+                        case "title":
+                          return (
+                            <input
+                              key={c.key}
+                              value={data.title}
+                              onChange={(e) => updateManualDraft(data.key, { title: e.target.value })}
+                              placeholder="Task title"
+                              className={cellInputClass}
+                              style={ASSIGNED_TO_SELECT_STYLE}
+                            />
+                          );
+                        case "description":
+                          return (
+                            <input
+                              key={c.key}
+                              value={data.description}
+                              onChange={(e) => updateManualDraft(data.key, { description: e.target.value })}
+                              placeholder="Description (optional)"
+                              className={cellInputClass}
+                              style={ASSIGNED_TO_SELECT_STYLE}
+                            />
+                          );
+                        case "attachment":
+                          return (
+                            <div key={c.key} className="flex items-center gap-1">
+                              <label className={`${cellInputClass} flex items-center gap-1.5 cursor-pointer`} style={ASSIGNED_TO_SELECT_STYLE}>
+                                <input type="file" className="hidden" onChange={(e) => updateManualDraft(data.key, { file: e.target.files?.[0] ?? null })} />
+                                <Paperclip className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                                <span className="truncate" style={{ color: data.file ? "var(--ink)" : "var(--text-muted)" }}>
+                                  {data.file ? data.file.name : "Attach…"}
+                                </span>
+                              </label>
+                              {data.file && (
+                                <button type="button" onClick={() => updateManualDraft(data.key, { file: null })} style={{ color: "var(--text-muted)" }} aria-label="Remove attachment">
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        case "assignedDate":
+                          return <span key={c.key} className="text-[12px]" style={{ color: "var(--text-muted)" }}>Today</span>;
+                        case "deadline":
+                          return (
+                            <input
+                              key={c.key}
+                              type="datetime-local"
+                              value={data.deadline}
+                              onChange={(e) => updateManualDraft(data.key, { deadline: e.target.value })}
+                              className={cellInputClass}
+                              style={ASSIGNED_TO_SELECT_STYLE}
+                            />
+                          );
+                        default:
+                          return <span key={c.key} />;
+                      }
+                    })}
+                    <button type="button" onClick={() => removeManualDraft(data.key)} style={{ color: "var(--text-muted)" }} aria-label={`Remove ${name ?? "row"}`}>
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })}
+
               {/* Draft (new, unsaved) rows */}
               {draftPersonIds.map((personId, idx) => {
                 const person = candidates.find((c) => c.user_id === personId);
@@ -397,7 +555,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                   <div
                     key={`draft-${personId}`}
                     className="grid gap-2 px-4 py-2.5 items-center"
-                    style={{ gridTemplateColumns, borderTop: idx > 0 ? "1px solid var(--line-soft)" : undefined, background: "var(--accent-bg)" }}
+                    style={{ gridTemplateColumns, borderTop: idx > 0 || manualDrafts.length > 0 ? "1px solid var(--line-soft)" : undefined, background: "var(--accent-bg)" }}
                   >
                     {visibleColumns.map((c) => {
                       switch (c.key) {
@@ -509,7 +667,7 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
                     className="grid gap-2 px-4 py-2.5 items-center cursor-pointer transition-colors duration-100"
                     style={{
                       gridTemplateColumns,
-                      borderTop: idx > 0 || draftPersonIds.length > 0 ? "1px solid var(--line-soft)" : undefined,
+                      borderTop: idx > 0 || draftPersonIds.length > 0 || manualDrafts.length > 0 ? "1px solid var(--line-soft)" : undefined,
                     }}
                     onClick={() => router.push(`/projects/${task.project_id}`)}
                     onMouseEnter={(e) => (e.currentTarget.style.background = "var(--panel-bg)")}
@@ -624,15 +782,15 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
         >
           <Table2 className="h-6 w-6 mb-2" />
           <p className="text-[13px]">
-            {tasks.length === 0 ? "No tasks yet — pick a Department and check people above to create one." : "No tasks match these filters."}
+            {tasks.length === 0 ? "No tasks yet — check people above or click Create Task to add one." : "No tasks match these filters."}
           </p>
         </div>
       )}
 
-      {draftPersonIds.length > 0 && (
+      {(draftPersonIds.length > 0 || manualDrafts.length > 0) && (
         <div className="flex items-center justify-between">
           <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
-            {draftPersonIds.length} new task{draftPersonIds.length !== 1 ? "s" : ""} to create
+            {draftPersonIds.length + manualDrafts.length} new task{draftPersonIds.length + manualDrafts.length !== 1 ? "s" : ""} to create
           </p>
           <button
             type="button"
@@ -641,17 +799,10 @@ export function TasksGrid({ tasks, projects, currentUserName }: Props) {
             className="flex items-center gap-2 h-10 px-6 rounded-xl text-[13px] font-bold text-white bg-[var(--navy)] hover:bg-[var(--navy-hover)] disabled:opacity-50"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            Create {draftPersonIds.length} Task{draftPersonIds.length !== 1 ? "s" : ""}
+            Create {draftPersonIds.length + manualDrafts.length} Task{draftPersonIds.length + manualDrafts.length !== 1 ? "s" : ""}
           </button>
         </div>
       )}
-
-      <TaskFormDialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        projectId={projects[0]?.id ?? ""}
-        projects={projects}
-      />
 
       {viewerFile && (
         <DocumentViewer

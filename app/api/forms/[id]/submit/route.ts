@@ -82,7 +82,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   if (!parsed.success) return ApiError.badRequest(parsed.error.issues[0].message);
 
   // Logged-in fillers' identity always comes from their own profile — never
-  // from client-sent fields — so a submission can't be spoofed as someone else.
+  // from client-sent fields — so a submission can't be spoofed as someone
+  // else. The no-login path is the only one that actually needs these from
+  // the client, so that's the only path that validates them.
   let fillerName = parsed.data.filler_name;
   let fillerEmail = parsed.data.filler_email;
   let fillerPhone = parsed.data.filler_phone ?? null;
@@ -92,6 +94,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     fillerName = profile?.full_name || fillerName;
     fillerEmail = profile?.email || fillerEmail;
     fillerPhone = profile?.phone ?? fillerPhone;
+  } else {
+    if (!fillerName?.trim()) return ApiError.badRequest("Name is required");
+    if (!fillerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fillerEmail)) return ApiError.badRequest("A valid email is required");
   }
 
   let subjectUserId: string | null = null;
@@ -143,9 +148,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   const activeQuestions = allQuestions.filter((q) =>
+    q.cadence === null ||
     (cadence !== null && q.cadence === cadence) ||
-    (q.cadence === "one_time" && !answeredOneTimeIds.has(q.id)) ||
-    (cadence === null && q.cadence === null)
+    (q.cadence === "one_time" && !answeredOneTimeIds.has(q.id))
   );
 
   const answerByQuestionId = new Map(parsed.data.answers.map((a) => [a.question_id, a]));

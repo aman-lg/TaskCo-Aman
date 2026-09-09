@@ -64,11 +64,16 @@ export const submitAnswerSchema = z.object({
   file: uploadedFileRefSchema.optional().nullable(),
 });
 
+// filler_name/filler_email are NOT required here even though every response
+// ends up with them — for a logged-in filler they're overridden from their
+// profile server-side, so the client never even collects them; only the
+// no-login path actually needs the "is it present and well-formed" check,
+// enforced in the submit route itself once it knows whether a user is present.
 export const submitResponseSchema = z.object({
   subject_user_id: z.string().uuid().optional().nullable(),
   cadence: formCadenceSchema.optional().nullable(),
-  filler_name: z.string().min(1, "Name is required").max(150, "Max 150 characters"),
-  filler_email: z.string().email("Invalid email"),
+  filler_name: z.string().max(150, "Max 150 characters").optional(),
+  filler_email: z.string().max(255, "Max 255 characters").optional(),
   filler_phone: z.string().max(30, "Max 30 characters").optional().nullable(),
   answers: z.array(submitAnswerSchema).max(200),
 });

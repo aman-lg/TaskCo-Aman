@@ -14,8 +14,12 @@ const PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-passwor
 // a logged-in visitor away. An auth page redirecting an already-logged-in
 // user to /dashboard makes sense; a status page doing that wouldn't (you
 // might check it specifically because you're logged in and something looks
-// broken).
-const ALWAYS_PUBLIC_PATHS = ["/status"];
+// broken). /form belongs here too, not in PUBLIC_PATHS: a requires_login
+// form is specifically meant to be filled by an authenticated user, so
+// bouncing them to /dashboard the way PUBLIC_PATHS does for /login would
+// break the login-required case entirely. Each form's own requires_login
+// flag is enforced by app/form/[slug]/page.tsx itself, not this middleware.
+const ALWAYS_PUBLIC_PATHS = ["/status", "/form"];
 const AUTH_CALLBACK_PATHS = ["/auth/callback", "/auth/confirm"];
 
 export async function proxy(request: NextRequest) {

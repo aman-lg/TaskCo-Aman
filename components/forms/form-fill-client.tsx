@@ -74,11 +74,11 @@ export function FormFillClient({ form, questions }: { form: FormDef; questions: 
 
   const activeQuestions = useMemo(() => {
     return questions.filter((q) =>
+      q.cadence === null ||
       (cadence && q.cadence === cadence) ||
-      (q.cadence === "one_time" && !answeredOneTimeThisSession.has(q.id)) ||
-      (cadenceTabs.length === 0 && q.cadence === null)
+      (q.cadence === "one_time" && !answeredOneTimeThisSession.has(q.id))
     );
-  }, [questions, cadence, cadenceTabs, answeredOneTimeThisSession]);
+  }, [questions, cadence, answeredOneTimeThisSession]);
 
   function updateAnswer(questionId: string, patch: Partial<AnswerState>) {
     setAnswers((prev) => ({ ...prev, [questionId]: { ...prev[questionId], ...patch } }));

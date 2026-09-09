@@ -58,9 +58,10 @@ interface Props {
   deadlineDates: { date: string; done: boolean }[];
   projects: { id: string; title: string; color: string | null }[];
   todayTasks: TodayTask[];
+  insightsCard?: React.ReactNode;
 }
 
-export function DashboardClient({ firstName, projectStats, taskStats, deadlineDates, projects, todayTasks }: Props) {
+export function DashboardClient({ firstName, projectStats, taskStats, deadlineDates, projects, todayTasks, insightsCard }: Props) {
   const router = useRouter();
   const today = new Date();
   const quote = QUOTES[today.getDate() % QUOTES.length];
@@ -241,6 +242,8 @@ export function DashboardClient({ firstName, projectStats, taskStats, deadlineDa
         </div>
         <AttendanceTimer />
       </div>
+
+      {insightsCard && <div className="col-span-2 md:col-span-4">{insightsCard}</div>}
 
       {/* ── Stat cards ── */}
       <StatCard icon={<Folder className="h-5 w-5" />} label="Active Projects"

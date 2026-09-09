@@ -32,9 +32,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <AiInsightsCard scope="dashboard" title="Tasko's take" />
       <DashboardClient
         firstName={firstName}
+        insightsCard={<AiInsightsCard scope="dashboard" title="Tasko's take" />}
         projectStats={{
           active: projects.filter((p) => p.status === "active").length,
           total: projects.length,

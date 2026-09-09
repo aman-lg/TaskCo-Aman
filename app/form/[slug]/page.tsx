@@ -27,7 +27,7 @@ export default async function FormFillPage({ params }: PageProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: questions } = await (admin as any)
     .from("form_questions")
-    .select("id, position, label, question_type, config, is_required, cadence")
+    .select("id, position, label, question_type, config, is_required, cadence, page_break_before")
     .eq("form_id", form.id)
     .order("position", { ascending: true });
 

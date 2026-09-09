@@ -13,6 +13,14 @@ export const GET = withAdmin(async (_req: NextRequest, { params }) => {
   const admin = createAdminClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: questions, error: qErr } = await (admin as any)
+    .from("form_questions")
+    .select("id, label, question_type, position")
+    .eq("form_id", formId)
+    .order("position", { ascending: true });
+  if (qErr) { console.error("[forms/[id]/responses GET questions]", qErr); return ApiError.internal(); }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: responses, error } = await (admin as any)
     .from("form_responses")
     .select("id, subject_user_id, cadence, period_key, filler_name, filler_email, filler_phone, submitted_at, subject:profiles!subject_user_id(full_name)")
@@ -22,12 +30,12 @@ export const GET = withAdmin(async (_req: NextRequest, { params }) => {
   if (error) { console.error("[forms/[id]/responses GET]", error); return ApiError.internal(); }
 
   const responseIds = ((responses ?? []) as { id: string }[]).map((r) => r.id);
-  if (responseIds.length === 0) return ok([]);
+  if (responseIds.length === 0) return ok({ questions: questions ?? [], responses: [] });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: answers } = await (admin as any)
     .from("form_answers")
-    .select("id, response_id, question_id, value_text, value_number, value_options, file_name, question:form_questions!question_id(label, question_type)")
+    .select("id, response_id, question_id, value_text, value_number, value_options, file_name")
     .in("response_id", responseIds);
 
   const answersByResponse = new Map<string, unknown[]>();
@@ -42,5 +50,5 @@ export const GET = withAdmin(async (_req: NextRequest, { params }) => {
     answers: answersByResponse.get(r.id) ?? [],
   }));
 
-  return ok(result);
+  return ok({ questions: questions ?? [], responses: result });
 });

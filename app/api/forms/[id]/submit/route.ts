@@ -13,7 +13,7 @@ type PeriodCadence = "weekly" | "monthly" | "quarterly";
 interface QuestionRow {
   id: string;
   label: string;
-  question_type: "text" | "numeric" | "single_select" | "multi_select" | "rating" | "upload";
+  question_type: "text" | "long_text" | "numeric" | "single_select" | "multi_select" | "rating" | "upload";
   config: { options?: string[]; min?: number; max?: number; max_size_mb?: number; allowed_mime?: string[] };
   is_required: boolean;
   cadence: Cadence | null;
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     return {
       response_id: responseId,
       question_id: q.id,
-      value_text: q.question_type === "text" ? (a?.value_text ?? null) : null,
+      value_text: (q.question_type === "text" || q.question_type === "long_text") ? (a?.value_text ?? null) : null,
       value_number: (q.question_type === "numeric" || q.question_type === "rating") ? (a?.value_number ?? null) : null,
       value_options: (q.question_type === "single_select" || q.question_type === "multi_select") ? (a?.value_options ?? null) : null,
       file_storage_path: q.question_type === "upload" ? (a?.file?.file_storage_path ?? null) : null,

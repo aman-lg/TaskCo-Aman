@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const formQuestionTypeSchema = z.enum(["text", "numeric", "single_select", "multi_select", "rating", "upload"]);
+export const formQuestionTypeSchema = z.enum(["text", "long_text", "numeric", "single_select", "multi_select", "rating", "upload"]);
 export const formCadenceSchema = z.enum(["one_time", "weekly", "monthly", "quarterly"]);
 
 export const createFormSchema = z.object({
@@ -38,6 +38,7 @@ export const createQuestionSchema = z.object({
   config: questionConfigSchema.default({}),
   is_required: z.boolean().default(true),
   cadence: formCadenceSchema.optional().nullable(),
+  page_break_before: z.boolean().default(false),
 });
 
 export const updateQuestionSchema = z.object({
@@ -46,6 +47,7 @@ export const updateQuestionSchema = z.object({
   config: questionConfigSchema.optional(),
   is_required: z.boolean().optional(),
   cadence: formCadenceSchema.optional().nullable(),
+  page_break_before: z.boolean().optional(),
   position: z.number().int().optional(),
 });
 

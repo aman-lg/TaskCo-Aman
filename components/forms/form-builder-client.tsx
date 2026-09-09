@@ -143,7 +143,15 @@ export function FormBuilderClient({ form: initialForm, initialQuestions }: { for
         ) : (
           <ul className="flex flex-col gap-1">
             {questions.map((q, i) => (
-              <li key={q.id} className="flex items-center gap-2 py-2.5 border-t first:border-t-0" style={{ borderColor: "var(--line)" }}>
+              <li key={q.id}>
+                {q.page_break_before && i > 0 && (
+                  <div className="flex items-center gap-2 py-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--navy)" }}>
+                    <div className="flex-1 h-px" style={{ background: "var(--navy-l)" }} />
+                    Page break
+                    <div className="flex-1 h-px" style={{ background: "var(--navy-l)" }} />
+                  </div>
+                )}
+                <div className="flex items-center gap-2 py-2.5 border-t first:border-t-0" style={{ borderColor: "var(--line)" }}>
                 <div className="flex flex-col">
                   <button onClick={() => void moveQuestion(i, -1)} disabled={i === 0} className="disabled:opacity-30" style={{ color: "var(--text-muted)" }}><ChevronUp className="w-3.5 h-3.5" /></button>
                   <button onClick={() => void moveQuestion(i, 1)} disabled={i === questions.length - 1} className="disabled:opacity-30" style={{ color: "var(--text-muted)" }}><ChevronDown className="w-3.5 h-3.5" /></button>
@@ -163,6 +171,7 @@ export function FormBuilderClient({ form: initialForm, initialQuestions }: { for
                 </div>
                 <button onClick={() => { setEditing(q); setEditorOpen(true); }} className="w-8 h-8 flex items-center justify-center rounded-lg" style={{ color: "var(--text-muted)" }}><Pencil className="w-4 h-4" /></button>
                 <button onClick={() => setDeleteTarget(q)} className="w-8 h-8 flex items-center justify-center rounded-lg" style={{ color: "var(--clr-red)" }}><Trash2 className="w-4 h-4" /></button>
+                </div>
               </li>
             ))}
           </ul>

@@ -41,6 +41,7 @@ export const POST = withAdmin(async (req: NextRequest, { params }) => {
       config: parsed.data.config,
       is_required: parsed.data.is_required,
       cadence: parsed.data.cadence ?? null,
+      page_break_before: parsed.data.page_break_before,
     })
     .select("*")
     .single();

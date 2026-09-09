@@ -5,7 +5,7 @@ import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-export type QuestionType = "text" | "numeric" | "single_select" | "multi_select" | "rating" | "upload";
+export type QuestionType = "text" | "long_text" | "numeric" | "single_select" | "multi_select" | "rating" | "upload";
 export type Cadence = "one_time" | "weekly" | "monthly" | "quarterly";
 
 export interface QuestionConfig {
@@ -22,17 +22,18 @@ export interface QuestionDraft {
   config: QuestionConfig;
   is_required: boolean;
   cadence: Cadence | null;
+  page_break_before: boolean;
 }
 
 export const TYPE_LABEL: Record<QuestionType, string> = {
-  text: "Text", numeric: "Numeric", single_select: "Single-select", multi_select: "Multi-select",
+  text: "Short answer", long_text: "Paragraph", numeric: "Numeric", single_select: "Single-select", multi_select: "Multi-select",
   rating: "Rating (1-5)", upload: "File upload",
 };
 const CADENCE_LABEL: Record<Cadence, string> = {
   one_time: "One-time", weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly",
 };
 
-const EMPTY_DRAFT: QuestionDraft = { label: "", question_type: "text", config: {}, is_required: true, cadence: null };
+const EMPTY_DRAFT: QuestionDraft = { label: "", question_type: "text", config: {}, is_required: true, cadence: null, page_break_before: false };
 
 export function FormQuestionEditor({
   open, onOpenChange, initial, onSave,
@@ -150,6 +151,11 @@ export function FormQuestionEditor({
           <label className="flex items-center gap-2 text-[13px]" style={{ color: "var(--text-secondary)" }}>
             <input type="checkbox" checked={draft.is_required} onChange={(e) => setDraft((d) => ({ ...d, is_required: e.target.checked }))} />
             Required
+          </label>
+
+          <label className="flex items-center gap-2 text-[13px]" style={{ color: "var(--text-secondary)" }}>
+            <input type="checkbox" checked={draft.page_break_before} onChange={(e) => setDraft((d) => ({ ...d, page_break_before: e.target.checked }))} />
+            Start a new page before this question
           </label>
         </div>
         <DialogFooter>

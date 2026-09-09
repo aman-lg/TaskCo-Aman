@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, Clock, ChevronLeft, ChevronRight,
-  User, Video, LogOut, Loader2, Settings, ShieldCheck, MessageSquare, Search, Network, ListTodo, Megaphone,
+  User, Video, LogOut, Loader2, Settings, ShieldCheck, MessageSquare, Search, Network, ListTodo, Megaphone, ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChatUnread } from "@/lib/hooks/use-chat-unread";
@@ -75,6 +75,7 @@ export function Sidebar({
   const navItems = [
     ...NAV_ITEMS,
     ...(isAdmin ? [{ href: "/marketing", label: "Marketing", icon: Megaphone }] : []),
+    ...(isAdmin ? [{ href: "/forms", label: "Forms", icon: ClipboardList }] : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
 

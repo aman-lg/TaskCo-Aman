@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Video, Clock, Network, Settings, User, LogOut, ShieldCheck, Loader2, Megaphone } from "lucide-react";
+import { Video, Clock, Network, Settings, User, LogOut, ShieldCheck, Loader2, Megaphone, ClipboardList } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import {
@@ -70,6 +70,11 @@ export function MobileTopBar({ profile, isAdmin = false, onSignOut, isSigningOut
             {isAdmin && (
               <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/marketing")}>
                 <Megaphone className="h-4 w-4" /> Marketing
+              </DropdownMenuItem>
+            )}
+            {isAdmin && (
+              <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onClick={() => router.push("/forms")}>
+                <ClipboardList className="h-4 w-4" /> Forms
               </DropdownMenuItem>
             )}
             {isAdmin && (

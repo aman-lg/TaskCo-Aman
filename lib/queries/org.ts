@@ -112,3 +112,36 @@ export async function getUsersInUnitTree(
   }
   return Array.from(byId.values());
 }
+
+// Everyone in a unit where userId holds 'lead' or 'facilitator' — same
+// self-join shape as is_dept_lead_of() (030_roles_and_department_permissions.sql),
+// just "list them all" instead of a per-row predicate. Powers the form
+// builder's rating-subject picker: which employees can this captain rate.
+// Excludes the leader themselves — you rate your team, not yourself.
+export async function getMyLedUnitMembers(
+  supabase: Client,
+  userId: string
+): Promise<{ id: string; full_name: string | null; avatar_url: string | null }[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: ledUnits } = await (supabase as any)
+    .from("org_unit_members")
+    .select("unit_id")
+    .eq("user_id", userId)
+    .in("unit_role", ["lead", "facilitator"]);
+
+  const unitIds = Array.from(new Set((ledUnits ?? []).map((u: { unit_id: string }) => u.unit_id)));
+  if (unitIds.length === 0) return [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: members } = await (supabase as any)
+    .from("org_unit_members")
+    .select("user_id, profile:profiles!user_id(id, full_name, avatar_url)")
+    .in("unit_id", unitIds);
+
+  type Row = { user_id: string; profile: { id: string; full_name: string | null; avatar_url: string | null } | null };
+  const byId = new Map<string, { id: string; full_name: string | null; avatar_url: string | null }>();
+  for (const m of (members ?? []) as Row[]) {
+    if (m.profile && m.user_id !== userId) byId.set(m.profile.id, m.profile);
+  }
+  return Array.from(byId.values());
+}

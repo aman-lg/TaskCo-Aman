@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -23,7 +24,7 @@ export interface QuestionDraft {
   cadence: Cadence | null;
 }
 
-const TYPE_LABEL: Record<QuestionType, string> = {
+export const TYPE_LABEL: Record<QuestionType, string> = {
   text: "Text", numeric: "Numeric", single_select: "Single-select", multi_select: "Multi-select",
   rating: "Rating (1-5)", upload: "File upload",
 };
@@ -42,23 +43,35 @@ export function FormQuestionEditor({
   onSave: (draft: QuestionDraft) => Promise<boolean>;
 }) {
   const [draft, setDraft] = useState<QuestionDraft>(initial ?? EMPTY_DRAFT);
-  const [optionsText, setOptionsText] = useState((initial?.config.options ?? []).join("\n"));
+  const [options, setOptions] = useState<string[]>(
+    initial?.config.options && initial.config.options.length > 0 ? initial.config.options : ["", ""]
+  );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setDraft(initial ?? EMPTY_DRAFT);
-      setOptionsText((initial?.config.options ?? []).join("\n"));
+      setOptions(initial?.config.options && initial.config.options.length > 0 ? initial.config.options : ["", ""]);
     }
   }, [open, initial]);
 
   const needsOptions = draft.question_type === "single_select" || draft.question_type === "multi_select";
 
+  function updateOption(index: number, value: string) {
+    setOptions((prev) => prev.map((o, i) => (i === index ? value : o)));
+  }
+  function removeOption(index: number) {
+    setOptions((prev) => prev.filter((_, i) => i !== index));
+  }
+  function addOption() {
+    setOptions((prev) => [...prev, ""]);
+  }
+
   async function handleSave() {
     if (!draft.label.trim()) { toast.error("Label is required"); return; }
     const config: QuestionConfig = { ...draft.config };
     if (needsOptions) {
-      config.options = optionsText.split("\n").map((s) => s.trim()).filter(Boolean);
+      config.options = options.map((o) => o.trim()).filter(Boolean);
       if (config.options.length === 0) { toast.error("Add at least one option"); return; }
     }
     setSaving(true);
@@ -83,8 +96,30 @@ export function FormQuestionEditor({
           </select>
 
           {needsOptions && (
-            <textarea rows={3} placeholder="One option per line" value={optionsText} onChange={(e) => setOptionsText(e.target.value)}
-              className="px-3 py-2 rounded-lg text-[13.5px]" style={{ border: "1px solid var(--line)", background: "var(--page-bg)", color: "var(--ink)" }} />
+            <div className="flex flex-col gap-2">
+              <label className="text-[11.5px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Options</label>
+              {options.map((opt, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    value={opt}
+                    onChange={(e) => updateOption(i, e.target.value)}
+                    placeholder={`Option ${i + 1}`}
+                    className="h-9 px-3 rounded-lg text-[13.5px] flex-1"
+                    style={{ border: "1px solid var(--line)", background: "var(--page-bg)", color: "var(--ink)" }}
+                  />
+                  <button type="button" onClick={() => removeOption(i)} disabled={options.length <= 1}
+                    className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg disabled:opacity-30"
+                    style={{ color: "var(--clr-red)" }}>
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={addOption}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12.5px] font-semibold self-start"
+                style={{ border: "1px solid var(--line)", color: "var(--navy)" }}>
+                <Plus className="w-3.5 h-3.5" /> Add option
+              </button>
+            </div>
           )}
 
           {draft.question_type === "numeric" && (

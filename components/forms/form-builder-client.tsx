@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Pencil, Trash2, ChevronUp, ChevronDown, Plus, Copy, FileText, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { FormQuestionEditor, type QuestionDraft } from "./form-question-editor";
+import { FormQuestionEditor, TYPE_LABEL, type QuestionDraft } from "./form-question-editor";
 
 interface Question extends QuestionDraft {
   id: string;
@@ -151,8 +151,15 @@ export function FormBuilderClient({ form: initialForm, initialQuestions }: { for
                 <div className="flex-1 min-w-0">
                   <p className="text-[13.5px] font-medium truncate" style={{ color: "var(--ink)" }}>{q.label}{q.is_required && <span style={{ color: "var(--clr-red)" }}> *</span>}</p>
                   <p className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>
-                    {q.question_type}{q.cadence && ` · ${CADENCE_BADGE[q.cadence]}`}
+                    {TYPE_LABEL[q.question_type]}{q.cadence && ` · ${CADENCE_BADGE[q.cadence]}`}
                   </p>
+                  {(q.question_type === "single_select" || q.question_type === "multi_select") && q.config.options && q.config.options.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {q.config.options.map((opt) => (
+                        <span key={opt} className="text-[11px] px-2 py-0.5 rounded-md" style={{ background: "var(--page-bg)", color: "var(--text-secondary)" }}>{opt}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => { setEditing(q); setEditorOpen(true); }} className="w-8 h-8 flex items-center justify-center rounded-lg" style={{ color: "var(--text-muted)" }}><Pencil className="w-4 h-4" /></button>
                 <button onClick={() => setDeleteTarget(q)} className="w-8 h-8 flex items-center justify-center rounded-lg" style={{ color: "var(--clr-red)" }}><Trash2 className="w-4 h-4" /></button>
